@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Kasagi (top curved beam) -->
+  <path d="M0 32 Q50 16 100 32 L100 41 Q50 25 0 41 Z" fill="#C0392B"/>
+  <!-- Nuki (second horizontal beam) -->
+  <rect x="18" y="49" width="64" height="7" rx="1" fill="#C0392B"/>
+  <!-- Left post -->
+  <rect x="24" y="37" width="9" height="57" rx="1" fill="#C0392B"/>
+  <!-- Right post -->
+  <rect x="67" y="37" width="9" height="57" rx="1" fill="#C0392B"/>
+</svg>

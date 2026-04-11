@@ -16,7 +16,7 @@ Create focused, atomic commits following the Conventional Commits specification.
 
 **1. Check the branch first — before anything else.**
 
-Run `git branch --show-current`. If the branch is `main`, `beta`, or `prod`: stop immediately. Do not stage or commit anything. Tell the user they need a feature branch, suggest a name based on the changes, and offer to create it.
+Run `git branch --show-current`. If the branch is `main`, `beta`, or `prod`: do not stage or commit anything yet. Infer a branch name from the changes, create it with `git checkout -b <branch-name>`, and proceed.
 
 **2. Understand the current state.**
 
@@ -92,7 +92,7 @@ Breaking changes: append `!` after the type (`feat!:`) and/or add a `BREAKING CH
 
 ## Hard limits
 
-- Never commit to `main`, `beta`, or `prod` — refuse and ask user to switch branches
+- Never commit to `main`, `beta`, or `prod` — auto-create a feature branch instead
 - Never commit `.env`, credentials, or private keys
 - Never use `--force`, `--no-verify`, `--amend`, or `reset --hard` unless the user explicitly asks
 - Never update git config
