@@ -35,12 +35,14 @@ describe('DaySelector', () => {
 
   it('calls onSelectDate with the clicked date', async () => {
     const onSelectDate = vi.fn()
-    render(<DaySelector selectedDate='2026-05-16' onSelectDate={onSelectDate} />)
+    render(<DaySelector selectedDate="2026-05-16" onSelectDate={onSelectDate} />)
 
     // Click the button for May 17 (day number "17")
     const buttons = screen.getAllByRole('button')
     // Find the button containing "17" (May 17)
-    const may17Button = buttons.find((btn) => btn.textContent?.includes('17') && btn.textContent?.includes('Tokyo'))
+    const may17Button = buttons.find(
+      (btn) => btn.textContent?.includes('17') && btn.textContent?.includes('Tokyo')
+    )
     expect(may17Button).toBeDefined()
     await userEvent.click(may17Button!)
 
@@ -48,9 +50,11 @@ describe('DaySelector', () => {
   })
 
   it('applies selected styling to the active date', () => {
-    render(<DaySelector selectedDate='2026-05-20' onSelectDate={vi.fn()} />)
+    render(<DaySelector selectedDate="2026-05-20" onSelectDate={vi.fn()} />)
     const buttons = screen.getAllByRole('button')
-    const selected = buttons.find((btn) => btn.textContent?.includes('20') && btn.classList.contains('bg-primary'))
+    const selected = buttons.find(
+      (btn) => btn.textContent?.includes('20') && btn.classList.contains('bg-primary')
+    )
     expect(selected).toBeDefined()
   })
 })

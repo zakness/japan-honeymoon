@@ -61,7 +61,7 @@ export function DayItinerary({ dayDate, onSelectPlace }: DayItineraryProps) {
     // Determine target time slot: droppable slot zones have id "slot-morning" etc.
     const targetSlot = overId.startsWith('slot-')
       ? (overId.replace('slot-', '') as TimeSlot)
-      : (items.find((i) => i.id === overId)?.time_slot as TimeSlot) ?? 'morning'
+      : ((items.find((i) => i.id === overId)?.time_slot as TimeSlot) ?? 'morning')
 
     const currentItem = items.find((i) => i.id === activeId)
     if (!currentItem) return
@@ -118,7 +118,9 @@ export function DayItinerary({ dayDate, onSelectPlace }: DayItineraryProps) {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 rounded-lg" />)}
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-14 rounded-lg" />
+        ))}
       </div>
     )
   }

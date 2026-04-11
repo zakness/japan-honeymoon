@@ -10,15 +10,15 @@ A shared web app for planning a 2-week Japan honeymoon (May 15–30, 2026). No l
 
 ## Tech Stack
 
-| Layer | Library |
-|---|---|
-| Frontend | Vite + React 19 + TypeScript |
-| UI | Tailwind CSS v4 + shadcn/ui (`@base-ui/react`) |
-| Database | Supabase (Postgres) |
-| Maps | Google Maps JS API + Places API (New) via `@vis.gl/react-google-maps` |
-| Drag-and-drop | `@dnd-kit/core` + `@dnd-kit/sortable` |
-| Server state | TanStack Query v5 |
-| Deploy | Vercel |
+| Layer         | Library                                                               |
+| ------------- | --------------------------------------------------------------------- |
+| Frontend      | Vite + React 19 + TypeScript                                          |
+| UI            | Tailwind CSS v4 + shadcn/ui (`@base-ui/react`)                        |
+| Database      | Supabase (Postgres)                                                   |
+| Maps          | Google Maps JS API + Places API (New) via `@vis.gl/react-google-maps` |
+| Drag-and-drop | `@dnd-kit/core` + `@dnd-kit/sortable`                                 |
+| Server state  | TanStack Query v5                                                     |
+| Deploy        | Vercel                                                                |
 
 ## Local Setup
 
@@ -83,6 +83,7 @@ npm run test:watch  # watch mode
 ```
 
 Tests live in `src/test/`. The suite covers:
+
 - `trip.test.ts` — trip config (day count, city assignments, transit days, helper functions)
 - `utils.test.ts` — `cn()` Tailwind class merger
 - `PlaceForm.test.tsx` — PlaceForm component (create/edit modes, search/manual toggle, tags)

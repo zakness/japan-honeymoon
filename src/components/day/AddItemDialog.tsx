@@ -96,7 +96,9 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
               </SelectTrigger>
               <SelectContent>
                 {TIME_SLOTS.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -104,8 +106,12 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
 
           <Tabs value={tab} onValueChange={(v) => setTab(v as 'place' | 'note')}>
             <TabsList className="w-full">
-              <TabsTrigger value="place" className="flex-1">Add place</TabsTrigger>
-              <TabsTrigger value="note" className="flex-1">Add note</TabsTrigger>
+              <TabsTrigger value="place" className="flex-1">
+                Add place
+              </TabsTrigger>
+              <TabsTrigger value="note" className="flex-1">
+                Add note
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="place" className="space-y-3 mt-3">
@@ -125,7 +131,9 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
                         place={place}
                         compact
                         selected={selectedPlace?.id === place.id}
-                        onClick={() => setSelectedPlace(selectedPlace?.id === place.id ? null : place)}
+                        onClick={() =>
+                          setSelectedPlace(selectedPlace?.id === place.id ? null : place)
+                        }
                       />
                     ))}
                   </div>
@@ -134,7 +142,11 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
                     disabled={!selectedPlace || createItem.isPending}
                     onClick={handleAddPlace}
                   >
-                    {createItem.isPending ? 'Adding…' : selectedPlace ? `Add ${selectedPlace.name}` : 'Select a place above'}
+                    {createItem.isPending
+                      ? 'Adding…'
+                      : selectedPlace
+                        ? `Add ${selectedPlace.name}`
+                        : 'Select a place above'}
                   </Button>
                 </>
               )}

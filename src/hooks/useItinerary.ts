@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { ItineraryItemRow, ItineraryItemInsert, ItineraryItemUpdate, ItineraryItemWithPlace } from '@/types/itinerary'
+import type {
+  ItineraryItemRow,
+  ItineraryItemInsert,
+  ItineraryItemUpdate,
+  ItineraryItemWithPlace,
+} from '@/types/itinerary'
 
 const ITINERARY_KEY = ['itinerary'] as const
 const PLACES_KEY = ['places'] as const
@@ -38,10 +43,7 @@ export function useUnscheduledPlaces() {
       const scheduledIds = scheduled.map((r) => r.place_id).filter(Boolean) as string[]
 
       // Step 2: fetch all places excluding those IDs
-      let query = supabase
-        .from('places')
-        .select('*')
-        .order('created_at', { ascending: false })
+      let query = supabase.from('places').select('*').order('created_at', { ascending: false })
 
       if (scheduledIds.length > 0) {
         query = query.not('id', 'in', `(${scheduledIds.join(',')})`)
@@ -121,10 +123,7 @@ export function useReorderItineraryItems(dayDate: string) {
     mutationFn: async (items: ReorderItem[]) => {
       // Batch update all items' sort_order and time_slot
       const updates = items.map(({ id, sort_order, time_slot }) =>
-        supabase
-          .from('itinerary_items')
-          .update({ sort_order, time_slot })
-          .eq('id', id)
+        supabase.from('itinerary_items').update({ sort_order, time_slot }).eq('id', id)
       )
       const results = await Promise.all(updates)
       const failed = results.find((r) => r.error)
@@ -139,10 +138,12 @@ export function useReorderItineraryItems(dayDate: string) {
         [...ITINERARY_KEY, dayDate],
         (old: ItineraryItemWithPlace[] | undefined) => {
           if (!old) return old
-          return old.map((item) => {
-            const update = items.find((u) => u.id === item.id)
-            return update ? { ...item, ...update } : item
-          }).sort((a, b) => a.sort_order - b.sort_order)
+          return old
+            .map((item) => {
+              const update = items.find((u) => u.id === item.id)
+              return update ? { ...item, ...update } : item
+            })
+            .sort((a, b) => a.sort_order - b.sort_order)
         }
       )
 

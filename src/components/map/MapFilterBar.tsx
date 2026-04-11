@@ -5,7 +5,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { PLACE_CATEGORIES, PLACE_PRIORITIES, type PlaceCategory, type PlacePriority } from '@/types/places'
+import {
+  PLACE_CATEGORIES,
+  PLACE_PRIORITIES,
+  type PlaceCategory,
+  type PlacePriority,
+} from '@/types/places'
 import { TRIP_DAYS, CITY_LABELS, type City } from '@/config/trip'
 
 const ALL = 'all'
@@ -44,7 +49,10 @@ export function MapFilterBar({ filters, onChange }: MapFilterBarProps) {
       </Select>
 
       {/* Category filter */}
-      <Select value={filters.category} onValueChange={(v) => set('category', v as PlaceCategory | typeof ALL)}>
+      <Select
+        value={filters.category}
+        onValueChange={(v) => set('category', v as PlaceCategory | typeof ALL)}
+      >
         <SelectTrigger className="h-8 text-xs bg-background/95 backdrop-blur shadow w-36">
           <SelectValue placeholder="All types" />
         </SelectTrigger>
@@ -59,7 +67,10 @@ export function MapFilterBar({ filters, onChange }: MapFilterBarProps) {
       </Select>
 
       {/* Priority filter */}
-      <Select value={filters.priority} onValueChange={(v) => set('priority', v as PlacePriority | typeof ALL)}>
+      <Select
+        value={filters.priority}
+        onValueChange={(v) => set('priority', v as PlacePriority | typeof ALL)}
+      >
         <SelectTrigger className="h-8 text-xs bg-background/95 backdrop-blur shadow w-32">
           <SelectValue placeholder="All priorities" />
         </SelectTrigger>

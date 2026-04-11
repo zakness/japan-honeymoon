@@ -68,7 +68,14 @@ describe('city assignments', () => {
 
 describe('transit days', () => {
   it('marks travel days as transit', () => {
-    const transitDates = ['2026-05-15', '2026-05-22', '2026-05-24', '2026-05-27', '2026-05-29', '2026-05-30']
+    const transitDates = [
+      '2026-05-15',
+      '2026-05-22',
+      '2026-05-24',
+      '2026-05-27',
+      '2026-05-29',
+      '2026-05-30',
+    ]
     transitDates.forEach((date) => {
       const day = getDayByDate(date)
       expect(day?.isTransit).toBe(true)

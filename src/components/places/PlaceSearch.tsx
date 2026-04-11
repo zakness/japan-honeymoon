@@ -19,7 +19,11 @@ interface PlaceSearchProps {
   className?: string
 }
 
-export function PlaceSearch({ onPlaceSelected, placeholder = 'Search for a place…', className }: PlaceSearchProps) {
+export function PlaceSearch({
+  onPlaceSelected,
+  placeholder = 'Search for a place…',
+  className,
+}: PlaceSearchProps) {
   const placesLib = useMapsLibrary('places')
   const { fetchDetails, loading: detailsLoading } = useGooglePlaceDetails()
 

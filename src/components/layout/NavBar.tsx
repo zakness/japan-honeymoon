@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils'
 export type AppView = 'map' | 'day' | 'notes'
 
 const TABS: { id: AppView; label: string; Icon: typeof Map }[] = [
-  { id: 'map',   label: 'Map',   Icon: Map },
-  { id: 'day',   label: 'Day',   Icon: CalendarDays },
+  { id: 'map', label: 'Map', Icon: Map },
+  { id: 'day', label: 'Day', Icon: CalendarDays },
   { id: 'notes', label: 'Notes', Icon: NotebookText },
 ]
 
@@ -25,9 +25,7 @@ export function NavBar({ activeView, onViewChange, mobile }: NavBarProps) {
             onClick={() => onViewChange(id)}
             className={cn(
               'flex flex-1 flex-col items-center gap-0.5 py-2 text-xs font-medium transition-colors',
-              activeView === id
-                ? 'text-primary'
-                : 'text-muted-foreground'
+              activeView === id ? 'text-primary' : 'text-muted-foreground'
             )}
           >
             <Icon className={cn('h-5 w-5', activeView === id ? 'stroke-[2.5]' : '')} />

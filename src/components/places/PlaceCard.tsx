@@ -29,7 +29,9 @@ export function PlaceCard({ place, onClick, selected, compact }: PlaceCardProps)
       className={cn(
         'w-full text-left rounded-lg border bg-card transition-colors',
         compact ? 'p-2.5' : 'p-3',
-        selected ? 'border-primary ring-1 ring-primary' : 'hover:border-border/80 hover:bg-accent/30'
+        selected
+          ? 'border-primary ring-1 ring-primary'
+          : 'hover:border-border/80 hover:bg-accent/30'
       )}
     >
       <div className="flex gap-3">
@@ -59,7 +61,12 @@ export function PlaceCard({ place, onClick, selected, compact }: PlaceCardProps)
 
           {/* Badges row */}
           <div className="flex flex-wrap items-center gap-1 mt-1.5">
-            <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium', PRIORITY_STYLES[priority])}>
+            <span
+              className={cn(
+                'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium',
+                PRIORITY_STYLES[priority]
+              )}
+            >
               {priority}
             </span>
             {place.city && (

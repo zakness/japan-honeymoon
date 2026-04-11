@@ -119,7 +119,7 @@ export function MapView({ focusPlaceId, onNavigate }: MapViewProps) {
         <MapContent
           filters={filters}
           selectedPlace={selectedPlace}
-          onSelectPlace={(p) => p ? handleSelectPlace(p) : handleClearSelection()}
+          onSelectPlace={(p) => (p ? handleSelectPlace(p) : handleClearSelection())}
         />
       </Map>
 
@@ -130,7 +130,11 @@ export function MapView({ focusPlaceId, onNavigate }: MapViewProps) {
           size="sm"
           variant="secondary"
           className="gap-1.5 shadow bg-background/95 backdrop-blur"
-          onClick={() => { setSelectedPlace(null); setPanelTab('list'); setPanelOpen(true) }}
+          onClick={() => {
+            setSelectedPlace(null)
+            setPanelTab('list')
+            setPanelOpen(true)
+          }}
         >
           <List className="h-4 w-4" />
           Places
@@ -157,7 +161,10 @@ export function MapView({ focusPlaceId, onNavigate }: MapViewProps) {
               <div className="px-4 pb-4">
                 <PlaceDetail
                   place={selectedPlace}
-                  onClose={() => { setSelectedPlace(null); setPanelOpen(false) }}
+                  onClose={() => {
+                    setSelectedPlace(null)
+                    setPanelOpen(false)
+                  }}
                   onAddToDay={(place) => {
                     setPanelOpen(false)
                     onNavigate({ view: 'day', focusPlaceId: place.id })
@@ -166,19 +173,24 @@ export function MapView({ focusPlaceId, onNavigate }: MapViewProps) {
               </div>
             </>
           ) : (
-            <Tabs value={panelTab} onValueChange={(v) => setPanelTab(v as 'list' | 'add')} className="flex flex-col h-full">
+            <Tabs
+              value={panelTab}
+              onValueChange={(v) => setPanelTab(v as 'list' | 'add')}
+              className="flex flex-col h-full"
+            >
               <SheetHeader className="px-4 pt-4 pb-0">
                 <SheetTitle className="sr-only">Places</SheetTitle>
                 <TabsList className="w-full">
-                  <TabsTrigger value="list" className="flex-1">All places</TabsTrigger>
-                  <TabsTrigger value="add" className="flex-1">Add place</TabsTrigger>
+                  <TabsTrigger value="list" className="flex-1">
+                    All places
+                  </TabsTrigger>
+                  <TabsTrigger value="add" className="flex-1">
+                    Add place
+                  </TabsTrigger>
                 </TabsList>
               </SheetHeader>
               <TabsContent value="list" className="flex-1 overflow-y-auto px-4 py-3">
-                <PlaceList
-                  selectedPlaceId={selectedPlace?.id}
-                  onSelectPlace={handleSelectPlace}
-                />
+                <PlaceList selectedPlaceId={selectedPlace?.id} onSelectPlace={handleSelectPlace} />
               </TabsContent>
               <TabsContent value="add" className="px-4 py-3">
                 <PlaceForm

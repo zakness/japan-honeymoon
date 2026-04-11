@@ -134,7 +134,10 @@ export function PlaceForm({ place, onSuccess, onCancel }: PlaceFormProps) {
   }
 
   function removeTag(tag: string) {
-    set('tags', form.tags.filter((t) => t !== tag))
+    set(
+      'tags',
+      form.tags.filter((t) => t !== tag)
+    )
   }
 
   function handleTagKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -347,7 +350,11 @@ export function PlaceForm({ place, onSuccess, onCancel }: PlaceFormProps) {
             {form.tags.map((tag) => (
               <Badge key={tag} variant="secondary" className="gap-1">
                 {tag}
-                <button type="button" onClick={() => removeTag(tag)} className="hover:text-destructive">
+                <button
+                  type="button"
+                  onClick={() => removeTag(tag)}
+                  className="hover:text-destructive"
+                >
                   <X className="h-3 w-3" />
                 </button>
               </Badge>

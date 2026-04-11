@@ -11,10 +11,10 @@ export type PlacePriority = 'must-do' | 'want-to' | 'if-time'
 export type PlaceStatus = 'researching' | 'booked' | 'visited'
 
 export const PLACE_CATEGORIES: { value: PlaceCategory; label: string; icon: string }[] = [
-  { value: 'restaurant',  label: 'Restaurant',    icon: '🍜' },
-  { value: 'cafe_bar',    label: 'Cafe / Bar',    icon: '☕' },
-  { value: 'shopping',    label: 'Shopping',      icon: '🛍️' },
-  { value: 'attraction',  label: 'Attraction',    icon: '🏯' },
+  { value: 'restaurant', label: 'Restaurant', icon: '🍜' },
+  { value: 'cafe_bar', label: 'Cafe / Bar', icon: '☕' },
+  { value: 'shopping', label: 'Shopping', icon: '🛍️' },
+  { value: 'attraction', label: 'Attraction', icon: '🏯' },
   { value: 'nature_park', label: 'Nature / Park', icon: '🌿' },
 ]
 
@@ -26,8 +26,8 @@ export const PLACE_PRIORITIES: { value: PlacePriority; label: string }[] = [
 
 export const PLACE_STATUSES: { value: PlaceStatus; label: string }[] = [
   { value: 'researching', label: 'Researching' },
-  { value: 'booked',      label: 'Booked' },
-  { value: 'visited',     label: 'Visited' },
+  { value: 'booked', label: 'Booked' },
+  { value: 'visited', label: 'Visited' },
 ]
 
 export interface GooglePlaceData {

@@ -29,9 +29,8 @@ export function BacklogPanel({ dayDate, defaultCity, existingItemCount }: Backlo
   const [cityFilter, setCityFilter] = useState<City | typeof ALL>(defaultCity ?? ALL)
   const [addingId, setAddingId] = useState<string | null>(null)
 
-  const filtered = cityFilter === ALL
-    ? unscheduled
-    : unscheduled.filter((p) => p.city === cityFilter)
+  const filtered =
+    cityFilter === ALL ? unscheduled : unscheduled.filter((p) => p.city === cityFilter)
 
   async function handleQuickAdd(place: PlaceRow, timeSlot: TimeSlot) {
     setAddingId(place.id)
@@ -63,7 +62,9 @@ export function BacklogPanel({ dayDate, defaultCity, existingItemCount }: Backlo
           <SelectContent>
             <SelectItem value={ALL}>All cities</SelectItem>
             {cities.map(([value, label]) => (
-              <SelectItem key={value} value={value}>{label}</SelectItem>
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -71,7 +72,9 @@ export function BacklogPanel({ dayDate, defaultCity, existingItemCount }: Backlo
 
       {isLoading && (
         <div className="space-y-2">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 rounded-lg" />)}
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-14 rounded-lg" />
+          ))}
         </div>
       )}
 

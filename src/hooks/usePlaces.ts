@@ -28,9 +28,7 @@ export function usePlaces(filter?: PlacesFilter) {
 
         if (error) throw error
 
-        const places = data
-          .map((item) => item.place)
-          .filter((p): p is PlaceRow => p !== null)
+        const places = data.map((item) => item.place).filter((p): p is PlaceRow => p !== null)
 
         return places
       }
@@ -38,9 +36,9 @@ export function usePlaces(filter?: PlacesFilter) {
       let query = supabase.from('places').select('*').order('created_at', { ascending: false })
 
       if (filter?.category) query = query.eq('category', filter.category)
-      if (filter?.priority)  query = query.eq('priority', filter.priority)
-      if (filter?.status)    query = query.eq('status', filter.status)
-      if (filter?.city)      query = query.eq('city', filter.city)
+      if (filter?.priority) query = query.eq('priority', filter.priority)
+      if (filter?.status) query = query.eq('status', filter.status)
+      if (filter?.city) query = query.eq('city', filter.city)
 
       const { data, error } = await query
       if (error) throw error
@@ -54,11 +52,7 @@ export function usePlace(id: string | null) {
     queryKey: [...PLACES_KEY, id],
     queryFn: async () => {
       if (!id) return null
-      const { data, error } = await supabase
-        .from('places')
-        .select('*')
-        .eq('id', id)
-        .single()
+      const { data, error } = await supabase.from('places').select('*').eq('id', id).single()
       if (error) throw error
       return data as PlaceRow
     },
@@ -89,11 +83,7 @@ export function useCreatePlace() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (place: PlaceInsert) => {
-      const { data, error } = await supabase
-        .from('places')
-        .insert(place)
-        .select()
-        .single()
+      const { data, error } = await supabase.from('places').insert(place).select().single()
       if (error) throw error
       return data as PlaceRow
     },

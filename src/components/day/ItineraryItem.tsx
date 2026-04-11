@@ -117,8 +117,20 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
                     autoFocus
                   />
                   <div className="flex gap-1.5">
-                    <Button size="sm" className="h-6 text-xs" onClick={handleSaveNote}>Save</Button>
-                    <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => { setEditingNote(false); setNoteText(item.text_note ?? '') }}>Cancel</Button>
+                    <Button size="sm" className="h-6 text-xs" onClick={handleSaveNote}>
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 text-xs"
+                      onClick={() => {
+                        setEditingNote(false)
+                        setNoteText(item.text_note ?? '')
+                      }}
+                    >
+                      Cancel
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -126,7 +138,9 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
                   className="text-sm text-left leading-tight hover:underline"
                   onClick={() => setEditingNote(true)}
                 >
-                  {item.text_note || <span className="text-muted-foreground italic">Empty note</span>}
+                  {item.text_note || (
+                    <span className="text-muted-foreground italic">Empty note</span>
+                  )}
                 </button>
               )}
             </div>
@@ -139,7 +153,12 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
         {/* Time slot reassignment */}
         <DropdownMenu>
           <DropdownMenuTrigger>
-            <Button variant="ghost" size="sm" className="h-6 px-1.5 text-xs text-muted-foreground gap-0.5" type="button">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-1.5 text-xs text-muted-foreground gap-0.5"
+              type="button"
+            >
               {timeSlot}
               <ChevronDown className="h-3 w-3" />
             </Button>
