@@ -10,17 +10,17 @@ export const JAPAN_DEFAULT_ZOOM = 6
 
 // Category colors for map markers
 export const CATEGORY_COLORS: Record<PlaceCategory, string> = {
-  restaurant:  '#ef4444', // red
-  cafe_bar:    '#f97316', // orange
-  shopping:    '#8b5cf6', // purple
-  attraction:  '#3b82f6', // blue
+  restaurant: '#ef4444', // red
+  cafe_bar: '#f97316', // orange
+  shopping: '#8b5cf6', // purple
+  attraction: '#3b82f6', // blue
   nature_park: '#22c55e', // green
 }
 
 export const CATEGORY_ICONS: Record<PlaceCategory, string> = {
-  restaurant:  '🍜',
-  cafe_bar:    '☕',
-  shopping:    '🛍️',
-  attraction:  '🏯',
+  restaurant: '🍜',
+  cafe_bar: '☕',
+  shopping: '🛍️',
+  attraction: '🏯',
   nature_park: '🌿',
 }

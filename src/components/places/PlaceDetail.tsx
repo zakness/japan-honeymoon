@@ -1,5 +1,14 @@
 import { useState } from 'react'
-import { ExternalLink, Phone, MapPin, Star, Clock, Pencil, Trash2, CalendarPlus } from 'lucide-react'
+import {
+  ExternalLink,
+  Phone,
+  MapPin,
+  Star,
+  Clock,
+  Pencil,
+  Trash2,
+  CalendarPlus,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -56,7 +65,10 @@ export function PlaceDetail({ place: initialPlace, onClose, onAddToDay }: PlaceD
         <h3 className="font-semibold mb-4">Edit place</h3>
         <PlaceForm
           place={place}
-          onSuccess={(updated) => { setPlace(updated); setEditing(false) }}
+          onSuccess={(updated) => {
+            setPlace(updated)
+            setEditing(false)
+          }}
           onCancel={() => setEditing(false)}
         />
       </div>
@@ -90,14 +102,14 @@ export function PlaceDetail({ place: initialPlace, onClose, onAddToDay }: PlaceD
             <h2 className="text-lg font-semibold leading-tight">{place.name}</h2>
           </div>
           <div className="flex flex-wrap gap-1.5 mt-2">
-            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${PRIORITY_STYLES[priority]}`}>
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${PRIORITY_STYLES[priority]}`}
+            >
               {priority}
             </span>
             <Badge variant="secondary">{place.status}</Badge>
             {place.city && (
-              <Badge variant="outline">
-                {CITY_LABELS[place.city as City] ?? place.city}
-              </Badge>
+              <Badge variant="outline">{CITY_LABELS[place.city as City] ?? place.city}</Badge>
             )}
             {place.rating && (
               <span className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -168,9 +180,7 @@ export function PlaceDetail({ place: initialPlace, onClose, onAddToDay }: PlaceD
 
         {/* Notes */}
         {place.notes && (
-          <div className="rounded-md bg-muted p-3 text-sm whitespace-pre-wrap">
-            {place.notes}
-          </div>
+          <div className="rounded-md bg-muted p-3 text-sm whitespace-pre-wrap">{place.notes}</div>
         )}
 
         {/* Actions */}
@@ -187,7 +197,12 @@ export function PlaceDetail({ place: initialPlace, onClose, onAddToDay }: PlaceD
           </Button>
           <AlertDialog>
             <AlertDialogTrigger>
-              <Button size="sm" variant="outline" className="text-destructive hover:text-destructive gap-1.5" type="button">
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:text-destructive gap-1.5"
+                type="button"
+              >
                 <Trash2 className="h-4 w-4" />
               </Button>
             </AlertDialogTrigger>

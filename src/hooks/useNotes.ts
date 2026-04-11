@@ -26,11 +26,7 @@ export function useCreateNote() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (note: NoteInsert) => {
-      const { data, error } = await supabase
-        .from('notes')
-        .insert(note)
-        .select()
-        .single()
+      const { data, error } = await supabase.from('notes').insert(note).select().single()
       if (error) throw error
       return data as NoteRow
     },
@@ -92,18 +88,15 @@ export function useReorderNotes() {
       await queryClient.cancelQueries({ queryKey: NOTES_KEY })
       const previous = queryClient.getQueryData(NOTES_KEY)
 
-      queryClient.setQueryData(
-        NOTES_KEY,
-        (old: NoteRow[] | undefined) => {
-          if (!old) return old
-          return old
-            .map((note) => {
-              const update = notes.find((u) => u.id === note.id)
-              return update ? { ...note, sort_order: update.sort_order } : note
-            })
-            .sort((a, b) => a.sort_order - b.sort_order)
-        }
-      )
+      queryClient.setQueryData(NOTES_KEY, (old: NoteRow[] | undefined) => {
+        if (!old) return old
+        return old
+          .map((note) => {
+            const update = notes.find((u) => u.id === note.id)
+            return update ? { ...note, sort_order: update.sort_order } : note
+          })
+          .sort((a, b) => a.sort_order - b.sort_order)
+      })
 
       return { previous }
     },

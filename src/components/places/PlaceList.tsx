@@ -33,14 +33,18 @@ export function PlaceList({ onSelectPlace, selectedPlaceId }: PlaceListProps) {
   const [priorityFilter, setPriorityFilter] = useState<PlacePriority | typeof ALL>(ALL)
   const [cityFilter, setCityFilter] = useState<City | typeof ALL>(ALL)
 
-  const { data: places, isLoading, error } = usePlaces({
+  const {
+    data: places,
+    isLoading,
+    error,
+  } = usePlaces({
     category: categoryFilter !== ALL ? categoryFilter : undefined,
     priority: priorityFilter !== ALL ? priorityFilter : undefined,
     city: cityFilter !== ALL ? cityFilter : undefined,
   })
 
-  const filtered = places?.filter((p) =>
-    !search || p.name.toLowerCase().includes(search.toLowerCase())
+  const filtered = places?.filter(
+    (p) => !search || p.name.toLowerCase().includes(search.toLowerCase())
   )
 
   const cities = Object.entries(CITY_LABELS) as [City, string][]
@@ -60,7 +64,10 @@ export function PlaceList({ onSelectPlace, selectedPlaceId }: PlaceListProps) {
 
       {/* Filters */}
       <div className="grid grid-cols-3 gap-2">
-        <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as PlaceCategory | typeof ALL)}>
+        <Select
+          value={categoryFilter}
+          onValueChange={(v) => setCategoryFilter(v as PlaceCategory | typeof ALL)}
+        >
           <SelectTrigger className="text-xs h-8">
             <SelectValue placeholder="Category" />
           </SelectTrigger>
@@ -74,7 +81,10 @@ export function PlaceList({ onSelectPlace, selectedPlaceId }: PlaceListProps) {
           </SelectContent>
         </Select>
 
-        <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as PlacePriority | typeof ALL)}>
+        <Select
+          value={priorityFilter}
+          onValueChange={(v) => setPriorityFilter(v as PlacePriority | typeof ALL)}
+        >
           <SelectTrigger className="text-xs h-8">
             <SelectValue placeholder="Priority" />
           </SelectTrigger>
@@ -107,7 +117,9 @@ export function PlaceList({ onSelectPlace, selectedPlaceId }: PlaceListProps) {
       <div className="flex flex-col gap-2">
         {isLoading && (
           <>
-            {[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-lg" />)}
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-20 rounded-lg" />
+            ))}
           </>
         )}
         {error && (
@@ -115,7 +127,9 @@ export function PlaceList({ onSelectPlace, selectedPlaceId }: PlaceListProps) {
         )}
         {!isLoading && filtered?.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-8">
-            {places?.length === 0 ? 'No places saved yet. Add your first place!' : 'No places match your filters.'}
+            {places?.length === 0
+              ? 'No places saved yet. Add your first place!'
+              : 'No places match your filters.'}
           </p>
         )}
         {filtered?.map((place) => (

@@ -37,10 +37,12 @@ export function TimeSlotGroup({ slot, label, items, dayDate, onSelectPlace }: Ti
             />
           ))}
           {items.length === 0 && (
-            <div className={cn(
-              'flex items-center justify-center h-10 rounded border border-dashed text-xs text-muted-foreground/50',
-              isOver ? 'border-accent-foreground/30' : 'border-border'
-            )}>
+            <div
+              className={cn(
+                'flex items-center justify-center h-10 rounded border border-dashed text-xs text-muted-foreground/50',
+                isOver ? 'border-accent-foreground/30' : 'border-border'
+              )}
+            >
               Drop here
             </div>
           )}

@@ -34,10 +34,18 @@ export function NotesView() {
   return (
     <div className="flex h-full">
       {/* Sidebar: note list */}
-      <div className={`flex flex-col border-r w-full lg:w-72 xl:w-80 flex-shrink-0 ${selectedNote ? 'hidden lg:flex' : 'flex'}`}>
+      <div
+        className={`flex flex-col border-r w-full lg:w-72 xl:w-80 flex-shrink-0 ${selectedNote ? 'hidden lg:flex' : 'flex'}`}
+      >
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <h2 className="font-semibold text-sm">Notes</h2>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={handleCreate} disabled={createNote.isPending}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={handleCreate}
+            disabled={createNote.isPending}
+          >
             <Plus className="h-4 w-4" />
             New note
           </Button>
@@ -45,7 +53,9 @@ export function NotesView() {
         <div className="flex-1 overflow-y-auto p-3">
           {isLoading ? (
             <div className="space-y-2">
-              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 rounded-lg" />)}
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-16 rounded-lg" />
+              ))}
             </div>
           ) : (
             <NotesList
@@ -70,11 +80,7 @@ export function NotesView() {
                 ← All notes
               </button>
             </div>
-            <NoteEditor
-              key={selectedNote.id}
-              note={selectedNote}
-              onDelete={handleDelete}
-            />
+            <NoteEditor key={selectedNote.id} note={selectedNote} onDelete={handleDelete} />
           </>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center gap-2 text-muted-foreground">

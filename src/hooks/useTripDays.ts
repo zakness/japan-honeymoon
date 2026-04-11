@@ -1,4 +1,10 @@
-import { TRIP_DAYS, getDayByDate, getPrimaryCityForDate, type TripDay, type City } from '@/config/trip'
+import {
+  TRIP_DAYS,
+  getDayByDate,
+  getPrimaryCityForDate,
+  type TripDay,
+  type City,
+} from '@/config/trip'
 
 export function useTripDays() {
   return TRIP_DAYS

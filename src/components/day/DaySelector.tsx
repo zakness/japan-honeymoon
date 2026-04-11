@@ -45,15 +45,23 @@ export function DaySelector({ selectedDate, onSelectDate }: DaySelectorProps) {
               )}
             >
               <span className="text-xs font-medium">{dayName}</span>
-              <span className={cn('text-lg font-bold leading-tight', isSelected ? '' : 'text-foreground')}>
+              <span
+                className={cn(
+                  'text-lg font-bold leading-tight',
+                  isSelected ? '' : 'text-foreground'
+                )}
+              >
                 {dayNum}
               </span>
-              <span className={cn('text-[10px] leading-tight truncate max-w-[64px]', isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
+              <span
+                className={cn(
+                  'text-[10px] leading-tight truncate max-w-[64px]',
+                  isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                )}
+              >
                 {cityLabel}
               </span>
-              {day.isTransit && (
-                <span className="text-[9px] mt-0.5 opacity-60">✈</span>
-              )}
+              {day.isTransit && <span className="text-[9px] mt-0.5 opacity-60">✈</span>}
             </button>
           )
         })}

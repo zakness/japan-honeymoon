@@ -80,14 +80,21 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
       <div className="flex items-center justify-between px-4 py-2 border-b">
         <span className="text-xs text-muted-foreground flex items-center gap-1.5">
           {saved ? (
-            <><Check className="h-3 w-3 text-green-500" /> Saved</>
+            <>
+              <Check className="h-3 w-3 text-green-500" /> Saved
+            </>
           ) : (
             'Saving…'
           )}
         </span>
         <AlertDialog>
           <AlertDialogTrigger>
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive gap-1.5" type="button">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive gap-1.5"
+              type="button"
+            >
               <Trash2 className="h-4 w-4" />
               Delete
             </Button>

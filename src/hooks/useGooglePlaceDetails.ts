@@ -36,10 +36,11 @@ export function useGooglePlaceDetails() {
         if (!location) throw new Error('Place has no location')
 
         // Extract up to 5 photo URIs
-        const photos = place.photos
-          ?.slice(0, 5)
-          .map((p) => p.getURI({ maxWidth: 800, maxHeight: 600 }))
-          .filter((uri): uri is string => !!uri) ?? []
+        const photos =
+          place.photos
+            ?.slice(0, 5)
+            .map((p) => p.getURI({ maxWidth: 800, maxHeight: 600 }))
+            .filter((uri): uri is string => !!uri) ?? []
 
         return {
           googlePlaceId: placeId,

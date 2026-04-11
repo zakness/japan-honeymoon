@@ -52,7 +52,10 @@ export function NoteCard({ note, selected, onClick }: NoteCardProps) {
           </p>
         )}
         <p className="text-[10px] text-muted-foreground/60 mt-1">
-          {new Date(note.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          {new Date(note.updated_at).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+          })}
         </p>
       </div>
     </div>

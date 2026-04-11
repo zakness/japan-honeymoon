@@ -9,9 +9,9 @@ export type ItineraryItemUpdate = Database['public']['Tables']['itinerary_items'
 export type TimeSlot = 'morning' | 'afternoon' | 'evening'
 
 export const TIME_SLOTS: { value: TimeSlot; label: string }[] = [
-  { value: 'morning',   label: 'Morning' },
+  { value: 'morning', label: 'Morning' },
   { value: 'afternoon', label: 'Afternoon' },
-  { value: 'evening',   label: 'Evening' },
+  { value: 'evening', label: 'Evening' },
 ]
 
 export interface ItineraryItemWithPlace extends ItineraryItemRow {

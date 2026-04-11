@@ -5,6 +5,9 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+    port: 5175,
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -15,11 +18,11 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'maps': ['@vis.gl/react-google-maps'],
-          'supabase': ['@supabase/supabase-js'],
-          'dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
-          'query': ['@tanstack/react-query'],
-          'icons': ['lucide-react'],
+          maps: ['@vis.gl/react-google-maps'],
+          supabase: ['@supabase/supabase-js'],
+          dnd: ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+          query: ['@tanstack/react-query'],
+          icons: ['lucide-react'],
         },
       },
     },
