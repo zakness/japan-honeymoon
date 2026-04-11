@@ -31,9 +31,7 @@ function toHash(state: NavState): string {
   return state.view
 }
 
-interface AppShellProps {}
-
-export function AppShell(_: AppShellProps) {
+export function AppShell() {
   const [nav, setNav] = useState<NavState>(parseHash)
 
   useEffect(() => {
@@ -60,18 +58,8 @@ export function AppShell(_: AppShellProps) {
 
       <main className="flex-1 overflow-hidden">
         <ErrorBoundary>
-          {nav.view === 'map' && (
-            <MapView
-              focusPlaceId={nav.focusPlaceId}
-              onNavigate={navigate}
-            />
-          )}
-          {nav.view === 'day' && (
-            <DayView
-              initialDate={nav.dayDate}
-              onNavigate={navigate}
-            />
-          )}
+          {nav.view === 'map' && <MapView focusPlaceId={nav.focusPlaceId} onNavigate={navigate} />}
+          {nav.view === 'day' && <DayView initialDate={nav.dayDate} onNavigate={navigate} />}
           {nav.view === 'notes' && <NotesView />}
         </ErrorBoundary>
       </main>
