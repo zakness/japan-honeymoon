@@ -10,4 +10,18 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'maps': ['@vis.gl/react-google-maps'],
+          'supabase': ['@supabase/supabase-js'],
+          'dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+          'query': ['@tanstack/react-query'],
+          'icons': ['lucide-react'],
+        },
+      },
+    },
+  },
 })

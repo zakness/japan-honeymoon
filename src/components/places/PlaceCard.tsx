@@ -1,0 +1,81 @@
+import { MapPin, Star } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
+import { PLACE_CATEGORIES, type PlaceRow, type PlacePriority } from '@/types/places'
+import { CITY_LABELS, type City } from '@/config/trip'
+
+const PRIORITY_STYLES: Record<PlacePriority, string> = {
+  'must-do': 'bg-red-100 text-red-700 border-red-200',
+  'want-to': 'bg-blue-100 text-blue-700 border-blue-200',
+  'if-time': 'bg-gray-100 text-gray-600 border-gray-200',
+}
+
+interface PlaceCardProps {
+  place: PlaceRow
+  onClick?: () => void
+  selected?: boolean
+  compact?: boolean
+}
+
+export function PlaceCard({ place, onClick, selected, compact }: PlaceCardProps) {
+  const category = PLACE_CATEGORIES.find((c) => c.value === place.category)
+  const photos = Array.isArray(place.photos) ? (place.photos as string[]) : []
+  const priority = place.priority as PlacePriority
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'w-full text-left rounded-lg border bg-card transition-colors',
+        compact ? 'p-2.5' : 'p-3',
+        selected ? 'border-primary ring-1 ring-primary' : 'hover:border-border/80 hover:bg-accent/30'
+      )}
+    >
+      <div className="flex gap-3">
+        {/* Thumbnail */}
+        {!compact && photos[0] && (
+          <img
+            src={photos[0]}
+            alt={place.name}
+            className="h-16 w-16 rounded object-cover flex-shrink-0"
+          />
+        )}
+
+        <div className="min-w-0 flex-1">
+          {/* Name + category icon */}
+          <div className="flex items-start gap-1.5">
+            {category && <span className="text-base leading-tight">{category.icon}</span>}
+            <span className="font-medium text-sm leading-tight line-clamp-1">{place.name}</span>
+          </div>
+
+          {/* Address */}
+          {!compact && place.address && (
+            <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
+              <MapPin className="h-3 w-3 flex-shrink-0" />
+              <span className="line-clamp-1">{place.address}</span>
+            </div>
+          )}
+
+          {/* Badges row */}
+          <div className="flex flex-wrap items-center gap-1 mt-1.5">
+            <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium', PRIORITY_STYLES[priority])}>
+              {priority}
+            </span>
+            {place.city && (
+              <Badge variant="outline" className="text-xs py-0 px-1.5">
+                {CITY_LABELS[place.city as City] ?? place.city}
+              </Badge>
+            )}
+            {place.rating && (
+              <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                {place.rating.toFixed(1)}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </button>
+  )
+}
