@@ -23,6 +23,7 @@ interface TransportItemProps {
 export function TransportItem({ item, dayDate }: TransportItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
+    data: { dayDate, kind: 'transport' as const, timeSlot: item.time_slot },
   })
 
   const style = {

@@ -18,7 +18,7 @@ This CLAUDE.md follows the principles from [Writing a Good CLAUDE.md](https://ww
 
 ## Project Purpose
 
-A shared trip-planning SPA for a Japan honeymoon (May 15–30, 2026). No login required — designed as a private two-person workspace. The app has three views: a full-screen Google Map, a daily itinerary, and freeform notes.
+A shared trip-planning SPA for a Japan honeymoon (May 15–30, 2026). No login required — designed as a private two-person workspace. The app has three views: a combined Itinerary view (day columns + city map), freeform notes, and logistics.
 
 ---
 
@@ -58,13 +58,15 @@ Required env vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_GOOGLE_M
 
 ## Architecture
 
-**Hash-based navigation** — no React Router. `AppShell.tsx` parses `#map`, `#day`, `#day/YYYY-MM-DD`, `#notes` directly.
+**Hash-based navigation** — no React Router. `AppShell.tsx` parses `#itinerary/{city}`, `#notes`, `#logistics` directly.
 
-**Hardcoded trip config** — all 16 days, cities, and transit flags live in `src/config/trip.ts`. Nothing about the trip schedule is in the database.
+**Itinerary view** — `src/components/itinerary/ItineraryView.tsx`. Left half: horizontally scrollable day columns (one per day in the selected city) plus a sticky Unscheduled column. Right half: `CityMap` scoped to the selected city. City strip at top switches between the 5 cities. On mobile: map fills screen, bottom sheet (58vh) holds the columns. DnD is handled by `useCrossItineraryDnD` (`src/hooks/`) which supports same-day, cross-slot, cross-day, and unscheduled→day moves.
+
+**Hardcoded trip config** — all 16 days, cities, and transit flags live in `src/config/trip.ts`. `getDaysForCity(city)` and `CITY_MAP_CENTER` are used by the itinerary view.
 
 **Two-step unscheduled query** — PostgREST doesn't support subqueries. `useUnscheduledPlaces` (`src/hooks/useItinerary.ts`) fetches scheduled place IDs first, then excludes them in a second query.
 
-**Optimistic drag-and-drop** — `useReorderItineraryItems` and `useReorderNotes` update the UI immediately and roll back on error.
+**Optimistic drag-and-drop** — `useCrossItineraryDnD`, `useMoveItemToDay`, `useReorderDayItemsDynamic`, and `useReorderNotes` update the UI immediately and roll back on error. Droppable IDs encode both day and slot: `slot-{YYYY-MM-DD}-{slot}`.
 
 **Google Places caching** — place details are written to Supabase on first lookup (`useGooglePlaceDetails.ts`) to avoid redundant API calls.
 

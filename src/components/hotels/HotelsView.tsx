@@ -30,7 +30,7 @@ export function HotelsView({ onNavigate }: HotelsViewProps) {
           <HotelCard
             key={hotel.id}
             hotel={hotel}
-            onViewOnMap={() => onNavigate({ view: 'map', focusHotelId: hotel.id })}
+            onViewOnMap={() => onNavigate({ view: 'itinerary' })}
           />
         ))}
       </div>

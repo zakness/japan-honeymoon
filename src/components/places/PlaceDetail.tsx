@@ -12,6 +12,7 @@ import {
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,8 +26,9 @@ import {
 } from '@/components/ui/alert-dialog'
 import { PlaceForm } from './PlaceForm'
 import { useDeletePlace } from '@/hooks/usePlaces'
+import { useCreateItineraryItem, usePlaceSchedule } from '@/hooks/useItinerary'
 import { PLACE_CATEGORIES, type PlaceRow, type PlacePriority } from '@/types/places'
-import { CITY_LABELS, type City } from '@/config/trip'
+import { CITY_LABELS, TRIP_DAYS, type City } from '@/config/trip'
 
 const PRIORITY_STYLES: Record<PlacePriority, string> = {
   'must-do': 'bg-red-100 text-red-700',
@@ -37,13 +39,25 @@ const PRIORITY_STYLES: Record<PlacePriority, string> = {
 interface PlaceDetailProps {
   place: PlaceRow
   onClose?: () => void
-  onAddToDay?: (place: PlaceRow) => void
 }
 
-export function PlaceDetail({ place: initialPlace, onClose, onAddToDay }: PlaceDetailProps) {
+export function PlaceDetail({ place: initialPlace, onClose }: PlaceDetailProps) {
   const [editing, setEditing] = useState(false)
   const [place, setPlace] = useState(initialPlace)
+  const [dayPickerOpen, setDayPickerOpen] = useState(false)
   const deletePlace = useDeletePlace()
+  const createItem = useCreateItineraryItem()
+  const { data: scheduledDates = [] } = usePlaceSchedule(place.id)
+
+  async function handleAddToDay(day: (typeof TRIP_DAYS)[number]) {
+    try {
+      await createItem.mutateAsync({ place_id: place.id, day_date: day.date, sort_order: 9999 })
+      toast.success(`Added to Day ${day.dayNumber} — ${day.label}`)
+      setDayPickerOpen(false)
+    } catch {
+      toast.error('Failed to add to day')
+    }
+  }
 
   const category = PLACE_CATEGORIES.find((c) => c.value === place.category)
   const photos = Array.isArray(place.photos) ? (place.photos as string[]) : []
@@ -123,6 +137,22 @@ export function PlaceDetail({ place: initialPlace, onClose, onAddToDay }: PlaceD
           </div>
         </div>
 
+        {/* Scheduled days */}
+        {scheduledDates.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {[...new Set(scheduledDates)].map((date) => {
+              const day = TRIP_DAYS.find((d) => d.date === date)
+              if (!day) return null
+              return (
+                <Badge key={date} variant="secondary" className="text-xs gap-1">
+                  <CalendarPlus className="h-3 w-3" />
+                  Day {day.dayNumber} — {day.label}
+                </Badge>
+              )
+            })}
+          </div>
+        )}
+
         {/* Address */}
         {place.address && (
           <div className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -185,27 +215,58 @@ export function PlaceDetail({ place: initialPlace, onClose, onAddToDay }: PlaceD
 
         {/* Actions */}
         <div className="flex gap-2 pt-1">
-          {onAddToDay && (
-            <Button size="sm" className="flex-1 gap-1.5" onClick={() => onAddToDay(place)}>
-              <CalendarPlus className="h-4 w-4" />
-              Add to day
-            </Button>
-          )}
+          <Popover open={dayPickerOpen} onOpenChange={setDayPickerOpen}>
+            <PopoverTrigger
+              render={
+                <Button size="sm" className="flex-1 gap-1.5">
+                  <CalendarPlus className="h-4 w-4" />
+                  Add to day
+                </Button>
+              }
+            />
+            <PopoverContent className="w-52 p-1" align="start">
+              <div className="max-h-64 overflow-y-auto">
+                {TRIP_DAYS.filter(
+                  (day) => !place.city || day.cities.includes(place.city as City)
+                ).map((day) => {
+                  const already = scheduledDates.includes(day.date)
+                  return (
+                    <button
+                      key={day.date}
+                      className="w-full text-left px-2.5 py-1.5 text-sm rounded hover:bg-muted flex items-center gap-2"
+                      onClick={() => handleAddToDay(day)}
+                      disabled={createItem.isPending}
+                    >
+                      <span className="text-xs text-muted-foreground shrink-0 w-8">
+                        Day {day.dayNumber}
+                      </span>
+                      <span className="flex-1">{day.label}</span>
+                      {already && (
+                        <CalendarPlus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
           <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditing(true)}>
             <Pencil className="h-4 w-4" />
             Edit
           </Button>
           <AlertDialog>
-            <AlertDialogTrigger>
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-destructive hover:text-destructive gap-1.5"
-                type="button"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
+            <AlertDialogTrigger
+              render={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive hover:text-destructive gap-1.5"
+                  type="button"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              }
+            />
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete place?</AlertDialogTitle>

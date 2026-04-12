@@ -35,7 +35,7 @@ export function TimeSlotGroup({
   onSelectPlace,
   onSelectHotel,
 }: TimeSlotGroupProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: `slot-${slot}` })
+  const { setNodeRef, isOver } = useDroppable({ id: `slot-${dayDate}-${slot}` })
   const isEmpty = items.length === 0 && !hotelAnchor && flightEvents.length === 0
 
   return (

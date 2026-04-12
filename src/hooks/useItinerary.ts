@@ -58,6 +58,21 @@ export function useUnscheduledPlaces() {
   })
 }
 
+export function usePlaceSchedule(placeId: string) {
+  return useQuery({
+    queryKey: [...ITINERARY_KEY, 'place', placeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('itinerary_items')
+        .select('day_date')
+        .eq('place_id', placeId)
+      if (error) throw error
+      return data.map((r) => r.day_date)
+    },
+    enabled: !!placeId,
+  })
+}
+
 // ---- Mutations ----
 
 export function useCreateItineraryItem() {
@@ -75,6 +90,9 @@ export function useCreateItineraryItem() {
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, created.day_date] })
       queryClient.invalidateQueries({ queryKey: [...PLACES_KEY, 'unscheduled'] })
+      if (created.place_id) {
+        queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, 'place', created.place_id] })
+      }
     },
   })
 }
@@ -108,6 +126,7 @@ export function useDeleteItineraryItem() {
     },
     onSuccess: ({ dayDate }) => {
       queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, dayDate] })
+      queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, 'place'] })
       queryClient.invalidateQueries({ queryKey: [...PLACES_KEY, 'unscheduled'] })
     },
   })
@@ -166,6 +185,74 @@ export function useReorderItineraryItems(dayDate: string) {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, dayDate] })
+    },
+  })
+}
+
+/** Variant of useReorderDayItems that accepts dayDate as part of the payload — for use in
+ *  cross-day DnD contexts where the day isn't known at hook call time. */
+export function useReorderDayItemsDynamic() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ items }: { dayDate: string; items: DayReorderItem[] }) => {
+      const itineraryUpdates = items
+        .filter((i) => i.kind === 'itinerary')
+        .map(({ id, sort_order, time_slot }) =>
+          supabase.from('itinerary_items').update({ sort_order, time_slot }).eq('id', id)
+        )
+      const transportUpdates = items
+        .filter((i) => i.kind === 'transport')
+        .map(({ id, sort_order, time_slot }) =>
+          supabase.from('transport_items').update({ sort_order, time_slot }).eq('id', id)
+        )
+      const results = await Promise.all([...itineraryUpdates, ...transportUpdates])
+      const failed = results.find((r) => r.error)
+      if (failed?.error) throw failed.error
+    },
+    onMutate: async ({ dayDate, items }) => {
+      await queryClient.cancelQueries({ queryKey: [...ITINERARY_KEY, dayDate] })
+      await queryClient.cancelQueries({ queryKey: [...TRANSPORT_KEY, dayDate] })
+      const previousItinerary = queryClient.getQueryData([...ITINERARY_KEY, dayDate])
+      const previousTransport = queryClient.getQueryData([...TRANSPORT_KEY, dayDate])
+      queryClient.setQueryData(
+        [...ITINERARY_KEY, dayDate],
+        (old: ItineraryItemWithPlace[] | undefined) => {
+          if (!old) return old
+          return old
+            .map((item) => {
+              const update = items.find((u) => u.kind === 'itinerary' && u.id === item.id)
+              return update
+                ? { ...item, sort_order: update.sort_order, time_slot: update.time_slot }
+                : item
+            })
+            .sort((a, b) => a.sort_order - b.sort_order)
+        }
+      )
+      queryClient.setQueryData(
+        [...TRANSPORT_KEY, dayDate],
+        (old: TransportItemRow[] | undefined) => {
+          if (!old) return old
+          return old
+            .map((item) => {
+              const update = items.find((u) => u.kind === 'transport' && u.id === item.id)
+              return update
+                ? { ...item, sort_order: update.sort_order, time_slot: update.time_slot }
+                : item
+            })
+            .sort((a, b) => a.sort_order - b.sort_order)
+        }
+      )
+      return { previousItinerary, previousTransport }
+    },
+    onError: (_err, { dayDate }, context) => {
+      if (context?.previousItinerary)
+        queryClient.setQueryData([...ITINERARY_KEY, dayDate], context.previousItinerary)
+      if (context?.previousTransport)
+        queryClient.setQueryData([...TRANSPORT_KEY, dayDate], context.previousTransport)
+    },
+    onSettled: (_data, _err, { dayDate }) => {
+      queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, dayDate] })
+      queryClient.invalidateQueries({ queryKey: [...TRANSPORT_KEY, dayDate] })
     },
   })
 }
