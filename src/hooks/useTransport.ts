@@ -6,6 +6,22 @@ export const TRANSPORT_KEY = ['transport'] as const
 
 // ---- Queries ----
 
+export function useAllTransportItems() {
+  return useQuery({
+    queryKey: TRANSPORT_KEY,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('transport_items')
+        .select('*')
+        .order('day_date', { ascending: true })
+        .order('sort_order', { ascending: true })
+      if (error) throw error
+      return data as TransportItemRow[]
+    },
+    staleTime: Infinity,
+  })
+}
+
 export function useTransportItems(dayDate: string) {
   return useQuery({
     queryKey: [...TRANSPORT_KEY, dayDate],
@@ -36,8 +52,8 @@ export function useCreateTransportItem() {
       if (error) throw error
       return data as TransportItemRow
     },
-    onSuccess: (created) => {
-      queryClient.invalidateQueries({ queryKey: [...TRANSPORT_KEY, created.day_date] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TRANSPORT_KEY })
     },
   })
 }
@@ -55,8 +71,8 @@ export function useUpdateTransportItem() {
       if (error) throw error
       return data as TransportItemRow
     },
-    onSuccess: (updated) => {
-      queryClient.invalidateQueries({ queryKey: [...TRANSPORT_KEY, updated.day_date] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TRANSPORT_KEY })
     },
   })
 }
@@ -69,8 +85,8 @@ export function useDeleteTransportItem() {
       if (error) throw error
       return { dayDate }
     },
-    onSuccess: ({ dayDate }) => {
-      queryClient.invalidateQueries({ queryKey: [...TRANSPORT_KEY, dayDate] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TRANSPORT_KEY })
     },
   })
 }
