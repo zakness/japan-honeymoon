@@ -8,6 +8,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      accommodations: {
+        Row: {
+          id: string
+          name: string
+          city: string
+          check_in_date: string
+          check_out_date: string
+          confirmation_numbers: string[]
+          booking_url: string | null
+          address: string | null
+          lat: number | null
+          lng: number | null
+          website: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          city: string
+          check_in_date: string
+          check_out_date: string
+          confirmation_numbers?: string[]
+          booking_url?: string | null
+          address?: string | null
+          lat?: number | null
+          lng?: number | null
+          website?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          city?: string
+          check_in_date?: string
+          check_out_date?: string
+          confirmation_numbers?: string[]
+          booking_url?: string | null
+          address?: string | null
+          lat?: number | null
+          lng?: number | null
+          website?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       itinerary_items: {
         Row: {
           created_at: string

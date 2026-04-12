@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { TimeSlotGroup } from './TimeSlotGroup'
 import { ItineraryItem } from './ItineraryItem'
 import { useItineraryItems, useReorderItineraryItems } from '@/hooks/useItinerary'
+import { useAccommodationsForDate } from '@/hooks/useAccommodations'
 import { TIME_SLOTS, type TimeSlot, type ItineraryItemWithPlace } from '@/types/itinerary'
 
 interface DayItineraryProps {
@@ -24,6 +25,7 @@ interface DayItineraryProps {
 export function DayItinerary({ dayDate, onSelectPlace }: DayItineraryProps) {
   const { data: items = [], isLoading } = useItineraryItems(dayDate)
   const reorder = useReorderItineraryItems(dayDate)
+  const { morningHotel, eveningHotel } = useAccommodationsForDate(dayDate)
   const [activeItem, setActiveItem] = useState<ItineraryItemWithPlace | null>(null)
 
   const sensors = useSensors(
@@ -115,6 +117,8 @@ export function DayItinerary({ dayDate, onSelectPlace }: DayItineraryProps) {
     reorder.mutate(updates)
   }
 
+  const hasContent = items.length > 0 || morningHotel || eveningHotel
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -125,7 +129,7 @@ export function DayItinerary({ dayDate, onSelectPlace }: DayItineraryProps) {
     )
   }
 
-  if (items.length === 0) {
+  if (!hasContent) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
         <p className="text-3xl">📅</p>
@@ -145,6 +149,9 @@ export function DayItinerary({ dayDate, onSelectPlace }: DayItineraryProps) {
             label={label}
             items={grouped[value]}
             dayDate={dayDate}
+            hotelAnchor={
+              value === 'morning' ? morningHotel : value === 'evening' ? eveningHotel : null
+            }
             onSelectPlace={onSelectPlace}
           />
         ))}
