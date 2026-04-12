@@ -58,6 +58,21 @@ export function useUnscheduledPlaces() {
   })
 }
 
+export function usePlaceSchedule(placeId: string) {
+  return useQuery({
+    queryKey: [...ITINERARY_KEY, 'place', placeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('itinerary_items')
+        .select('day_date')
+        .eq('place_id', placeId)
+      if (error) throw error
+      return data.map((r) => r.day_date)
+    },
+    enabled: !!placeId,
+  })
+}
+
 // ---- Mutations ----
 
 export function useCreateItineraryItem() {
@@ -75,6 +90,9 @@ export function useCreateItineraryItem() {
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, created.day_date] })
       queryClient.invalidateQueries({ queryKey: [...PLACES_KEY, 'unscheduled'] })
+      if (created.place_id) {
+        queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, 'place', created.place_id] })
+      }
     },
   })
 }
@@ -108,6 +126,7 @@ export function useDeleteItineraryItem() {
     },
     onSuccess: ({ dayDate }) => {
       queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, dayDate] })
+      queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, 'place'] })
       queryClient.invalidateQueries({ queryKey: [...PLACES_KEY, 'unscheduled'] })
     },
   })
