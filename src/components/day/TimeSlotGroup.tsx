@@ -1,16 +1,21 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { ItineraryItem } from './ItineraryItem'
+import { TransportItem } from './TransportItem'
 import { HotelAnchor } from './HotelAnchor'
-import { type TimeSlot, type ItineraryItemWithPlace } from '@/types/itinerary'
+import { FlightEventCard } from './FlightEventCard'
+import { type TimeSlot } from '@/types/itinerary'
+import { type SlotItem } from '@/types/transport'
 import type { AccommodationRow } from '@/types/accommodations'
+import type { FlightEvent } from '@/lib/logistics-utils'
 import { cn } from '@/lib/utils'
 
 interface TimeSlotGroupProps {
   slot: TimeSlot
   label: string
-  items: ItineraryItemWithPlace[]
+  items: SlotItem[]
   dayDate: string
+  flightEvents?: FlightEvent[]
   hotelAnchor?: AccommodationRow | null
   hotelColor?: string
   hotelBgColor?: string
@@ -23,6 +28,7 @@ export function TimeSlotGroup({
   label,
   items,
   dayDate,
+  flightEvents = [],
   hotelAnchor,
   hotelColor = '#5b21b6',
   hotelBgColor = '#ede9fe',
@@ -30,14 +36,14 @@ export function TimeSlotGroup({
   onSelectHotel,
 }: TimeSlotGroupProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `slot-${slot}` })
-  const isEmpty = items.length === 0 && !hotelAnchor
+  const isEmpty = items.length === 0 && !hotelAnchor && flightEvents.length === 0
 
   return (
     <div className="space-y-1.5">
       <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
         {label}
       </h3>
-      <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={items.map((i) => i.data.id)} strategy={verticalListSortingStrategy}>
         <div
           ref={setNodeRef}
           className={cn(
@@ -54,14 +60,21 @@ export function TimeSlotGroup({
               onViewOnMap={onSelectHotel ? () => onSelectHotel(hotelAnchor.id) : undefined}
             />
           )}
-          {items.map((item) => (
-            <ItineraryItem
-              key={item.id}
-              item={item}
-              dayDate={dayDate}
-              onSelectPlace={onSelectPlace}
-            />
+          {flightEvents.map((event) => (
+            <FlightEventCard key={event.id} event={event} />
           ))}
+          {items.map((item) =>
+            item.kind === 'itinerary' ? (
+              <ItineraryItem
+                key={item.data.id}
+                item={item.data}
+                dayDate={dayDate}
+                onSelectPlace={onSelectPlace}
+              />
+            ) : (
+              <TransportItem key={item.data.id} item={item.data} dayDate={dayDate} />
+            )
+          )}
           {slot === 'evening' && hotelAnchor && (
             <HotelAnchor
               hotel={hotelAnchor}

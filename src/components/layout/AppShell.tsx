@@ -4,7 +4,7 @@ import { ErrorBoundary } from './ErrorBoundary'
 import { MapView } from '@/components/map/MapView'
 import { DayView } from '@/components/day/DayView'
 import { NotesView } from '@/components/notes/NotesView'
-import { HotelsView } from '@/components/hotels/HotelsView'
+import { LogisticsView } from '@/components/logistics/LogisticsView'
 import { TRIP_DAYS } from '@/config/trip'
 
 export interface NavState {
@@ -28,7 +28,8 @@ function parseHash(): NavState {
   }
   if (hash === 'day') return { view: 'day' }
   if (hash === 'notes') return { view: 'notes' }
-  if (hash === 'hotels') return { view: 'hotels' }
+  if (hash === 'logistics') return { view: 'logistics' }
+  if (hash === 'hotels') return { view: 'logistics' } // backward compat
   return { view: 'map' }
 }
 
@@ -78,7 +79,7 @@ export function AppShell() {
           )}
           {nav.view === 'day' && <DayView initialDate={nav.dayDate} onNavigate={navigate} />}
           {nav.view === 'notes' && <NotesView />}
-          {nav.view === 'hotels' && <HotelsView onNavigate={navigate} />}
+          {nav.view === 'logistics' && <LogisticsView />}
         </ErrorBoundary>
       </main>
 

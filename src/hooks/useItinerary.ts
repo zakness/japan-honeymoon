@@ -6,8 +6,10 @@ import type {
   ItineraryItemUpdate,
   ItineraryItemWithPlace,
 } from '@/types/itinerary'
+import type { SlotItemKind, TransportItemRow } from '@/types/transport'
+import { TRANSPORT_KEY } from './useTransport'
 
-const ITINERARY_KEY = ['itinerary'] as const
+export const ITINERARY_KEY = ['itinerary'] as const
 const PLACES_KEY = ['places'] as const
 
 // ---- Queries ----
@@ -117,6 +119,13 @@ export interface ReorderItem {
   time_slot: ItineraryItemRow['time_slot']
 }
 
+export interface DayReorderItem {
+  id: string
+  kind: SlotItemKind
+  sort_order: number
+  time_slot: ItineraryItemRow['time_slot']
+}
+
 export function useReorderItineraryItems(dayDate: string) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -157,6 +166,78 @@ export function useReorderItineraryItems(dayDate: string) {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, dayDate] })
+    },
+  })
+}
+
+export function useReorderDayItems(dayDate: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (items: DayReorderItem[]) => {
+      const itineraryUpdates = items
+        .filter((i) => i.kind === 'itinerary')
+        .map(({ id, sort_order, time_slot }) =>
+          supabase.from('itinerary_items').update({ sort_order, time_slot }).eq('id', id)
+        )
+      const transportUpdates = items
+        .filter((i) => i.kind === 'transport')
+        .map(({ id, sort_order, time_slot }) =>
+          supabase.from('transport_items').update({ sort_order, time_slot }).eq('id', id)
+        )
+      const results = await Promise.all([...itineraryUpdates, ...transportUpdates])
+      const failed = results.find((r) => r.error)
+      if (failed?.error) throw failed.error
+    },
+    onMutate: async (items) => {
+      await queryClient.cancelQueries({ queryKey: [...ITINERARY_KEY, dayDate] })
+      await queryClient.cancelQueries({ queryKey: [...TRANSPORT_KEY, dayDate] })
+
+      const previousItinerary = queryClient.getQueryData([...ITINERARY_KEY, dayDate])
+      const previousTransport = queryClient.getQueryData([...TRANSPORT_KEY, dayDate])
+
+      queryClient.setQueryData(
+        [...ITINERARY_KEY, dayDate],
+        (old: ItineraryItemWithPlace[] | undefined) => {
+          if (!old) return old
+          return old
+            .map((item) => {
+              const update = items.find((u) => u.kind === 'itinerary' && u.id === item.id)
+              return update
+                ? { ...item, sort_order: update.sort_order, time_slot: update.time_slot }
+                : item
+            })
+            .sort((a, b) => a.sort_order - b.sort_order)
+        }
+      )
+
+      queryClient.setQueryData(
+        [...TRANSPORT_KEY, dayDate],
+        (old: TransportItemRow[] | undefined) => {
+          if (!old) return old
+          return old
+            .map((item) => {
+              const update = items.find((u) => u.kind === 'transport' && u.id === item.id)
+              return update
+                ? { ...item, sort_order: update.sort_order, time_slot: update.time_slot }
+                : item
+            })
+            .sort((a, b) => a.sort_order - b.sort_order)
+        }
+      )
+
+      return { previousItinerary, previousTransport }
+    },
+    onError: (_err, _items, context) => {
+      if (context?.previousItinerary) {
+        queryClient.setQueryData([...ITINERARY_KEY, dayDate], context.previousItinerary)
+      }
+      if (context?.previousTransport) {
+        queryClient.setQueryData([...TRANSPORT_KEY, dayDate], context.previousTransport)
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, dayDate] })
+      queryClient.invalidateQueries({ queryKey: [...TRANSPORT_KEY, dayDate] })
     },
   })
 }

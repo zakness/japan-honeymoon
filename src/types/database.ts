@@ -8,6 +8,96 @@ export type Database = {
   }
   public: {
     Tables: {
+      flights: {
+        Row: {
+          id: string
+          airline: string
+          flight_number: string
+          dep_airport: string
+          arr_airport: string
+          departure_at: string
+          arrival_at: string
+          confirmation: string
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          airline: string
+          flight_number: string
+          dep_airport: string
+          arr_airport: string
+          departure_at: string
+          arrival_at: string
+          confirmation: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          airline?: string
+          flight_number?: string
+          dep_airport?: string
+          arr_airport?: string
+          departure_at?: string
+          arrival_at?: string
+          confirmation?: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      transport_items: {
+        Row: {
+          id: string
+          day_date: string
+          type: string
+          origin: string
+          destination: string
+          departure_time: string
+          arrival_time: string | null
+          confirmation: string | null
+          notes: string | null
+          time_slot: string
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          day_date: string
+          type: string
+          origin: string
+          destination: string
+          departure_time: string
+          arrival_time?: string | null
+          confirmation?: string | null
+          notes?: string | null
+          time_slot?: string
+          sort_order: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          day_date?: string
+          type?: string
+          origin?: string
+          destination?: string
+          departure_time?: string
+          arrival_time?: string | null
+          confirmation?: string | null
+          notes?: string | null
+          time_slot?: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       accommodations: {
         Row: {
           id: string
@@ -22,6 +112,8 @@ export type Database = {
           lng: number | null
           website: string | null
           booked_by: string | null
+          check_in_time: string | null
+          check_out_time: string | null
           created_at: string
           updated_at: string
         }
@@ -38,6 +130,8 @@ export type Database = {
           lng?: number | null
           website?: string | null
           booked_by?: string | null
+          check_in_time?: string | null
+          check_out_time?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -54,6 +148,8 @@ export type Database = {
           lng?: number | null
           website?: string | null
           booked_by?: string | null
+          check_in_time?: string | null
+          check_out_time?: string | null
           created_at?: string
           updated_at?: string
         }

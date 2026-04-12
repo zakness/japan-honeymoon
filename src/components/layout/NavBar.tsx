@@ -1,13 +1,13 @@
-import { Map, CalendarDays, NotebookText, BedDouble } from 'lucide-react'
+import { Map, CalendarDays, NotebookText, Route } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type AppView = 'map' | 'day' | 'notes' | 'hotels'
+export type AppView = 'map' | 'day' | 'notes' | 'logistics'
 
 const TABS: { id: AppView; label: string; Icon: typeof Map }[] = [
   { id: 'map', label: 'Map', Icon: Map },
   { id: 'day', label: 'Day', Icon: CalendarDays },
+  { id: 'logistics', label: 'Logistics', Icon: Route },
   { id: 'notes', label: 'Notes', Icon: NotebookText },
-  { id: 'hotels', label: 'Hotels', Icon: BedDouble },
 ]
 
 interface NavBarProps {
