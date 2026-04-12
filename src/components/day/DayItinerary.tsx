@@ -14,16 +14,21 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { TimeSlotGroup } from './TimeSlotGroup'
 import { ItineraryItem } from './ItineraryItem'
 import { useItineraryItems, useReorderItineraryItems } from '@/hooks/useItinerary'
+import { useAccommodations, useAccommodationsForDate } from '@/hooks/useAccommodations'
+import { getHotelColor, getHotelBgColor } from '@/lib/hotel-colors'
 import { TIME_SLOTS, type TimeSlot, type ItineraryItemWithPlace } from '@/types/itinerary'
 
 interface DayItineraryProps {
   dayDate: string
   onSelectPlace?: (placeId: string) => void
+  onSelectHotel?: (hotelId: string) => void
 }
 
-export function DayItinerary({ dayDate, onSelectPlace }: DayItineraryProps) {
+export function DayItinerary({ dayDate, onSelectPlace, onSelectHotel }: DayItineraryProps) {
   const { data: items = [], isLoading } = useItineraryItems(dayDate)
   const reorder = useReorderItineraryItems(dayDate)
+  const { morningHotel, eveningHotel } = useAccommodationsForDate(dayDate)
+  const { data: allHotels = [] } = useAccommodations()
   const [activeItem, setActiveItem] = useState<ItineraryItemWithPlace | null>(null)
 
   const sensors = useSensors(
@@ -115,6 +120,8 @@ export function DayItinerary({ dayDate, onSelectPlace }: DayItineraryProps) {
     reorder.mutate(updates)
   }
 
+  const hasContent = items.length > 0 || morningHotel || eveningHotel
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -125,7 +132,7 @@ export function DayItinerary({ dayDate, onSelectPlace }: DayItineraryProps) {
     )
   }
 
-  if (items.length === 0) {
+  if (!hasContent) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
         <p className="text-3xl">📅</p>
@@ -138,16 +145,24 @@ export function DayItinerary({ dayDate, onSelectPlace }: DayItineraryProps) {
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="space-y-5">
-        {TIME_SLOTS.map(({ value, label }) => (
-          <TimeSlotGroup
-            key={value}
-            slot={value}
-            label={label}
-            items={grouped[value]}
-            dayDate={dayDate}
-            onSelectPlace={onSelectPlace}
-          />
-        ))}
+        {TIME_SLOTS.map(({ value, label }) => {
+          const anchor =
+            value === 'morning' ? morningHotel : value === 'evening' ? eveningHotel : null
+          return (
+            <TimeSlotGroup
+              key={value}
+              slot={value}
+              label={label}
+              items={grouped[value]}
+              dayDate={dayDate}
+              hotelAnchor={anchor}
+              hotelColor={anchor ? getHotelColor(anchor, allHotels) : undefined}
+              hotelBgColor={anchor ? getHotelBgColor(anchor, allHotels) : undefined}
+              onSelectPlace={onSelectPlace}
+              onSelectHotel={onSelectHotel}
+            />
+          )
+        })}
       </div>
 
       <DragOverlay dropAnimation={null}>

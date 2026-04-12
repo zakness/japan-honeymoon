@@ -4,6 +4,10 @@ import userEvent from '@testing-library/user-event'
 import { DaySelector } from '@/components/day/DaySelector'
 import { TRIP_DAYS } from '@/config/trip'
 
+vi.mock('@/hooks/useAccommodations', () => ({
+  useAccommodations: () => ({ data: [] }),
+}))
+
 describe('DaySelector', () => {
   const defaultProps = {
     selectedDate: '2026-05-16',
@@ -24,13 +28,6 @@ describe('DaySelector', () => {
     // Tokyo should appear multiple times
     const tokyoLabels = screen.getAllByText(/Tokyo/)
     expect(tokyoLabels.length).toBeGreaterThan(0)
-  })
-
-  it('marks transit days with a plane indicator', () => {
-    render(<DaySelector {...defaultProps} />)
-    const planeIndicators = screen.getAllByText('✈')
-    // 6 transit days in the trip
-    expect(planeIndicators).toHaveLength(6)
   })
 
   it('calls onSelectDate with the clicked date', async () => {

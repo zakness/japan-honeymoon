@@ -1,18 +1,22 @@
-import { useState, useCallback, useEffect } from 'react'
-import { Map, InfoWindow, useMap } from '@vis.gl/react-google-maps'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { Map, InfoWindow, useMap, useMapsLibrary } from '@vis.gl/react-google-maps'
 import { Plus, List } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PlaceMarker } from './PlaceMarker'
+import { HotelMarker } from './HotelMarker'
 import { MapFilterBar, type MapFilters } from './MapFilterBar'
 import { PlaceList } from '@/components/places/PlaceList'
 import { PlaceForm } from '@/components/places/PlaceForm'
 import { PlaceDetail } from '@/components/places/PlaceDetail'
+import { HotelDetail } from '@/components/hotels/HotelDetail'
 import { usePlaces } from '@/hooks/usePlaces'
 import { usePlace } from '@/hooks/usePlaces'
+import { useAccommodations } from '@/hooks/useAccommodations'
 import { JAPAN_CENTER, JAPAN_DEFAULT_ZOOM, GOOGLE_MAP_ID } from '@/lib/google-maps'
 import type { PlaceRow, PlaceCategory, PlacePriority } from '@/types/places'
+import type { AccommodationRow } from '@/types/accommodations'
 import type { NavState } from '@/components/layout/AppShell'
 
 const ALL = 'all'
@@ -20,24 +24,53 @@ const ALL = 'all'
 function MapContent({
   filters,
   selectedPlace,
+  selectedHotel,
   onSelectPlace,
+  onSelectHotel,
 }: {
   filters: MapFilters
   selectedPlace: PlaceRow | null
+  selectedHotel: AccommodationRow | null
   onSelectPlace: (place: PlaceRow | null) => void
+  onSelectHotel: (hotel: AccommodationRow) => void
 }) {
   const map = useMap()
+  const coreLib = useMapsLibrary('core')
+  const fittedRef = useRef(false)
 
   const { data: places = [] } = usePlaces({
     category: filters.category !== ALL ? (filters.category as PlaceCategory) : undefined,
     priority: filters.priority !== ALL ? (filters.priority as PlacePriority) : undefined,
     dayDate: filters.dayDate !== ALL ? filters.dayDate : undefined,
   })
+  const { data: hotels = [] } = useAccommodations()
 
-  function handleMarkerClick(place: PlaceRow) {
+  const hasSelection = !!selectedPlace || !!selectedHotel
+
+  // On first load, fit the map so all hotel markers are just in frame
+  useEffect(() => {
+    if (!map || !coreLib || hotels.length === 0 || fittedRef.current) return
+    const bounds = new coreLib.LatLngBounds()
+    for (const h of hotels) {
+      if (h.lat && h.lng) bounds.extend({ lat: h.lat, lng: h.lng })
+    }
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, 60)
+      fittedRef.current = true
+    }
+  }, [map, coreLib, hotels])
+
+  function handlePlaceClick(place: PlaceRow) {
     onSelectPlace(place)
     if (map && place.lat && place.lng) {
       map.panTo({ lat: place.lat, lng: place.lng })
+    }
+  }
+
+  function handleHotelClick(hotel: AccommodationRow) {
+    onSelectHotel(hotel)
+    if (map && hotel.lat && hotel.lng) {
+      map.panTo({ lat: hotel.lat, lng: hotel.lng })
     }
   }
 
@@ -48,7 +81,17 @@ function MapContent({
           key={place.id}
           place={place}
           selected={selectedPlace?.id === place.id}
-          onClick={handleMarkerClick}
+          dimmed={hasSelection && selectedPlace?.id !== place.id}
+          onClick={handlePlaceClick}
+        />
+      ))}
+      {hotels.map((hotel) => (
+        <HotelMarker
+          key={hotel.id}
+          hotel={hotel}
+          selected={selectedHotel?.id === hotel.id}
+          dimmed={hasSelection && selectedHotel?.id !== hotel.id}
+          onClick={handleHotelClick}
         />
       ))}
       {selectedPlace?.lat && selectedPlace?.lng && (
@@ -66,16 +109,18 @@ function MapContent({
 
 interface MapViewProps {
   focusPlaceId?: string
+  focusHotelId?: string
   onNavigate: (state: NavState) => void
 }
 
-export function MapView({ focusPlaceId, onNavigate }: MapViewProps) {
+export function MapView({ focusPlaceId, focusHotelId, onNavigate }: MapViewProps) {
   const [filters, setFilters] = useState<MapFilters>({
     dayDate: ALL,
     category: ALL,
     priority: ALL,
   })
   const [selectedPlace, setSelectedPlace] = useState<PlaceRow | null>(null)
+  const [selectedHotel, setSelectedHotel] = useState<AccommodationRow | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [panelTab, setPanelTab] = useState<'list' | 'add'>('list')
 
@@ -84,26 +129,62 @@ export function MapView({ focusPlaceId, onNavigate }: MapViewProps) {
   useEffect(() => {
     if (focusPlace) {
       setSelectedPlace(focusPlace)
+      setSelectedHotel(null)
       setPanelOpen(true)
       setPanelTab('list')
     }
   }, [focusPlace])
 
-  const handleSelectPlace = useCallback((place: PlaceRow) => {
-    setSelectedPlace(place)
-    setPanelOpen(true)
-    setPanelTab('list')
-  }, [])
+  // If navigated here with a focusHotelId, open the panel for that hotel
+  const { data: allHotels = [] } = useAccommodations()
+  useEffect(() => {
+    if (!focusHotelId) return
+    const hotel = allHotels.find((h) => h.id === focusHotelId) ?? null
+    if (hotel) {
+      setSelectedHotel(hotel)
+      setSelectedPlace(null)
+      setPanelOpen(true)
+    }
+  }, [focusHotelId, allHotels])
+
+  const handleSelectPlace = useCallback(
+    (place: PlaceRow) => {
+      setSelectedPlace(place)
+      setSelectedHotel(null)
+      setPanelOpen(true)
+      setPanelTab('list')
+      onNavigate({ view: 'map', focusPlaceId: place.id })
+    },
+    [onNavigate]
+  )
+
+  const handleSelectHotel = useCallback(
+    (hotel: AccommodationRow) => {
+      setSelectedHotel(hotel)
+      setSelectedPlace(null)
+      setPanelOpen(true)
+      onNavigate({ view: 'map', focusHotelId: hotel.id })
+    },
+    [onNavigate]
+  )
 
   const handleClearSelection = useCallback(() => {
     setSelectedPlace(null)
-  }, [])
+    setSelectedHotel(null)
+    onNavigate({ view: 'map' })
+  }, [onNavigate])
 
   function handleAddNew() {
     setSelectedPlace(null)
+    setSelectedHotel(null)
     setPanelTab('add')
     setPanelOpen(true)
+    onNavigate({ view: 'map' })
   }
+
+  // Determine what the sheet shows
+  const showPlaceDetail = selectedPlace && panelTab === 'list'
+  const showHotelDetail = selectedHotel && panelOpen
 
   return (
     <div className="relative h-full w-full">
@@ -119,7 +200,9 @@ export function MapView({ focusPlaceId, onNavigate }: MapViewProps) {
         <MapContent
           filters={filters}
           selectedPlace={selectedPlace}
+          selectedHotel={selectedHotel}
           onSelectPlace={(p) => (p ? handleSelectPlace(p) : handleClearSelection())}
+          onSelectHotel={handleSelectHotel}
         />
       </Map>
 
@@ -132,8 +215,10 @@ export function MapView({ focusPlaceId, onNavigate }: MapViewProps) {
           className="gap-1.5 shadow bg-background/95 backdrop-blur"
           onClick={() => {
             setSelectedPlace(null)
+            setSelectedHotel(null)
             setPanelTab('list')
             setPanelOpen(true)
+            onNavigate({ view: 'map' })
           }}
         >
           <List className="h-4 w-4" />
@@ -145,15 +230,46 @@ export function MapView({ focusPlaceId, onNavigate }: MapViewProps) {
         </Button>
       </div>
 
-      <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
+      <Sheet
+        open={panelOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPanelOpen(false)
+            setSelectedPlace(null)
+            setSelectedHotel(null)
+            onNavigate({ view: 'map' })
+          }
+        }}
+      >
         <SheetContent side="right" className="w-full sm:w-96 overflow-y-auto p-0">
-          {selectedPlace && panelTab === 'list' ? (
+          {showHotelDetail ? (
+            <>
+              <SheetHeader className="px-4 pt-4 pb-2">
+                <SheetTitle className="sr-only">Hotel details</SheetTitle>
+                <button
+                  className="text-xs text-muted-foreground hover:text-foreground text-left"
+                  onClick={() => {
+                    setSelectedHotel(null)
+                    onNavigate({ view: 'map' })
+                  }}
+                >
+                  ← Back
+                </button>
+              </SheetHeader>
+              <div className="px-4 pb-4">
+                <HotelDetail hotel={selectedHotel} />
+              </div>
+            </>
+          ) : showPlaceDetail ? (
             <>
               <SheetHeader className="px-4 pt-4 pb-2">
                 <SheetTitle className="sr-only">Place details</SheetTitle>
                 <button
                   className="text-xs text-muted-foreground hover:text-foreground text-left"
-                  onClick={() => setSelectedPlace(null)}
+                  onClick={() => {
+                    setSelectedPlace(null)
+                    onNavigate({ view: 'map' })
+                  }}
                 >
                   ← All places
                 </button>
@@ -164,6 +280,7 @@ export function MapView({ focusPlaceId, onNavigate }: MapViewProps) {
                   onClose={() => {
                     setSelectedPlace(null)
                     setPanelOpen(false)
+                    onNavigate({ view: 'map' })
                   }}
                   onAddToDay={(place) => {
                     setPanelOpen(false)

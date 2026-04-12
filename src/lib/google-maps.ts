@@ -4,9 +4,9 @@ import type { PlaceCategory } from '@/types/places'
 // Required for AdvancedMarker support.
 export const GOOGLE_MAP_ID = import.meta.env.VITE_GOOGLE_MAP_ID as string | undefined
 
-// Japan center — roughly midway between Tokyo and Osaka
-export const JAPAN_CENTER = { lat: 36.5, lng: 136.5 }
-export const JAPAN_DEFAULT_ZOOM = 6
+// Default view — Honshu corridor from Osaka to Tokyo, all hotels visible
+export const JAPAN_CENTER = { lat: 35.4, lng: 137.0 }
+export const JAPAN_DEFAULT_ZOOM = 8
 
 // Category colors for map markers
 export const CATEGORY_COLORS: Record<PlaceCategory, string> = {
