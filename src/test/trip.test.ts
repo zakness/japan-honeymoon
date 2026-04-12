@@ -8,19 +8,19 @@ import {
 } from '@/config/trip'
 
 describe('TRIP_DAYS', () => {
-  it('has exactly 16 days', () => {
-    expect(TRIP_DAYS).toHaveLength(16)
+  it('has exactly 15 days', () => {
+    expect(TRIP_DAYS).toHaveLength(15)
   })
 
-  it('starts on May 15 2026', () => {
-    expect(TRIP_DAYS[0].date).toBe('2026-05-15')
+  it('starts on May 16 2026', () => {
+    expect(TRIP_DAYS[0].date).toBe('2026-05-16')
   })
 
   it('ends on May 30 2026', () => {
-    expect(TRIP_DAYS[15].date).toBe('2026-05-30')
+    expect(TRIP_DAYS[14].date).toBe('2026-05-30')
   })
 
-  it('has sequential day numbers 1–16', () => {
+  it('has sequential day numbers 1–15', () => {
     TRIP_DAYS.forEach((day, i) => {
       expect(day.dayNumber).toBe(i + 1)
     })
@@ -41,8 +41,8 @@ describe('TRIP_DAYS', () => {
 describe('city assignments', () => {
   it('marks Tokyo days correctly', () => {
     const tokyoDays = TRIP_DAYS.filter((d) => d.cities.includes('tokyo'))
-    // May 15–22 are all Tokyo days (some also have a second city)
-    expect(tokyoDays.length).toBe(8)
+    // May 16–22 are all Tokyo days (some also have a second city)
+    expect(tokyoDays.length).toBe(7)
   })
 
   it('marks Hakone days correctly', () => {
@@ -68,14 +68,7 @@ describe('city assignments', () => {
 
 describe('transit days', () => {
   it('marks travel days as transit', () => {
-    const transitDates = [
-      '2026-05-15',
-      '2026-05-22',
-      '2026-05-24',
-      '2026-05-27',
-      '2026-05-29',
-      '2026-05-30',
-    ]
+    const transitDates = ['2026-05-22', '2026-05-24', '2026-05-27', '2026-05-29', '2026-05-30']
     transitDates.forEach((date) => {
       const day = getDayByDate(date)
       expect(day?.isTransit).toBe(true)
@@ -95,13 +88,13 @@ describe('getDayByDate', () => {
   it('returns the correct day for a valid date', () => {
     const day = getDayByDate('2026-05-17')
     expect(day).toBeDefined()
-    expect(day?.dayNumber).toBe(3)
+    expect(day?.dayNumber).toBe(2)
     expect(day?.cities).toContain('tokyo')
   })
 
   it('returns undefined for a date outside the trip', () => {
     expect(getDayByDate('2026-06-01')).toBeUndefined()
-    expect(getDayByDate('2026-05-14')).toBeUndefined()
+    expect(getDayByDate('2026-05-15')).toBeUndefined()
     expect(getDayByDate('')).toBeUndefined()
   })
 })
