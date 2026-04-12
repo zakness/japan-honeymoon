@@ -1,8 +1,9 @@
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, MapPin } from 'lucide-react'
 import type { AccommodationRow } from '@/types/accommodations'
 
 interface HotelCardProps {
   hotel: AccommodationRow
+  onViewOnMap?: () => void
 }
 
 function formatDateRange(checkIn: string, checkOut: string) {
@@ -22,7 +23,7 @@ const CITY_LABELS: Record<string, string> = {
   osaka: 'Osaka',
 }
 
-export function HotelCard({ hotel }: HotelCardProps) {
+export function HotelCard({ hotel, onViewOnMap }: HotelCardProps) {
   const { range, nights } = formatDateRange(hotel.check_in_date, hotel.check_out_date)
   const link = hotel.booking_url ?? hotel.website
 
@@ -75,17 +76,28 @@ export function HotelCard({ hotel }: HotelCardProps) {
         </div>
       )}
 
-      {link && (
-        <a
-          href={link}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 text-xs text-primary hover:underline"
-        >
-          <ExternalLink className="h-3 w-3" />
-          Manage reservation
-        </a>
-      )}
+      <div className="flex items-center gap-3">
+        {onViewOnMap && (
+          <button
+            onClick={onViewOnMap}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <MapPin className="h-3 w-3" />
+            View on map
+          </button>
+        )}
+        {link && (
+          <a
+            href={link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Manage reservation
+          </a>
+        )}
+      </div>
     </div>
   )
 }

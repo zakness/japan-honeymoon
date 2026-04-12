@@ -2,19 +2,10 @@ import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { TRIP_DAYS, CITY_LABELS, type City } from '@/config/trip'
 import { useAccommodations } from '@/hooks/useAccommodations'
+import { getHotelColor } from '@/lib/hotel-colors'
 import type { AccommodationRow } from '@/types/accommodations'
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-// Distinct colors per hotel slot (ordered by check-in date)
-const HOTEL_COLORS = [
-  '#7c3aed', // violet  — Hotel Indigo
-  '#2563eb', // blue    — Yuen Bettei
-  '#059669', // emerald — Nazuna Hakone
-  '#d97706', // amber   — Ace Hotel Kyoto
-  '#db2777', // pink    — Vacation House YOKOMBO
-  '#0891b2', // cyan    — Swissotel Osaka
-]
 
 interface DaySelectorProps {
   selectedDate: string
@@ -46,7 +37,7 @@ export function DaySelector({ selectedDate, onSelectDate }: DaySelectorProps) {
 
   function hotelColor(hotel: AccommodationRow | null): string | undefined {
     if (!hotel) return undefined
-    return HOTEL_COLORS[hotels.indexOf(hotel) % HOTEL_COLORS.length]
+    return getHotelColor(hotel, hotels)
   }
 
   return (

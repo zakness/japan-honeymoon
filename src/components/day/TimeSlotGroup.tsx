@@ -12,7 +12,10 @@ interface TimeSlotGroupProps {
   items: ItineraryItemWithPlace[]
   dayDate: string
   hotelAnchor?: AccommodationRow | null
+  hotelColor?: string
+  hotelBgColor?: string
   onSelectPlace?: (placeId: string) => void
+  onSelectHotel?: (hotelId: string) => void
 }
 
 export function TimeSlotGroup({
@@ -21,7 +24,10 @@ export function TimeSlotGroup({
   items,
   dayDate,
   hotelAnchor,
+  hotelColor = '#5b21b6',
+  hotelBgColor = '#ede9fe',
   onSelectPlace,
+  onSelectHotel,
 }: TimeSlotGroupProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `slot-${slot}` })
   const isEmpty = items.length === 0 && !hotelAnchor
@@ -39,7 +45,15 @@ export function TimeSlotGroup({
             isOver ? 'bg-accent/50 ring-1 ring-accent' : ''
           )}
         >
-          {slot === 'morning' && hotelAnchor && <HotelAnchor hotel={hotelAnchor} slot="morning" />}
+          {slot === 'morning' && hotelAnchor && (
+            <HotelAnchor
+              hotel={hotelAnchor}
+              slot="morning"
+              color={hotelColor}
+              bgColor={hotelBgColor}
+              onViewOnMap={onSelectHotel ? () => onSelectHotel(hotelAnchor.id) : undefined}
+            />
+          )}
           {items.map((item) => (
             <ItineraryItem
               key={item.id}
@@ -48,7 +62,15 @@ export function TimeSlotGroup({
               onSelectPlace={onSelectPlace}
             />
           ))}
-          {slot === 'evening' && hotelAnchor && <HotelAnchor hotel={hotelAnchor} slot="evening" />}
+          {slot === 'evening' && hotelAnchor && (
+            <HotelAnchor
+              hotel={hotelAnchor}
+              slot="evening"
+              color={hotelColor}
+              bgColor={hotelBgColor}
+              onViewOnMap={onSelectHotel ? () => onSelectHotel(hotelAnchor.id) : undefined}
+            />
+          )}
           {isEmpty && (
             <div
               className={cn(

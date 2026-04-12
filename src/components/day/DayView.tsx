@@ -35,6 +35,10 @@ export function DayView({ initialDate, onNavigate }: DayViewProps) {
     onNavigate({ view: 'map', focusPlaceId: placeId })
   }
 
+  function handleSelectHotel(hotelId: string) {
+    onNavigate({ view: 'map', focusHotelId: hotelId })
+  }
+
   return (
     <div className="flex flex-col h-full">
       <DaySelector selectedDate={selectedDate} onSelectDate={setSelectedDate} />
@@ -61,7 +65,11 @@ export function DayView({ initialDate, onNavigate }: DayViewProps) {
       <div className="flex-1 overflow-hidden">
         <div className="lg:flex lg:h-full">
           <div className="flex-1 overflow-y-auto p-4">
-            <DayItinerary dayDate={selectedDate} onSelectPlace={handleSelectPlace} />
+            <DayItinerary
+              dayDate={selectedDate}
+              onSelectPlace={handleSelectPlace}
+              onSelectHotel={handleSelectHotel}
+            />
           </div>
           <div className="hidden lg:block w-80 border-l overflow-y-auto p-4">
             <BacklogPanel

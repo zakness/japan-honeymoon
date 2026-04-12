@@ -1,8 +1,13 @@
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAccommodations } from '@/hooks/useAccommodations'
 import { HotelCard } from './HotelCard'
+import type { NavState } from '@/components/layout/AppShell'
 
-export function HotelsView() {
+interface HotelsViewProps {
+  onNavigate: (state: NavState) => void
+}
+
+export function HotelsView({ onNavigate }: HotelsViewProps) {
   const { data: hotels = [], isLoading } = useAccommodations()
 
   if (isLoading) {
@@ -22,7 +27,11 @@ export function HotelsView() {
           {hotels.length} {hotels.length === 1 ? 'hotel' : 'hotels'}
         </h2>
         {hotels.map((hotel) => (
-          <HotelCard key={hotel.id} hotel={hotel} />
+          <HotelCard
+            key={hotel.id}
+            hotel={hotel}
+            onViewOnMap={() => onNavigate({ view: 'map', focusHotelId: hotel.id })}
+          />
         ))}
       </div>
     </div>
