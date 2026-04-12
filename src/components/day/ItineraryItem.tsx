@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, MapPin, Trash2, StickyNote, ChevronDown } from 'lucide-react'
+import { GripVertical, MapPin, Trash2, StickyNote, ChevronDown, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -9,11 +9,18 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { PLACE_CATEGORIES } from '@/types/places'
-import { TIME_SLOTS, type TimeSlot, type ItineraryItemWithPlace } from '@/types/itinerary'
+import {
+  TIME_SLOTS,
+  type TimeSlot,
+  type ItineraryItemWithPlace,
+  formatReservationTime,
+} from '@/types/itinerary'
 import { useDeleteItineraryItem, useUpdateItineraryItem } from '@/hooks/useItinerary'
+import { ReservationDialog } from './ReservationDialog'
 
 interface ItineraryItemProps {
   item: ItineraryItemWithPlace
@@ -36,6 +43,7 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
   const updateItem = useUpdateItineraryItem()
   const [editingNote, setEditingNote] = useState(false)
   const [noteText, setNoteText] = useState(item.text_note ?? '')
+  const [reservationOpen, setReservationOpen] = useState(false)
 
   async function handleDelete() {
     try {
@@ -96,6 +104,21 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
                 {place.name}
               </button>
             </div>
+            {item.reservation_time && (
+              <button
+                className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors"
+                onClick={() => setReservationOpen(true)}
+                title="Edit reservation"
+              >
+                <Clock className="h-3 w-3" />
+                {formatReservationTime(item.reservation_time)}
+              </button>
+            )}
+            {item.reservation_notes && (
+              <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
+                {item.reservation_notes}
+              </p>
+            )}
             {place.address && (
               <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
                 <MapPin className="h-3 w-3 flex-shrink-0" />
@@ -150,7 +173,7 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
 
       {/* Actions */}
       <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-        {/* Time slot reassignment */}
+        {/* Time slot / reservation menu */}
         <DropdownMenu>
           <DropdownMenuTrigger>
             <Button
@@ -164,15 +187,33 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {TIME_SLOTS.map((slot) => (
-              <DropdownMenuItem
-                key={slot.value}
-                onClick={() => handleTimeSlotChange(slot.value)}
-                className={timeSlot === slot.value ? 'font-medium' : ''}
-              >
-                {slot.label}
+            {item.reservation_time ? (
+              <DropdownMenuItem onClick={() => setReservationOpen(true)}>
+                <Clock className="h-3.5 w-3.5 mr-1.5" />
+                Edit reservation
               </DropdownMenuItem>
-            ))}
+            ) : (
+              <>
+                {isPlace && (
+                  <>
+                    <DropdownMenuItem onClick={() => setReservationOpen(true)}>
+                      <Clock className="h-3.5 w-3.5 mr-1.5" />
+                      Set reservation time
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                {TIME_SLOTS.map((slot) => (
+                  <DropdownMenuItem
+                    key={slot.value}
+                    onClick={() => handleTimeSlotChange(slot.value)}
+                    className={timeSlot === slot.value ? 'font-medium' : ''}
+                  >
+                    {slot.label}
+                  </DropdownMenuItem>
+                ))}
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -185,6 +226,10 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </div>
+
+      {isPlace && (
+        <ReservationDialog item={item} open={reservationOpen} onOpenChange={setReservationOpen} />
+      )}
     </div>
   )
 }

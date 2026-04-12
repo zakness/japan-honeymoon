@@ -17,3 +17,17 @@ export const TIME_SLOTS: { value: TimeSlot; label: string }[] = [
 export interface ItineraryItemWithPlace extends ItineraryItemRow {
   place: PlaceRow | null
 }
+
+export function deriveTimeSlot(reservationTime: string): TimeSlot {
+  const hours = parseInt(reservationTime.split(':')[0], 10)
+  if (hours < 12) return 'morning'
+  if (hours < 17) return 'afternoon'
+  return 'evening'
+}
+
+export function formatReservationTime(time: string): string {
+  const [h, m] = time.split(':').map(Number)
+  const period = h >= 12 ? 'PM' : 'AM'
+  const displayH = h % 12 || 12
+  return `${displayH}:${String(m).padStart(2, '0')} ${period}`
+}
