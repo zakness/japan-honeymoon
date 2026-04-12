@@ -52,9 +52,9 @@ export function usePlace(id: string | null) {
     queryKey: [...PLACES_KEY, id],
     queryFn: async () => {
       if (!id) return null
-      const { data, error } = await supabase.from('places').select('*').eq('id', id).single()
+      const { data, error } = await supabase.from('places').select('*').eq('id', id).maybeSingle()
       if (error) throw error
-      return data as PlaceRow
+      return data as PlaceRow | null
     },
     enabled: !!id,
   })
@@ -122,6 +122,7 @@ export function useDeletePlace() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PLACES_KEY })
+      queryClient.invalidateQueries({ queryKey: ['itinerary'] })
     },
   })
 }

@@ -140,7 +140,7 @@ export function PlaceDetail({ place: initialPlace, onClose }: PlaceDetailProps) 
         {/* Scheduled days */}
         {scheduledDates.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {scheduledDates.map((date) => {
+            {[...new Set(scheduledDates)].map((date) => {
               const day = TRIP_DAYS.find((d) => d.date === date)
               if (!day) return null
               return (
@@ -255,16 +255,18 @@ export function PlaceDetail({ place: initialPlace, onClose }: PlaceDetailProps) 
             Edit
           </Button>
           <AlertDialog>
-            <AlertDialogTrigger>
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-destructive hover:text-destructive gap-1.5"
-                type="button"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
+            <AlertDialogTrigger
+              render={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive hover:text-destructive gap-1.5"
+                  type="button"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              }
+            />
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete place?</AlertDialogTitle>
