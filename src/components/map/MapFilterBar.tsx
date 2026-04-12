@@ -32,7 +32,7 @@ export function MapFilterBar({ filters, onChange }: MapFilterBarProps) {
   }
 
   return (
-    <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2">
       {/* Day filter */}
       <Select value={filters.dayDate} onValueChange={(v) => set('dayDate', v as string)}>
         <SelectTrigger className="h-8 text-xs bg-background/95 backdrop-blur shadow w-44">

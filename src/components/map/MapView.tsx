@@ -187,141 +187,146 @@ export function MapView({ focusPlaceId, focusHotelId, onNavigate }: MapViewProps
   const showHotelDetail = selectedHotel && panelOpen
 
   return (
-    <div className="relative h-full w-full">
-      <Map
-        mapId={GOOGLE_MAP_ID || null}
-        defaultCenter={JAPAN_CENTER}
-        defaultZoom={JAPAN_DEFAULT_ZOOM}
-        gestureHandling="greedy"
-        disableDefaultUI={false}
-        className="h-full w-full"
-        onClick={() => handleClearSelection()}
-      >
-        <MapContent
-          filters={filters}
-          selectedPlace={selectedPlace}
-          selectedHotel={selectedHotel}
-          onSelectPlace={(p) => (p ? handleSelectPlace(p) : handleClearSelection())}
-          onSelectHotel={handleSelectHotel}
-        />
-      </Map>
-
-      <MapFilterBar filters={filters} onChange={setFilters} />
-
-      <div className="absolute top-3 right-3 z-10 flex gap-2">
-        <Button
-          size="sm"
-          variant="secondary"
-          className="gap-1.5 shadow bg-background/95 backdrop-blur"
-          onClick={() => {
-            setSelectedPlace(null)
-            setSelectedHotel(null)
-            setPanelTab('list')
-            setPanelOpen(true)
-            onNavigate({ view: 'map' })
-          }}
-        >
-          <List className="h-4 w-4" />
-          Places
-        </Button>
-        <Button size="sm" className="gap-1.5 shadow" onClick={handleAddNew}>
-          <Plus className="h-4 w-4" />
-          Add place
-        </Button>
+    <div className="flex flex-col h-full">
+      {/* Topbar */}
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-background shrink-0">
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            className="gap-1.5"
+            onClick={() => {
+              setSelectedPlace(null)
+              setSelectedHotel(null)
+              setPanelTab('list')
+              setPanelOpen(true)
+              onNavigate({ view: 'map' })
+            }}
+          >
+            <List className="h-4 w-4" />
+            Places
+          </Button>
+          <Button size="sm" className="gap-1.5" onClick={handleAddNew}>
+            <Plus className="h-4 w-4" />
+            Add place
+          </Button>
+        </div>
+        <MapFilterBar filters={filters} onChange={setFilters} />
       </div>
 
-      <Sheet
-        open={panelOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPanelOpen(false)
-            setSelectedPlace(null)
-            setSelectedHotel(null)
-            onNavigate({ view: 'map' })
-          }
-        }}
-      >
-        <SheetContent side="right" className="w-full sm:w-96 overflow-y-auto p-0">
-          {showHotelDetail ? (
-            <>
-              <SheetHeader className="px-4 pt-4 pb-2">
-                <SheetTitle className="sr-only">Hotel details</SheetTitle>
-                <button
-                  className="text-xs text-muted-foreground hover:text-foreground text-left"
-                  onClick={() => {
-                    setSelectedHotel(null)
-                    onNavigate({ view: 'map' })
-                  }}
-                >
-                  ← Back
-                </button>
-              </SheetHeader>
-              <div className="px-4 pb-4">
-                <HotelDetail hotel={selectedHotel} />
-              </div>
-            </>
-          ) : showPlaceDetail ? (
-            <>
-              <SheetHeader className="px-4 pt-4 pb-2">
-                <SheetTitle className="sr-only">Place details</SheetTitle>
-                <button
-                  className="text-xs text-muted-foreground hover:text-foreground text-left"
-                  onClick={() => {
-                    setSelectedPlace(null)
-                    onNavigate({ view: 'map' })
-                  }}
-                >
-                  ← All places
-                </button>
-              </SheetHeader>
-              <div className="px-4 pb-4">
-                <PlaceDetail
-                  place={selectedPlace}
-                  onClose={() => {
-                    setSelectedPlace(null)
-                    setPanelOpen(false)
-                    onNavigate({ view: 'map' })
-                  }}
-                  onAddToDay={(place) => {
-                    setPanelOpen(false)
-                    onNavigate({ view: 'day', focusPlaceId: place.id })
-                  }}
-                />
-              </div>
-            </>
-          ) : (
-            <Tabs
-              value={panelTab}
-              onValueChange={(v) => setPanelTab(v as 'list' | 'add')}
-              className="flex flex-col h-full"
-            >
-              <SheetHeader className="px-4 pt-4 pb-0">
-                <SheetTitle className="sr-only">Places</SheetTitle>
-                <TabsList className="w-full">
-                  <TabsTrigger value="list" className="flex-1">
-                    All places
-                  </TabsTrigger>
-                  <TabsTrigger value="add" className="flex-1">
-                    Add place
-                  </TabsTrigger>
-                </TabsList>
-              </SheetHeader>
-              <TabsContent value="list" className="flex-1 overflow-y-auto px-4 py-3">
-                <PlaceList selectedPlaceId={selectedPlace?.id} onSelectPlace={handleSelectPlace} />
-              </TabsContent>
-              <TabsContent value="add" className="px-4 py-3">
-                <PlaceForm
-                  onSuccess={(place) => {
-                    setSelectedPlace(place)
-                    setPanelTab('list')
-                  }}
-                  onCancel={() => setPanelTab('list')}
-                />
-              </TabsContent>
-            </Tabs>
-          )}
-        </SheetContent>
-      </Sheet>
+      {/* Map */}
+      <div className="relative flex-1">
+        <Map
+          mapId={GOOGLE_MAP_ID || null}
+          defaultCenter={JAPAN_CENTER}
+          defaultZoom={JAPAN_DEFAULT_ZOOM}
+          gestureHandling="greedy"
+          disableDefaultUI={false}
+          className="h-full w-full"
+          onClick={() => handleClearSelection()}
+        >
+          <MapContent
+            filters={filters}
+            selectedPlace={selectedPlace}
+            selectedHotel={selectedHotel}
+            onSelectPlace={(p) => (p ? handleSelectPlace(p) : handleClearSelection())}
+            onSelectHotel={handleSelectHotel}
+          />
+        </Map>
+
+        <Sheet
+          modal={false}
+          open={panelOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setPanelOpen(false)
+              setSelectedPlace(null)
+              setSelectedHotel(null)
+              onNavigate({ view: 'map' })
+            }
+          }}
+        >
+          <SheetContent side="left" className="w-full sm:w-96 overflow-y-auto p-0">
+            {showHotelDetail ? (
+              <>
+                <SheetHeader className="px-4 pt-4 pb-2">
+                  <SheetTitle className="sr-only">Hotel details</SheetTitle>
+                  <button
+                    className="text-xs text-muted-foreground hover:text-foreground text-left"
+                    onClick={() => {
+                      setSelectedHotel(null)
+                      onNavigate({ view: 'map' })
+                    }}
+                  >
+                    ← Back
+                  </button>
+                </SheetHeader>
+                <div className="px-4 pb-4">
+                  <HotelDetail hotel={selectedHotel} />
+                </div>
+              </>
+            ) : showPlaceDetail ? (
+              <>
+                <SheetHeader className="px-4 pt-4 pb-2">
+                  <SheetTitle className="sr-only">Place details</SheetTitle>
+                  <button
+                    className="text-xs text-muted-foreground hover:text-foreground text-left"
+                    onClick={() => {
+                      setSelectedPlace(null)
+                      onNavigate({ view: 'map' })
+                    }}
+                  >
+                    ← All places
+                  </button>
+                </SheetHeader>
+                <div className="px-4 pb-4">
+                  <PlaceDetail
+                    place={selectedPlace}
+                    onClose={() => {
+                      setSelectedPlace(null)
+                      setPanelOpen(false)
+                      onNavigate({ view: 'map' })
+                    }}
+                  />
+                </div>
+              </>
+            ) : (
+              <Tabs
+                value={panelTab}
+                onValueChange={(v) => setPanelTab(v as 'list' | 'add')}
+                className="flex flex-col h-full"
+              >
+                <SheetHeader className="px-4 pt-4 pb-0">
+                  <SheetTitle className="sr-only">Places</SheetTitle>
+                  <TabsList className="w-full">
+                    <TabsTrigger value="list" className="flex-1">
+                      All places
+                    </TabsTrigger>
+                    <TabsTrigger value="add" className="flex-1">
+                      Add place
+                    </TabsTrigger>
+                  </TabsList>
+                </SheetHeader>
+                <TabsContent value="list" className="flex-1 overflow-y-auto px-4 py-3">
+                  <PlaceList
+                    selectedPlaceId={selectedPlace?.id}
+                    onSelectPlace={handleSelectPlace}
+                  />
+                </TabsContent>
+                <TabsContent value="add" className="px-4 py-3">
+                  <PlaceForm
+                    onSuccess={(place) => {
+                      setSelectedPlace(place)
+                      setPanelTab('list')
+                    }}
+                    onCancel={() => setPanelTab('list')}
+                  />
+                </TabsContent>
+              </Tabs>
+            )}
+          </SheetContent>
+        </Sheet>
+      </div>
     </div>
   )
 }

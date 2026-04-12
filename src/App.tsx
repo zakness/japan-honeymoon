@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { APIProvider } from '@vis.gl/react-google-maps'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
@@ -25,7 +24,6 @@ export default function App() {
           <Toaster />
         </TooltipProvider>
       </APIProvider>
-      <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   )
 }
