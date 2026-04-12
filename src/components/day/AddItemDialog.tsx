@@ -21,7 +21,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PlaceCard } from '@/components/places/PlaceCard'
 import { useCreateItineraryItem, useUnscheduledPlaces } from '@/hooks/useItinerary'
-import { TIME_SLOTS, type TimeSlot } from '@/types/itinerary'
+import { TIME_SLOTS, type TimeSlot, deriveTimeSlot } from '@/types/itinerary'
 import type { PlaceRow } from '@/types/places'
 
 interface AddItemDialogProps {
@@ -35,9 +35,13 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('morning')
   const [noteText, setNoteText] = useState('')
   const [selectedPlace, setSelectedPlace] = useState<PlaceRow | null>(null)
+  const [reservationTime, setReservationTime] = useState('')
+  const [reservationNotes, setReservationNotes] = useState('')
 
   const { data: unscheduled = [] } = useUnscheduledPlaces()
   const createItem = useCreateItineraryItem()
+
+  const effectiveTimeSlot = reservationTime ? deriveTimeSlot(reservationTime) : timeSlot
 
   async function handleAddPlace() {
     if (!selectedPlace) return
@@ -45,11 +49,17 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
       await createItem.mutateAsync({
         day_date: dayDate,
         place_id: selectedPlace.id,
-        time_slot: timeSlot,
+        time_slot: effectiveTimeSlot,
         sort_order: currentItemCount,
+        ...(reservationTime && {
+          reservation_time: reservationTime,
+          reservation_notes: reservationNotes.trim() || null,
+        }),
       })
-      toast.success(`${selectedPlace.name} added to ${timeSlot}`)
+      toast.success(`${selectedPlace.name} added to ${effectiveTimeSlot}`)
       setSelectedPlace(null)
+      setReservationTime('')
+      setReservationNotes('')
       setOpen(false)
     } catch {
       toast.error('Failed to add place')
@@ -90,7 +100,11 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
           {/* Time slot */}
           <div className="space-y-1.5">
             <Label>Time of day</Label>
-            <Select value={timeSlot} onValueChange={(v) => setTimeSlot(v as TimeSlot)}>
+            <Select
+              value={effectiveTimeSlot}
+              onValueChange={(v) => setTimeSlot(v as TimeSlot)}
+              disabled={!!reservationTime}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -136,6 +150,30 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
                         }
                       />
                     ))}
+                  </div>
+                  <div className="space-y-2 pt-1 border-t">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="add-reservation-time">Reservation time (optional)</Label>
+                      <input
+                        id="add-reservation-time"
+                        type="time"
+                        value={reservationTime}
+                        onChange={(e) => setReservationTime(e.target.value)}
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      />
+                    </div>
+                    {reservationTime && (
+                      <div className="space-y-1.5">
+                        <Label htmlFor="add-reservation-notes">Notes (optional)</Label>
+                        <Textarea
+                          id="add-reservation-notes"
+                          value={reservationNotes}
+                          onChange={(e) => setReservationNotes(e.target.value)}
+                          placeholder="e.g. Ask for window seat…"
+                          rows={2}
+                        />
+                      </div>
+                    )}
                   </div>
                   <Button
                     className="w-full"

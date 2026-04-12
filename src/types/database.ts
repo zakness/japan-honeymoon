@@ -65,6 +65,8 @@ export type Database = {
           day_date: string
           id: string
           place_id: string | null
+          reservation_notes: string | null
+          reservation_time: string | null
           sort_order: number
           text_note: string | null
           time_slot: string
@@ -75,6 +77,8 @@ export type Database = {
           day_date: string
           id?: string
           place_id?: string | null
+          reservation_notes?: string | null
+          reservation_time?: string | null
           sort_order: number
           text_note?: string | null
           time_slot?: string
@@ -85,6 +89,8 @@ export type Database = {
           day_date?: string
           id?: string
           place_id?: string | null
+          reservation_notes?: string | null
+          reservation_time?: string | null
           sort_order?: number
           text_note?: string | null
           time_slot?: string
