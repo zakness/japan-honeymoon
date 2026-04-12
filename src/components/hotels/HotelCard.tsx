@@ -47,6 +47,12 @@ export function HotelCard({ hotel }: HotelCardProps) {
           <p className="text-muted-foreground">Nights</p>
           <p className="font-medium">{nights}</p>
         </div>
+        {hotel.booked_by && (
+          <div>
+            <p className="text-muted-foreground">Booked by</p>
+            <p className="font-medium">{hotel.booked_by}</p>
+          </div>
+        )}
       </div>
 
       {hotel.confirmation_numbers.length > 0 && (

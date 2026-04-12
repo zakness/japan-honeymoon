@@ -1,4 +1,4 @@
-import { ExternalLink, MapPin, CalendarDays, Hash } from 'lucide-react'
+import { ExternalLink, MapPin, CalendarDays, Hash, User } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import type { AccommodationRow } from '@/types/accommodations'
 import { CITY_LABELS } from '@/config/trip'
@@ -77,6 +77,17 @@ export function HotelDetail({ hotel }: HotelDetailProps) {
                 </p>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Booked by */}
+        {hotel.booked_by && (
+          <div className="flex items-center gap-2 text-sm">
+            <User className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+            <span>
+              <span className="text-muted-foreground">Booked by </span>
+              <span className="font-medium">{hotel.booked_by}</span>
+            </span>
           </div>
         )}
 

@@ -21,6 +21,7 @@ export type Database = {
           lat: number | null
           lng: number | null
           website: string | null
+          booked_by: string | null
           created_at: string
           updated_at: string
         }
@@ -36,6 +37,7 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           website?: string | null
+          booked_by?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -51,6 +53,7 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           website?: string | null
+          booked_by?: string | null
           created_at?: string
           updated_at?: string
         }
