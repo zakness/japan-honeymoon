@@ -31,3 +31,9 @@ export function formatReservationTime(time: string): string {
   const displayH = h % 12 || 12
   return `${displayH}:${String(m).padStart(2, '0')} ${period}`
 }
+
+/** Parse a droppable slot ID of the form `slot-{YYYY-MM-DD}-{slot}` */
+export function parseSlotDropId(id: string): { dayDate: string; slot: TimeSlot } | null {
+  const m = id.match(/^slot-(\d{4}-\d{2}-\d{2})-(\w+)$/)
+  return m ? { dayDate: m[1], slot: m[2] as TimeSlot } : null
+}

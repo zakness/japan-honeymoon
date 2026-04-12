@@ -1,11 +1,10 @@
-import { Map, CalendarDays, NotebookText, Route } from 'lucide-react'
+import { LayoutDashboard, NotebookText, Route } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type AppView = 'map' | 'day' | 'notes' | 'logistics'
+export type AppView = 'itinerary' | 'notes' | 'logistics'
 
-const TABS: { id: AppView; label: string; Icon: typeof Map }[] = [
-  { id: 'map', label: 'Map', Icon: Map },
-  { id: 'day', label: 'Day', Icon: CalendarDays },
+const TABS: { id: AppView; label: string; Icon: typeof LayoutDashboard }[] = [
+  { id: 'itinerary', label: 'Itinerary', Icon: LayoutDashboard },
   { id: 'logistics', label: 'Logistics', Icon: Route },
   { id: 'notes', label: 'Notes', Icon: NotebookText },
 ]

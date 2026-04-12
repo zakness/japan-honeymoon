@@ -31,6 +31,7 @@ interface ItineraryItemProps {
 export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
+    data: { dayDate, kind: 'itinerary' as const, timeSlot: item.time_slot },
   })
 
   const style = {

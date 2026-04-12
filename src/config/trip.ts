@@ -66,3 +66,15 @@ export function getPrimaryCityForDate(date: string): City | undefined {
   const day = getDayByDate(date)
   return day?.cities[day.cities.length - 1]
 }
+
+export function getDaysForCity(city: City): TripDay[] {
+  return TRIP_DAYS.filter((d) => d.cities.includes(city))
+}
+
+export const CITY_MAP_CENTER: Record<City, { lat: number; lng: number; zoom: number }> = {
+  tokyo: { lat: 35.682, lng: 139.753, zoom: 12 },
+  hakone: { lat: 35.232, lng: 139.107, zoom: 12 },
+  kyoto: { lat: 35.011, lng: 135.768, zoom: 13 },
+  naoshima: { lat: 34.461, lng: 133.993, zoom: 14 },
+  osaka: { lat: 34.694, lng: 135.502, zoom: 13 },
+}

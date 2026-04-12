@@ -24,3 +24,11 @@ export const CATEGORY_ICONS: Record<PlaceCategory, string> = {
   attraction: '🏯',
   nature_park: '🌿',
 }
+
+export const CATEGORY_LABELS: Record<PlaceCategory, string> = {
+  restaurant: 'Restaurant',
+  cafe_bar: 'Cafe / Bar',
+  shopping: 'Shopping',
+  attraction: 'Attraction',
+  nature_park: 'Nature / Park',
+}
