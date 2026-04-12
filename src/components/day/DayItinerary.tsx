@@ -13,10 +13,14 @@ import { useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TimeSlotGroup } from './TimeSlotGroup'
 import { ItineraryItem } from './ItineraryItem'
-import { useItineraryItems, useReorderItineraryItems } from '@/hooks/useItinerary'
+import { TransportItem } from './TransportItem'
+import { useItineraryItems, useReorderDayItems, type DayReorderItem } from '@/hooks/useItinerary'
+import { useTransportItems } from '@/hooks/useTransport'
 import { useAccommodations, useAccommodationsForDate } from '@/hooks/useAccommodations'
 import { getHotelColor, getHotelBgColor } from '@/lib/hotel-colors'
-import { TIME_SLOTS, type TimeSlot, type ItineraryItemWithPlace } from '@/types/itinerary'
+import { mergeSlotItems } from '@/lib/transport-utils'
+import { TIME_SLOTS, type TimeSlot } from '@/types/itinerary'
+import { type SlotItem } from '@/types/transport'
 
 interface DayItineraryProps {
   dayDate: string
@@ -25,34 +29,27 @@ interface DayItineraryProps {
 }
 
 export function DayItinerary({ dayDate, onSelectPlace, onSelectHotel }: DayItineraryProps) {
-  const { data: items = [], isLoading } = useItineraryItems(dayDate)
-  const reorder = useReorderItineraryItems(dayDate)
+  const { data: itineraryItems = [], isLoading: itineraryLoading } = useItineraryItems(dayDate)
+  const { data: transportItems = [], isLoading: transportLoading } = useTransportItems(dayDate)
+  const reorder = useReorderDayItems(dayDate)
   const { morningHotel, eveningHotel } = useAccommodationsForDate(dayDate)
   const { data: allHotels = [] } = useAccommodations()
-  const [activeItem, setActiveItem] = useState<ItineraryItemWithPlace | null>(null)
+  const [activeItem, setActiveItem] = useState<SlotItem | null>(null)
+
+  const isLoading = itineraryLoading || transportLoading
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
   )
 
-  const grouped: Record<TimeSlot, ItineraryItemWithPlace[]> = {
-    morning: [],
-    afternoon: [],
-    evening: [],
-  }
-  for (const item of items) {
-    const slot = (item.time_slot as TimeSlot) || 'morning'
-    grouped[slot].push(item)
-  }
-  // Sort each group by sort_order
-  for (const slot of Object.keys(grouped) as TimeSlot[]) {
-    grouped[slot].sort((a, b) => a.sort_order - b.sort_order)
-  }
+  const grouped = mergeSlotItems(itineraryItems, transportItems)
+
+  const allItems: SlotItem[] = [...grouped.morning, ...grouped.afternoon, ...grouped.evening]
 
   function handleDragStart(event: DragStartEvent) {
-    const item = items.find((i) => i.id === event.active.id)
-    setActiveItem(item ?? null)
+    const found = allItems.find((i) => i.data.id === event.active.id)
+    setActiveItem(found ?? null)
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -63,64 +60,64 @@ export function DayItinerary({ dayDate, onSelectPlace, onSelectHotel }: DayItine
     const activeId = active.id as string
     const overId = over.id as string
 
-    // Determine target time slot: droppable slot zones have id "slot-morning" etc.
     const targetSlot = overId.startsWith('slot-')
       ? (overId.replace('slot-', '') as TimeSlot)
-      : ((items.find((i) => i.id === overId)?.time_slot as TimeSlot) ?? 'morning')
+      : ((allItems.find((i) => i.data.id === overId)?.data.time_slot as TimeSlot) ?? 'morning')
 
-    const currentItem = items.find((i) => i.id === activeId)
+    const currentItem = allItems.find((i) => i.data.id === activeId)
     if (!currentItem) return
 
-    // Build new ordered list within the target slot
+    const currentSlot = currentItem.data.time_slot as TimeSlot
     const slotItems = grouped[targetSlot]
-    const sourceSlotItems = grouped[currentItem.time_slot as TimeSlot]
+    const sourceSlotItems = grouped[currentSlot]
 
-    let newSlotItems: ItineraryItemWithPlace[]
-
-    if (currentItem.time_slot === targetSlot) {
-      // Reordering within the same slot
-      const oldIndex = slotItems.findIndex((i) => i.id === activeId)
+    if (currentSlot === targetSlot) {
+      const oldIndex = slotItems.findIndex((i) => i.data.id === activeId)
       const newIndex = overId.startsWith('slot-')
         ? slotItems.length - 1
-        : slotItems.findIndex((i) => i.id === overId)
+        : slotItems.findIndex((i) => i.data.id === overId)
       if (oldIndex === newIndex) return
-      newSlotItems = arrayMove(slotItems, oldIndex, newIndex)
-    } else {
-      // Moving to a different slot
-      const withoutActive = sourceSlotItems.filter((i) => i.id !== activeId)
-      // Re-number source slot
-      const sourceUpdates = withoutActive.map((item, idx) => ({
-        id: item.id,
+      const newSlotItems = arrayMove(slotItems, oldIndex, newIndex)
+
+      const updates: DayReorderItem[] = newSlotItems.map((item, idx) => ({
+        id: item.data.id,
+        kind: item.kind,
         sort_order: idx,
-        time_slot: item.time_slot as TimeSlot,
+        time_slot: targetSlot,
+      }))
+      reorder.mutate(updates)
+    } else {
+      const withoutActive = sourceSlotItems.filter((i) => i.data.id !== activeId)
+      const sourceUpdates: DayReorderItem[] = withoutActive.map((item, idx) => ({
+        id: item.data.id,
+        kind: item.kind,
+        sort_order: idx,
+        time_slot: currentSlot,
       }))
 
       const insertIndex = overId.startsWith('slot-')
         ? slotItems.length
-        : slotItems.findIndex((i) => i.id === overId)
+        : slotItems.findIndex((i) => i.data.id === overId)
       const newList = [...slotItems]
-      newList.splice(insertIndex, 0, { ...currentItem, time_slot: targetSlot })
-      newSlotItems = newList
+      const movedItem = {
+        ...currentItem,
+        data: { ...currentItem.data, time_slot: targetSlot },
+      } as SlotItem
+      newList.splice(insertIndex, 0, movedItem)
 
-      const targetUpdates = newSlotItems.map((item, idx) => ({
-        id: item.id,
+      const targetUpdates: DayReorderItem[] = newList.map((item, idx) => ({
+        id: item.data.id,
+        kind: item.kind,
         sort_order: idx,
         time_slot: targetSlot,
       }))
 
       reorder.mutate([...sourceUpdates, ...targetUpdates])
-      return
     }
-
-    const updates = newSlotItems.map((item, idx) => ({
-      id: item.id,
-      sort_order: idx,
-      time_slot: targetSlot,
-    }))
-    reorder.mutate(updates)
   }
 
-  const hasContent = items.length > 0 || morningHotel || eveningHotel
+  const hasContent =
+    itineraryItems.length > 0 || transportItems.length > 0 || morningHotel || eveningHotel
 
   if (isLoading) {
     return (
@@ -168,7 +165,11 @@ export function DayItinerary({ dayDate, onSelectPlace, onSelectHotel }: DayItine
       <DragOverlay dropAnimation={null}>
         {activeItem && (
           <div className="opacity-90 shadow-lg">
-            <ItineraryItem item={activeItem} dayDate={dayDate} />
+            {activeItem.kind === 'itinerary' ? (
+              <ItineraryItem item={activeItem.data} dayDate={dayDate} />
+            ) : (
+              <TransportItem item={activeItem.data} dayDate={dayDate} />
+            )}
           </div>
         )}
       </DragOverlay>

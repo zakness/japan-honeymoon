@@ -8,6 +8,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      transport_items: {
+        Row: {
+          id: string
+          day_date: string
+          type: string
+          origin: string
+          destination: string
+          departure_time: string
+          arrival_time: string | null
+          confirmation: string | null
+          notes: string | null
+          time_slot: string
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          day_date: string
+          type: string
+          origin: string
+          destination: string
+          departure_time: string
+          arrival_time?: string | null
+          confirmation?: string | null
+          notes?: string | null
+          time_slot?: string
+          sort_order: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          day_date?: string
+          type?: string
+          origin?: string
+          destination?: string
+          departure_time?: string
+          arrival_time?: string | null
+          confirmation?: string | null
+          notes?: string | null
+          time_slot?: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       accommodations: {
         Row: {
           id: string

@@ -1,15 +1,17 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { ItineraryItem } from './ItineraryItem'
+import { TransportItem } from './TransportItem'
 import { HotelAnchor } from './HotelAnchor'
-import { type TimeSlot, type ItineraryItemWithPlace } from '@/types/itinerary'
+import { type TimeSlot } from '@/types/itinerary'
+import { type SlotItem } from '@/types/transport'
 import type { AccommodationRow } from '@/types/accommodations'
 import { cn } from '@/lib/utils'
 
 interface TimeSlotGroupProps {
   slot: TimeSlot
   label: string
-  items: ItineraryItemWithPlace[]
+  items: SlotItem[]
   dayDate: string
   hotelAnchor?: AccommodationRow | null
   hotelColor?: string
@@ -37,7 +39,7 @@ export function TimeSlotGroup({
       <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
         {label}
       </h3>
-      <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={items.map((i) => i.data.id)} strategy={verticalListSortingStrategy}>
         <div
           ref={setNodeRef}
           className={cn(
@@ -54,14 +56,18 @@ export function TimeSlotGroup({
               onViewOnMap={onSelectHotel ? () => onSelectHotel(hotelAnchor.id) : undefined}
             />
           )}
-          {items.map((item) => (
-            <ItineraryItem
-              key={item.id}
-              item={item}
-              dayDate={dayDate}
-              onSelectPlace={onSelectPlace}
-            />
-          ))}
+          {items.map((item) =>
+            item.kind === 'itinerary' ? (
+              <ItineraryItem
+                key={item.data.id}
+                item={item.data}
+                dayDate={dayDate}
+                onSelectPlace={onSelectPlace}
+              />
+            ) : (
+              <TransportItem key={item.data.id} item={item.data} dayDate={dayDate} />
+            )
+          )}
           {slot === 'evening' && hotelAnchor && (
             <HotelAnchor
               hotel={hotelAnchor}
