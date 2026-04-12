@@ -11,12 +11,16 @@ export interface NavState {
   view: AppView
   /** Date to focus in Day view, e.g. '2026-05-17' */
   dayDate?: string
-  /** Place ID to focus in Map view */
+  /** Place ID to focus in Map view — produces #map/place/[id] */
   focusPlaceId?: string
+  /** Hotel ID to focus in Map view — produces #map/hotel/[id] */
+  focusHotelId?: string
 }
 
 function parseHash(): NavState {
   const hash = window.location.hash.slice(1)
+  if (hash.startsWith('map/place/')) return { view: 'map', focusPlaceId: hash.slice(10) }
+  if (hash.startsWith('map/hotel/')) return { view: 'map', focusHotelId: hash.slice(10) }
   if (hash.startsWith('day/')) {
     const date = hash.slice(4)
     const valid = TRIP_DAYS.find((d) => d.date === date)
@@ -29,6 +33,11 @@ function parseHash(): NavState {
 }
 
 function toHash(state: NavState): string {
+  if (state.view === 'map') {
+    if (state.focusPlaceId) return `map/place/${state.focusPlaceId}`
+    if (state.focusHotelId) return `map/hotel/${state.focusHotelId}`
+    return 'map'
+  }
   if (state.view === 'day') return state.dayDate ? `day/${state.dayDate}` : 'day'
   return state.view
 }
@@ -60,10 +69,16 @@ export function AppShell() {
 
       <main className="flex-1 overflow-hidden">
         <ErrorBoundary>
-          {nav.view === 'map' && <MapView focusPlaceId={nav.focusPlaceId} onNavigate={navigate} />}
+          {nav.view === 'map' && (
+            <MapView
+              focusPlaceId={nav.focusPlaceId}
+              focusHotelId={nav.focusHotelId}
+              onNavigate={navigate}
+            />
+          )}
           {nav.view === 'day' && <DayView initialDate={nav.dayDate} onNavigate={navigate} />}
           {nav.view === 'notes' && <NotesView />}
-          {nav.view === 'hotels' && <HotelsView />}
+          {nav.view === 'hotels' && <HotelsView onNavigate={navigate} />}
         </ErrorBoundary>
       </main>
 
