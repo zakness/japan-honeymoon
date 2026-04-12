@@ -16,10 +16,12 @@ import { ItineraryItem } from './ItineraryItem'
 import { TransportItem } from './TransportItem'
 import { useItineraryItems, useReorderDayItems, type DayReorderItem } from '@/hooks/useItinerary'
 import { useTransportItems } from '@/hooks/useTransport'
+import { useFlights } from '@/hooks/useFlights'
 import { useAccommodations, useAccommodationsForDate } from '@/hooks/useAccommodations'
 import { getHotelColor, getHotelBgColor } from '@/lib/hotel-colors'
 import { mergeSlotItems } from '@/lib/transport-utils'
-import { TIME_SLOTS, type TimeSlot } from '@/types/itinerary'
+import { getFlightEventsForDate } from '@/lib/logistics-utils'
+import { TIME_SLOTS, deriveTimeSlot, type TimeSlot } from '@/types/itinerary'
 import { type SlotItem } from '@/types/transport'
 
 interface DayItineraryProps {
@@ -31,12 +33,19 @@ interface DayItineraryProps {
 export function DayItinerary({ dayDate, onSelectPlace, onSelectHotel }: DayItineraryProps) {
   const { data: itineraryItems = [], isLoading: itineraryLoading } = useItineraryItems(dayDate)
   const { data: transportItems = [], isLoading: transportLoading } = useTransportItems(dayDate)
+  const { data: flights = [], isLoading: flightsLoading } = useFlights()
   const reorder = useReorderDayItems(dayDate)
   const { morningHotel, eveningHotel } = useAccommodationsForDate(dayDate)
   const { data: allHotels = [] } = useAccommodations()
   const [activeItem, setActiveItem] = useState<SlotItem | null>(null)
 
-  const isLoading = itineraryLoading || transportLoading
+  const flightEvents = getFlightEventsForDate(flights, dayDate)
+  const flightEventsBySlot = {
+    morning: flightEvents.filter((e) => deriveTimeSlot(e.localTime) === 'morning'),
+    afternoon: flightEvents.filter((e) => deriveTimeSlot(e.localTime) === 'afternoon'),
+    evening: flightEvents.filter((e) => deriveTimeSlot(e.localTime) === 'evening'),
+  }
+  const isLoading = itineraryLoading || transportLoading || flightsLoading
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -117,7 +126,11 @@ export function DayItinerary({ dayDate, onSelectPlace, onSelectHotel }: DayItine
   }
 
   const hasContent =
-    itineraryItems.length > 0 || transportItems.length > 0 || morningHotel || eveningHotel
+    itineraryItems.length > 0 ||
+    transportItems.length > 0 ||
+    morningHotel ||
+    eveningHotel ||
+    flightEvents.length > 0
 
   if (isLoading) {
     return (
@@ -152,6 +165,7 @@ export function DayItinerary({ dayDate, onSelectPlace, onSelectHotel }: DayItine
               label={label}
               items={grouped[value]}
               dayDate={dayDate}
+              flightEvents={flightEventsBySlot[value]}
               hotelAnchor={anchor}
               hotelColor={anchor ? getHotelColor(anchor, allHotels) : undefined}
               hotelBgColor={anchor ? getHotelBgColor(anchor, allHotels) : undefined}

@@ -55,6 +55,38 @@ export function normalizeTimeColumn(t: string | null): string | null {
   return t.slice(0, 5)
 }
 
+// ---- Flight events for day view ----
+
+export type FlightEvent = {
+  id: string
+  kind: 'departure' | 'arrival'
+  flight: FlightRow
+  localTime: string // HH:MM — used for slot derivation and display
+}
+
+export function getFlightEventsForDate(flights: FlightRow[], date: string): FlightEvent[] {
+  const events: FlightEvent[] = []
+  for (const f of flights) {
+    if (localDateForAirport(f.departure_at, f.dep_airport) === date) {
+      events.push({
+        id: `${f.id}-dep`,
+        kind: 'departure',
+        flight: f,
+        localTime: localTimeHHMMForAirport(f.departure_at, f.dep_airport),
+      })
+    }
+    if (localDateForAirport(f.arrival_at, f.arr_airport) === date) {
+      events.push({
+        id: `${f.id}-arr`,
+        kind: 'arrival',
+        flight: f,
+        localTime: localTimeHHMMForAirport(f.arrival_at, f.arr_airport),
+      })
+    }
+  }
+  return events
+}
+
 // ---- Main exports ----
 
 export function buildLogisticsTimeline(

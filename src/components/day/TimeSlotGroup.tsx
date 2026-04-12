@@ -3,9 +3,11 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { ItineraryItem } from './ItineraryItem'
 import { TransportItem } from './TransportItem'
 import { HotelAnchor } from './HotelAnchor'
+import { FlightEventCard } from './FlightEventCard'
 import { type TimeSlot } from '@/types/itinerary'
 import { type SlotItem } from '@/types/transport'
 import type { AccommodationRow } from '@/types/accommodations'
+import type { FlightEvent } from '@/lib/logistics-utils'
 import { cn } from '@/lib/utils'
 
 interface TimeSlotGroupProps {
@@ -13,6 +15,7 @@ interface TimeSlotGroupProps {
   label: string
   items: SlotItem[]
   dayDate: string
+  flightEvents?: FlightEvent[]
   hotelAnchor?: AccommodationRow | null
   hotelColor?: string
   hotelBgColor?: string
@@ -25,6 +28,7 @@ export function TimeSlotGroup({
   label,
   items,
   dayDate,
+  flightEvents = [],
   hotelAnchor,
   hotelColor = '#5b21b6',
   hotelBgColor = '#ede9fe',
@@ -32,7 +36,7 @@ export function TimeSlotGroup({
   onSelectHotel,
 }: TimeSlotGroupProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `slot-${slot}` })
-  const isEmpty = items.length === 0 && !hotelAnchor
+  const isEmpty = items.length === 0 && !hotelAnchor && flightEvents.length === 0
 
   return (
     <div className="space-y-1.5">
@@ -56,6 +60,9 @@ export function TimeSlotGroup({
               onViewOnMap={onSelectHotel ? () => onSelectHotel(hotelAnchor.id) : undefined}
             />
           )}
+          {flightEvents.map((event) => (
+            <FlightEventCard key={event.id} event={event} />
+          ))}
           {items.map((item) =>
             item.kind === 'itinerary' ? (
               <ItineraryItem
