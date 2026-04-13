@@ -39,19 +39,17 @@ function useIsDesktop() {
   return isDesktop
 }
 
-export function ItineraryView({ city: initialCity, onNavigate }: ItineraryViewProps) {
-  const [selectedCity, setSelectedCity] = useState<City>(initialCity)
+export function ItineraryView({ city, onNavigate }: ItineraryViewProps) {
   const [splitPercent, setSplitPercent] = useState(50)
   const [isResizing, setIsResizing] = useState(false)
   const splitContainerRef = useRef<HTMLDivElement>(null)
   const isDesktop = useIsDesktop()
 
-  const cityDays: TripDay[] = getDaysForCity(selectedCity)
+  const cityDays: TripDay[] = getDaysForCity(city)
   const { sensors, activeDrag, handleDragStart, handleDragEnd } = useCrossItineraryDnD(cityDays)
 
-  function handleSelectCity(city: City) {
-    setSelectedCity(city)
-    onNavigate({ view: 'itinerary', city })
+  function handleSelectCity(nextCity: City) {
+    onNavigate({ view: 'itinerary', city: nextCity })
   }
 
   function handleDividerPointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -73,7 +71,7 @@ export function ItineraryView({ city: initialCity, onNavigate }: ItineraryViewPr
 
   const itineraryPanel = (
     <>
-      <UnscheduledColumn city={selectedCity} />
+      <UnscheduledColumn city={city} />
       <div className="flex overflow-x-auto">
         {cityDays.map((day) => (
           <DayColumn key={day.date} dayDate={day.date} />
@@ -84,8 +82,8 @@ export function ItineraryView({ city: initialCity, onNavigate }: ItineraryViewPr
 
   return (
     <div className="flex flex-col h-full">
-      {/* CityStrip — desktop only; on mobile it lives inside the bottom sheet */}
-      {isDesktop && <CityStrip selectedCity={selectedCity} onSelectCity={handleSelectCity} />}
+      {/* CityStrip on desktop now lives in AppShell's top nav; the mobile strip
+          still lives inside the bottom sheet below. */}
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         {isDesktop ? (
@@ -115,14 +113,14 @@ export function ItineraryView({ city: initialCity, onNavigate }: ItineraryViewPr
 
             {/* Map panel */}
             <div className={cn('flex-1 overflow-hidden', isResizing && 'pointer-events-none')}>
-              <CityMap city={selectedCity} />
+              <CityMap city={city} />
             </div>
           </div>
         ) : (
           /* ── Mobile layout ──────────────────────────────────────────────── */
           <div className="flex-1 relative overflow-hidden">
             <div className="absolute inset-0">
-              <CityMap city={selectedCity} />
+              <CityMap city={city} />
             </div>
 
             <div
@@ -132,7 +130,7 @@ export function ItineraryView({ city: initialCity, onNavigate }: ItineraryViewPr
               <div className="flex items-center justify-center pt-2 pb-1 shrink-0">
                 <div className="w-8 h-1 rounded-full bg-muted-foreground/30" />
               </div>
-              <CityStrip selectedCity={selectedCity} onSelectCity={handleSelectCity} />
+              <CityStrip selectedCity={city} onSelectCity={handleSelectCity} />
               <div className="flex flex-1 overflow-hidden">{itineraryPanel}</div>
             </div>
           </div>

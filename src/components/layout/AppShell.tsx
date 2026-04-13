@@ -4,6 +4,7 @@ import { ErrorBoundary } from './ErrorBoundary'
 import { NotesView } from '@/components/notes/NotesView'
 import { LogisticsView } from '@/components/logistics/LogisticsView'
 import { ItineraryView } from '@/components/itinerary/ItineraryView'
+import { CityStrip } from '@/components/itinerary/CityStrip'
 import { type City } from '@/config/trip'
 
 export interface NavState {
@@ -45,18 +46,26 @@ export function AppShell() {
     navigate({ view })
   }
 
+  const activeCity: City = nav.city ?? 'tokyo'
+
   return (
     <div className="flex flex-col h-[100dvh]">
       {/* Top nav — hidden on mobile (replaced by bottom nav) */}
       <div className="hidden sm:block">
         <NavBar activeView={nav.view} onViewChange={handleViewChange} />
+        {/* City strip lives in the top nav when the Itinerary tab is active.
+            On mobile it's rendered inside the itinerary bottom sheet instead. */}
+        {nav.view === 'itinerary' && (
+          <CityStrip
+            selectedCity={activeCity}
+            onSelectCity={(city) => navigate({ view: 'itinerary', city })}
+          />
+        )}
       </div>
 
       <main className="flex-1 overflow-hidden">
         <ErrorBoundary>
-          {nav.view === 'itinerary' && (
-            <ItineraryView city={nav.city ?? 'tokyo'} onNavigate={navigate} />
-          )}
+          {nav.view === 'itinerary' && <ItineraryView city={activeCity} onNavigate={navigate} />}
           {nav.view === 'notes' && <NotesView />}
           {nav.view === 'logistics' && <LogisticsView />}
         </ErrorBoundary>
