@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { DndContext, DragOverlay } from '@dnd-kit/core'
 import { ItineraryItem } from '@/components/day/ItineraryItem'
 import { TransportItem } from '@/components/day/TransportItem'
@@ -17,18 +17,39 @@ interface ItineraryViewProps {
   onNavigate: (state: NavState) => void
 }
 
-export function ItineraryView({ city: initialCity, onNavigate }: ItineraryViewProps) {
-  const [selectedCity, setSelectedCity] = useState<City>(initialCity)
+/**
+ * Tracks whether the viewport matches the `sm` breakpoint. Used to render the
+ * desktop layout OR the mobile layout — never both. Rendering both branches
+ * duplicates every `useDraggable`/`useSortable` hook in the tree, which causes
+ * the second registration to overwrite the first in dnd-kit's `draggableNodes`
+ * Map. When the "winning" instance lives in the hidden (`display: none`)
+ * branch, dnd-kit measures a 0×0 rect for the active node and the DragOverlay
+ * is positioned at (0, 0).
+ */
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window === 'undefined' ? true : window.matchMedia('(min-width: 640px)').matches
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 640px)')
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  return isDesktop
+}
+
+export function ItineraryView({ city, onNavigate }: ItineraryViewProps) {
   const [splitPercent, setSplitPercent] = useState(50)
   const [isResizing, setIsResizing] = useState(false)
   const splitContainerRef = useRef<HTMLDivElement>(null)
+  const isDesktop = useIsDesktop()
 
-  const cityDays: TripDay[] = getDaysForCity(selectedCity)
+  const cityDays: TripDay[] = getDaysForCity(city)
   const { sensors, activeDrag, handleDragStart, handleDragEnd } = useCrossItineraryDnD(cityDays)
 
-  function handleSelectCity(city: City) {
-    setSelectedCity(city)
-    onNavigate({ view: 'itinerary', city })
+  function handleSelectCity(nextCity: City) {
+    onNavigate({ view: 'itinerary', city: nextCity })
   }
 
   function handleDividerPointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -50,7 +71,7 @@ export function ItineraryView({ city: initialCity, onNavigate }: ItineraryViewPr
 
   const itineraryPanel = (
     <>
-      <UnscheduledColumn city={selectedCity} />
+      <UnscheduledColumn city={city} />
       <div className="flex overflow-x-auto">
         {cityDays.map((day) => (
           <DayColumn key={day.date} dayDate={day.date} />
@@ -61,59 +82,59 @@ export function ItineraryView({ city: initialCity, onNavigate }: ItineraryViewPr
 
   return (
     <div className="flex flex-col h-full">
-      {/* CityStrip — desktop only; on mobile it lives inside the bottom sheet */}
-      <div className="hidden sm:block">
-        <CityStrip selectedCity={selectedCity} onSelectCity={handleSelectCity} />
-      </div>
+      {/* CityStrip on desktop now lives in AppShell's top nav; the mobile strip
+          still lives inside the bottom sheet below. */}
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        {/* ── Desktop layout ─────────────────────────────────────────────── */}
-        <div
-          ref={splitContainerRef}
-          className={cn('hidden sm:flex flex-1 overflow-hidden', isResizing && 'select-none')}
-        >
-          {/* Itinerary panel */}
+        {isDesktop ? (
+          /* ── Desktop layout ─────────────────────────────────────────────── */
           <div
-            className="flex overflow-hidden border-r shrink-0"
-            style={{ width: `${splitPercent}%` }}
+            ref={splitContainerRef}
+            className={cn('flex flex-1 overflow-hidden', isResizing && 'select-none')}
           >
-            {itineraryPanel}
-          </div>
-
-          {/* Resize divider */}
-          <div
-            className={cn(
-              'w-1 shrink-0 cursor-col-resize transition-colors',
-              isResizing ? 'bg-primary/40' : 'hover:bg-primary/20'
-            )}
-            onPointerDown={handleDividerPointerDown}
-            onPointerMove={handleDividerPointerMove}
-            onPointerUp={handleDividerPointerUp}
-          />
-
-          {/* Map panel */}
-          <div className={cn('flex-1 overflow-hidden', isResizing && 'pointer-events-none')}>
-            <CityMap city={selectedCity} />
-          </div>
-        </div>
-
-        {/* ── Mobile layout ──────────────────────────────────────────────── */}
-        <div className="sm:hidden flex-1 relative overflow-hidden">
-          <div className="absolute inset-0">
-            <CityMap city={selectedCity} />
-          </div>
-
-          <div
-            className="absolute bottom-0 left-0 right-0 bg-background border-t rounded-t-2xl shadow-2xl flex flex-col"
-            style={{ height: '58vh' }}
-          >
-            <div className="flex items-center justify-center pt-2 pb-1 shrink-0">
-              <div className="w-8 h-1 rounded-full bg-muted-foreground/30" />
+            {/* Itinerary panel */}
+            <div
+              className="flex overflow-hidden border-r shrink-0"
+              style={{ width: `${splitPercent}%` }}
+            >
+              {itineraryPanel}
             </div>
-            <CityStrip selectedCity={selectedCity} onSelectCity={handleSelectCity} />
-            <div className="flex flex-1 overflow-hidden">{itineraryPanel}</div>
+
+            {/* Resize divider */}
+            <div
+              className={cn(
+                'w-1 shrink-0 cursor-col-resize transition-colors',
+                isResizing ? 'bg-primary/40' : 'hover:bg-primary/20'
+              )}
+              onPointerDown={handleDividerPointerDown}
+              onPointerMove={handleDividerPointerMove}
+              onPointerUp={handleDividerPointerUp}
+            />
+
+            {/* Map panel */}
+            <div className={cn('flex-1 overflow-hidden', isResizing && 'pointer-events-none')}>
+              <CityMap city={city} />
+            </div>
           </div>
-        </div>
+        ) : (
+          /* ── Mobile layout ──────────────────────────────────────────────── */
+          <div className="flex-1 relative overflow-hidden">
+            <div className="absolute inset-0">
+              <CityMap city={city} />
+            </div>
+
+            <div
+              className="absolute bottom-0 left-0 right-0 bg-background border-t rounded-t-2xl shadow-2xl flex flex-col"
+              style={{ height: '58vh' }}
+            >
+              <div className="flex items-center justify-center pt-2 pb-1 shrink-0">
+                <div className="w-8 h-1 rounded-full bg-muted-foreground/30" />
+              </div>
+              <CityStrip selectedCity={city} onSelectCity={handleSelectCity} />
+              <div className="flex flex-1 overflow-hidden">{itineraryPanel}</div>
+            </div>
+          </div>
+        )}
 
         <DragOverlay dropAnimation={null}>
           {activeDrag?.type === 'slot' && (

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Plus } from 'lucide-react'
+import { CirclePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -137,11 +137,17 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger>
-        <Button size="sm" variant="outline" className="gap-1.5 w-full" type="button">
-          <Plus className="h-4 w-4" />
-          Add to itinerary
-        </Button>
+      <DialogTrigger
+        render={
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+            aria-label="Add to itinerary"
+          />
+        }
+      >
+        <CirclePlus className="h-5 w-5" />
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>

@@ -1,29 +1,29 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useDraggable } from '@dnd-kit/core'
-import { CSS } from '@dnd-kit/utilities'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { PlaceCard } from '@/components/places/PlaceCard'
+import { PlaceDetail } from '@/components/places/PlaceDetail'
 import { PlaceForm } from '@/components/places/PlaceForm'
 import { useUnscheduledPlaces } from '@/hooks/useItinerary'
 import { type City } from '@/config/trip'
 import type { PlaceRow } from '@/types/places'
 
-function DraggablePlaceCard({ place }: { place: PlaceRow }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+function DraggablePlaceCard({ place, onClick }: { place: PlaceRow; onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `unscheduled-${place.id}`,
     data: { place },
   })
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform) }}
       className={isDragging ? 'opacity-50' : undefined}
       {...listeners}
       {...attributes}
     >
-      <PlaceCard place={place} compact />
+      <PlaceCard place={place} compact onClick={onClick} />
     </div>
   )
 }
@@ -35,9 +35,18 @@ interface UnscheduledColumnProps {
 export function UnscheduledColumn({ city }: UnscheduledColumnProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [addPlaceOpen, setAddPlaceOpen] = useState(false)
+  const [detailPlace, setDetailPlace] = useState<PlaceRow | null>(null)
+  const [search, setSearch] = useState('')
 
   const { data: allUnscheduled = [] } = useUnscheduledPlaces()
-  const places = allUnscheduled.filter((p) => p.city === city)
+  const places = useMemo(() => {
+    const cityPlaces = allUnscheduled.filter((p) => p.city === city)
+    const q = search.trim().toLowerCase()
+    if (!q) return cityPlaces
+    return cityPlaces.filter(
+      (p) => p.name.toLowerCase().includes(q) || (p.notes?.toLowerCase().includes(q) ?? false)
+    )
+  }, [allUnscheduled, city, search])
 
   if (collapsed) {
     return (
@@ -98,12 +107,43 @@ export function UnscheduledColumn({ city }: UnscheduledColumnProps) {
           </Button>
         </div>
 
+        {/* Search */}
+        <div className="px-2 pt-2 shrink-0">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Filter…"
+              className="h-8 pl-7 pr-7 text-xs"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                title="Clear filter"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Place list */}
         <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1.5">
           {places.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-6">No unscheduled places</p>
+            <p className="text-xs text-muted-foreground text-center py-6">
+              {search ? 'No matches' : 'No unscheduled places'}
+            </p>
           ) : (
-            places.map((place) => <DraggablePlaceCard key={place.id} place={place} />)
+            places.map((place) => (
+              <DraggablePlaceCard
+                key={place.id}
+                place={place}
+                onClick={() => setDetailPlace(place)}
+              />
+            ))
           )}
         </div>
       </div>
@@ -114,9 +154,16 @@ export function UnscheduledColumn({ city }: UnscheduledColumnProps) {
             <DialogTitle>Add place</DialogTitle>
           </DialogHeader>
           <PlaceForm
+            defaultCity={city}
             onSuccess={() => setAddPlaceOpen(false)}
             onCancel={() => setAddPlaceOpen(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!detailPlace} onOpenChange={(open) => !open && setDetailPlace(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          {detailPlace && <PlaceDetail place={detailPlace} onClose={() => setDetailPlace(null)} />}
         </DialogContent>
       </Dialog>
     </>

@@ -30,6 +30,8 @@ import { CITY_LABELS, type City } from '@/config/trip'
 interface PlaceFormProps {
   /** Existing place to edit. If undefined, form is in create mode. */
   place?: PlaceRow
+  /** Pre-selects the city dropdown when creating a new place. */
+  defaultCity?: City
   onSuccess?: (place: PlaceRow) => void
   onCancel?: () => void
 }
@@ -95,11 +97,11 @@ function emptyFormState(): FormState {
   }
 }
 
-export function PlaceForm({ place, onSuccess, onCancel }: PlaceFormProps) {
+export function PlaceForm({ place, defaultCity, onSuccess, onCancel }: PlaceFormProps) {
   const isEditing = !!place
   const [manualMode, setManualMode] = useState(isEditing && !place.google_place_id)
   const [form, setForm] = useState<FormState>(
-    isEditing ? placeToFormState(place) : emptyFormState()
+    isEditing ? placeToFormState(place) : { ...emptyFormState(), city: defaultCity ?? '' }
   )
 
   const createPlace = useCreatePlace()

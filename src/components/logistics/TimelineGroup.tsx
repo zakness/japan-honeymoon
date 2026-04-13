@@ -3,7 +3,7 @@ import { HotelEntry } from './HotelEntry'
 import { TransportEntry } from './TransportEntry'
 import type { LogisticsEntry } from '@/lib/logistics-utils'
 import type { AccommodationRow } from '@/types/accommodations'
-import { getHotelColor } from '@/lib/hotel-colors'
+import { getHotelColor } from '@/config/trip'
 
 function formatGroupDate(date: string): string {
   return new Date(date + 'T12:00:00').toLocaleDateString('en-US', {
@@ -29,7 +29,7 @@ export function TimelineGroup({ date, entries, allHotels }: TimelineGroupProps) 
         {entries.map((entry, i) => {
           const dotColor =
             entry.kind === 'hotel_checkin' || entry.kind === 'hotel_checkout'
-              ? getHotelColor(entry.data, allHotels)
+              ? getHotelColor(entry.data, allHotels).primary
               : undefined
           return (
             <div key={`${entry.kind}-${entry.data.id}-${i}`} className="relative">

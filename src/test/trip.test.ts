@@ -2,10 +2,35 @@ import { describe, it, expect } from 'vitest'
 import {
   TRIP_DAYS,
   CITY_LABELS,
+  CITY_COLORS,
   getDayByDate,
   getPrimaryCityForDate,
+  getCityColor,
+  getHotelColor,
   type City,
 } from '@/config/trip'
+import type { AccommodationRow } from '@/types/accommodations'
+
+function makeHotel(overrides: Partial<AccommodationRow> & { id: string }): AccommodationRow {
+  return {
+    id: overrides.id,
+    name: overrides.name ?? 'Test Hotel',
+    city: overrides.city ?? 'tokyo',
+    check_in_date: overrides.check_in_date ?? '2026-05-16',
+    check_out_date: overrides.check_out_date ?? '2026-05-17',
+    check_in_time: overrides.check_in_time ?? null,
+    check_out_time: overrides.check_out_time ?? null,
+    confirmation_numbers: overrides.confirmation_numbers ?? [],
+    booking_url: overrides.booking_url ?? null,
+    address: overrides.address ?? null,
+    lat: overrides.lat ?? null,
+    lng: overrides.lng ?? null,
+    website: overrides.website ?? null,
+    booked_by: overrides.booked_by ?? null,
+    created_at: overrides.created_at ?? '2026-01-01T00:00:00Z',
+    updated_at: overrides.updated_at ?? '2026-01-01T00:00:00Z',
+  }
+}
 
 describe('TRIP_DAYS', () => {
   it('has exactly 15 days', () => {
@@ -126,5 +151,63 @@ describe('CITY_LABELS', () => {
     cities.forEach((city) => {
       expect(CITY_LABELS[city]).toBeTruthy()
     })
+  })
+})
+
+describe('CITY_COLORS', () => {
+  it('has a primary and tint for every city', () => {
+    const cities: City[] = ['tokyo', 'hakone', 'kyoto', 'naoshima', 'osaka']
+    cities.forEach((city) => {
+      expect(CITY_COLORS[city].primary).toMatch(/^#[0-9a-f]{6}$/i)
+      expect(CITY_COLORS[city].tint).toMatch(/^#[0-9a-f]{6}$/i)
+    })
+  })
+
+  it('defines variants for Tokyo (two hotels)', () => {
+    expect(CITY_COLORS.tokyo.variants).toBeDefined()
+    expect(CITY_COLORS.tokyo.variants).toHaveLength(2)
+  })
+})
+
+describe('getCityColor', () => {
+  it('returns the primary and tint for a city (never a variant)', () => {
+    expect(getCityColor('tokyo')).toEqual({ primary: '#7c3aed', tint: '#ede9fe' })
+    expect(getCityColor('hakone')).toEqual({ primary: '#0891b2', tint: '#cffafe' })
+    expect(getCityColor('kyoto')).toEqual({ primary: '#be123c', tint: '#ffe4e6' })
+    expect(getCityColor('naoshima')).toEqual({ primary: '#ca8a04', tint: '#fef3c7' })
+    expect(getCityColor('osaka')).toEqual({ primary: '#ea580c', tint: '#ffedd5' })
+  })
+})
+
+describe('getHotelColor', () => {
+  it('returns the city primary for a single-hotel city', () => {
+    const hotel = makeHotel({ id: 'h1', city: 'kyoto', check_in_date: '2026-05-24' })
+    expect(getHotelColor(hotel, [hotel])).toEqual({ primary: '#be123c', tint: '#ffe4e6' })
+  })
+
+  it('assigns Tokyo variants by check_in_date order', () => {
+    const first = makeHotel({ id: 'h1', city: 'tokyo', check_in_date: '2026-05-16' })
+    const second = makeHotel({ id: 'h2', city: 'tokyo', check_in_date: '2026-05-19' })
+    const allHotels = [second, first] // deliberately reversed to prove sort, not input order
+
+    // First Tokyo hotel (by date) → variants[0] = violet
+    expect(getHotelColor(first, allHotels)).toEqual({ primary: '#7c3aed', tint: '#ede9fe' })
+    // Second Tokyo hotel (by date) → variants[1] = rose
+    expect(getHotelColor(second, allHotels)).toEqual({ primary: '#db2777', tint: '#fce7f3' })
+  })
+
+  it('ignores hotels in other cities when resolving variant index', () => {
+    const tokyoHotel = makeHotel({ id: 'tok', city: 'tokyo', check_in_date: '2026-05-19' })
+    const kyotoHotel = makeHotel({ id: 'kyo', city: 'kyoto', check_in_date: '2026-05-16' })
+    // Tokyo has only one hotel — should get variants[0] (primary violet), not variants[1]
+    expect(getHotelColor(tokyoHotel, [kyotoHotel, tokyoHotel])).toEqual({
+      primary: '#7c3aed',
+      tint: '#ede9fe',
+    })
+  })
+
+  it('falls back to neutral gray for hotels with unknown city', () => {
+    const hotel = makeHotel({ id: 'h1', city: 'nowhere' })
+    expect(getHotelColor(hotel, [hotel])).toEqual({ primary: '#6b7280', tint: '#f3f4f6' })
   })
 })
