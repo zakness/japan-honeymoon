@@ -8,7 +8,10 @@ import { type TimeSlot } from '@/types/itinerary'
 import { type SlotItem } from '@/types/transport'
 import type { AccommodationRow } from '@/types/accommodations'
 import type { FlightEvent } from '@/lib/logistics-utils'
+import type { CityColor } from '@/config/trip'
 import { cn } from '@/lib/utils'
+
+const FALLBACK_HOTEL_COLORS: CityColor = { primary: '#5b21b6', tint: '#ede9fe' }
 
 interface TimeSlotGroupProps {
   slot: TimeSlot
@@ -17,8 +20,7 @@ interface TimeSlotGroupProps {
   dayDate: string
   flightEvents?: FlightEvent[]
   hotelAnchor?: AccommodationRow | null
-  hotelColor?: string
-  hotelBgColor?: string
+  hotelColors?: CityColor
   onSelectPlace?: (placeId: string) => void
   onSelectHotel?: (hotelId: string) => void
 }
@@ -30,8 +32,7 @@ export function TimeSlotGroup({
   dayDate,
   flightEvents = [],
   hotelAnchor,
-  hotelColor = '#5b21b6',
-  hotelBgColor = '#ede9fe',
+  hotelColors = FALLBACK_HOTEL_COLORS,
   onSelectPlace,
   onSelectHotel,
 }: TimeSlotGroupProps) {
@@ -55,8 +56,7 @@ export function TimeSlotGroup({
             <HotelAnchor
               hotel={hotelAnchor}
               slot="morning"
-              color={hotelColor}
-              bgColor={hotelBgColor}
+              colors={hotelColors}
               onViewOnMap={onSelectHotel ? () => onSelectHotel(hotelAnchor.id) : undefined}
             />
           )}
@@ -79,8 +79,7 @@ export function TimeSlotGroup({
             <HotelAnchor
               hotel={hotelAnchor}
               slot="evening"
-              color={hotelColor}
-              bgColor={hotelBgColor}
+              colors={hotelColors}
               onViewOnMap={onSelectHotel ? () => onSelectHotel(hotelAnchor.id) : undefined}
             />
           )}

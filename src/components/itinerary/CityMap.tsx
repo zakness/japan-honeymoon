@@ -75,6 +75,7 @@ function CityMapContent({
         <HotelMarker
           key={hotel.id}
           hotel={hotel}
+          allHotels={allHotels}
           selected={selectedHotel?.id === hotel.id}
           dimmed={hasSelection && selectedHotel?.id !== hotel.id}
           onClick={handleHotelClick}

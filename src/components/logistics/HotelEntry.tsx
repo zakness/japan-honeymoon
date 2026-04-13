@@ -1,6 +1,5 @@
 import { formatReservationTime } from '@/types/itinerary'
-import { CITY_LABELS } from '@/config/trip'
-import { getHotelBgColor } from '@/lib/hotel-colors'
+import { CITY_LABELS, getHotelColor } from '@/config/trip'
 import type { AccommodationRow } from '@/types/accommodations'
 
 interface HotelEntryProps {
@@ -13,7 +12,7 @@ export function HotelEntry({ hotel, kind, allHotels }: HotelEntryProps) {
   const isCheckin = kind === 'hotel_checkin'
   const time = isCheckin ? hotel.check_in_time : hotel.check_out_time
   const cityLabel = CITY_LABELS[hotel.city as keyof typeof CITY_LABELS] ?? hotel.city
-  const bgColor = getHotelBgColor(hotel, allHotels)
+  const { tint: bgColor } = getHotelColor(hotel, allHotels)
 
   return (
     <div className="rounded-lg border bg-card p-3 space-y-1.5">

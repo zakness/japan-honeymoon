@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
-import { CITY_LABELS, type City } from '@/config/trip'
+import { CITY_LABELS, getCityColor, type City } from '@/config/trip'
 
 const CITIES = Object.keys(CITY_LABELS) as City[]
 
@@ -22,6 +22,7 @@ export function CityStrip({ selectedCity, onSelectCity }: CityStripProps) {
         <div className="flex gap-1 px-3 py-2">
           {CITIES.map((city) => {
             const isSelected = city === selectedCity
+            const { primary } = getCityColor(city)
             return (
               <button
                 key={city}
@@ -30,9 +31,10 @@ export function CityStrip({ selectedCity, onSelectCity }: CityStripProps) {
                 className={cn(
                   'shrink-0 rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
                   isSelected
-                    ? 'bg-primary text-primary-foreground'
+                    ? 'text-white'
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent'
                 )}
+                style={isSelected ? { backgroundColor: primary } : undefined}
               >
                 {CITY_LABELS[city]}
               </button>

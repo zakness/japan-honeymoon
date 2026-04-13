@@ -1,4 +1,11 @@
+import type { AccommodationRow } from '@/types/accommodations'
+
 export type City = 'tokyo' | 'hakone' | 'kyoto' | 'naoshima' | 'osaka'
+
+export interface CityColor {
+  primary: string
+  tint: string
+}
 
 export interface TripDay {
   date: string // YYYY-MM-DD
@@ -77,4 +84,65 @@ export const CITY_MAP_CENTER: Record<City, { lat: number; lng: number; zoom: num
   kyoto: { lat: 35.011, lng: 135.768, zoom: 13 },
   naoshima: { lat: 34.461, lng: 133.993, zoom: 14 },
   osaka: { lat: 34.694, lng: 135.502, zoom: 13 },
+}
+
+/**
+ * Per-city color palette. Each city has a `primary` (solid foreground, e.g. text
+ * or pin fills) and a `tint` (~90–95% lightness background for pills and day
+ * headers). Cities with multiple hotels may define `variants` — ordered by the
+ * hotel's `check_in_date`, so the first hotel slept at in that city gets
+ * variant[0], the second gets variant[1], etc.
+ */
+export const CITY_COLORS: Record<City, CityColor & { variants?: CityColor[] }> = {
+  tokyo: {
+    primary: '#7c3aed', // violet — neon/electric urban
+    tint: '#ede9fe',
+    variants: [
+      { primary: '#7c3aed', tint: '#ede9fe' }, // 1st Tokyo hotel (Hotel Indigo)
+      { primary: '#db2777', tint: '#fce7f3' }, // 2nd Tokyo hotel (Yuen Bettei) — rose
+    ],
+  },
+  hakone: { primary: '#0891b2', tint: '#cffafe' }, // cyan-teal — lake + onsen
+  kyoto: { primary: '#be123c', tint: '#ffe4e6' }, // crimson — torii/shrines
+  naoshima: { primary: '#ca8a04', tint: '#fef3c7' }, // gold — Kusama pumpkin
+  osaka: { primary: '#ea580c', tint: '#ffedd5' }, // orange — Dōtonbori
+}
+
+const FALLBACK_COLOR: CityColor = { primary: '#6b7280', tint: '#f3f4f6' }
+
+/**
+ * Returns the canonical city color (ignoring any hotel-specific variants).
+ * Use this for surfaces that represent the city itself — city strip buttons,
+ * day column headers, etc.
+ */
+export function getCityColor(city: City): CityColor {
+  const entry = CITY_COLORS[city]
+  return { primary: entry.primary, tint: entry.tint }
+}
+
+/**
+ * Returns the color for a specific hotel. Hotels in cities that define
+ * `variants` get their variant assigned by `check_in_date` order — the first
+ * hotel you check into in that city gets variants[0], the second gets
+ * variants[1], etc. Hotels in single-hotel cities just get the city primary.
+ *
+ * Falls back to a neutral gray if the hotel has no city or the city isn't in
+ * the palette.
+ */
+export function getHotelColor(hotel: AccommodationRow, allHotels: AccommodationRow[]): CityColor {
+  if (!hotel.city || !(hotel.city in CITY_COLORS)) return FALLBACK_COLOR
+  const city = hotel.city as City
+  const entry = CITY_COLORS[city]
+
+  if (!entry.variants) return { primary: entry.primary, tint: entry.tint }
+
+  const sameCity = allHotels
+    .filter((h) => h.city === city)
+    .sort((a, b) => a.check_in_date.localeCompare(b.check_in_date))
+  const idx = sameCity.findIndex((h) => h.id === hotel.id)
+
+  if (idx < 0 || idx >= entry.variants.length) {
+    return { primary: entry.primary, tint: entry.tint }
+  }
+  return entry.variants[idx]
 }
