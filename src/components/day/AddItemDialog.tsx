@@ -137,11 +137,9 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger>
-        <Button size="sm" variant="outline" className="gap-1.5 w-full" type="button">
-          <Plus className="h-4 w-4" />
-          Add to itinerary
-        </Button>
+      <DialogTrigger render={<Button size="sm" variant="outline" className="gap-1.5 w-full" />}>
+        <Plus className="h-4 w-4" />
+        Add to itinerary
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
