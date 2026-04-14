@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Sunrise, Sun, Moon } from 'lucide-react'
+import { TIME_SLOT_ICONS } from '@/lib/time-slot-icons'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -198,7 +198,7 @@ export function AddItemDialog({
                 className="inline-flex h-8 shrink-0 items-center rounded-lg bg-muted p-[3px] text-muted-foreground"
               >
                 {TIME_SLOTS.map(({ value, label }) => {
-                  const Icon = value === 'morning' ? Sunrise : value === 'afternoon' ? Sun : Moon
+                  const Icon = TIME_SLOT_ICONS[value]
                   const active = effectiveTimeSlot === value
                   return (
                     <button

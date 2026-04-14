@@ -1,6 +1,7 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Plus } from 'lucide-react'
+import { TIME_SLOT_ICONS } from '@/lib/time-slot-icons'
 import { ItineraryItem } from './ItineraryItem'
 import { TransportItem } from './TransportItem'
 import { HotelAnchor } from './HotelAnchor'
@@ -41,10 +42,12 @@ export function TimeSlotGroup({
   onAddClick,
 }: TimeSlotGroupProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `slot-${dayDate}-${slot}` })
+  const SlotIcon = TIME_SLOT_ICONS[slot]
 
   return (
     <div className="space-y-1.5">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
+      <h3 className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
+        <SlotIcon className="h-3.5 w-3.5" />
         {label}
       </h3>
       <SortableContext items={items.map((i) => i.data.id)} strategy={verticalListSortingStrategy}>

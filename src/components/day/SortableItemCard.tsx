@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { TIME_SLOTS, type TimeSlot } from '@/types/itinerary'
+import { TIME_SLOT_ICONS } from '@/lib/time-slot-icons'
 
 interface SortableItemCardProps {
   id: string
@@ -136,15 +137,19 @@ interface TimeSlotMenuItemsProps {
 export function TimeSlotMenuItems({ current, onChange }: TimeSlotMenuItemsProps) {
   return (
     <>
-      {TIME_SLOTS.map((slot) => (
-        <DropdownMenuItem
-          key={slot.value}
-          onClick={() => onChange(slot.value)}
-          className={current === slot.value ? 'font-medium' : ''}
-        >
-          {slot.label}
-        </DropdownMenuItem>
-      ))}
+      {TIME_SLOTS.map((slot) => {
+        const Icon = TIME_SLOT_ICONS[slot.value]
+        return (
+          <DropdownMenuItem
+            key={slot.value}
+            onClick={() => onChange(slot.value)}
+            className={current === slot.value ? 'font-medium' : ''}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {slot.label}
+          </DropdownMenuItem>
+        )
+      })}
     </>
   )
 }
