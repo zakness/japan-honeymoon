@@ -15,6 +15,8 @@ import { UnscheduledColumn } from './UnscheduledColumn'
 interface ItineraryViewProps {
   city: City
   onNavigate: (state: NavState) => void
+  /** Desktop map visibility — controlled by AppShell so the toggle can live in the top nav. */
+  mapVisible?: boolean
 }
 
 /**
@@ -39,8 +41,12 @@ function useIsDesktop() {
   return isDesktop
 }
 
-export function ItineraryView({ city, onNavigate }: ItineraryViewProps) {
-  const [splitPercent, setSplitPercent] = useState(50)
+// Golden ratio split — itinerary takes the larger share (≈61.8%), map the
+// smaller (≈38.2%). 100 / φ ≈ 61.8034.
+const GOLDEN_RATIO_SPLIT = 61.8034
+
+export function ItineraryView({ city, onNavigate, mapVisible = true }: ItineraryViewProps) {
+  const [splitPercent, setSplitPercent] = useState(GOLDEN_RATIO_SPLIT)
   const [isResizing, setIsResizing] = useState(false)
   const splitContainerRef = useRef<HTMLDivElement>(null)
   const isDesktop = useIsDesktop()
@@ -94,27 +100,37 @@ export function ItineraryView({ city, onNavigate }: ItineraryViewProps) {
           >
             {/* Itinerary panel */}
             <div
-              className="flex overflow-hidden border-r shrink-0"
-              style={{ width: `${splitPercent}%` }}
+              className={cn('flex overflow-hidden shrink-0', mapVisible && 'border-r')}
+              style={{ width: mapVisible ? `${splitPercent}%` : '100%' }}
             >
               {itineraryPanel}
             </div>
 
-            {/* Resize divider */}
-            <div
-              className={cn(
-                'w-1 shrink-0 cursor-col-resize transition-colors',
-                isResizing ? 'bg-primary/40' : 'hover:bg-primary/20'
-              )}
-              onPointerDown={handleDividerPointerDown}
-              onPointerMove={handleDividerPointerMove}
-              onPointerUp={handleDividerPointerUp}
-            />
+            {mapVisible && (
+              <>
+                {/* Resize divider — 12px hit area with a 4px visible bar centered inside.
+                    Negative horizontal margin lets the hit area overlap the adjacent
+                    panels without changing their layout widths. */}
+                <div
+                  className="w-3 -mx-1 shrink-0 cursor-col-resize relative z-10 flex items-center justify-center group/divider"
+                  onPointerDown={handleDividerPointerDown}
+                  onPointerMove={handleDividerPointerMove}
+                  onPointerUp={handleDividerPointerUp}
+                >
+                  <div
+                    className={cn(
+                      'w-1 h-full transition-colors',
+                      isResizing ? 'bg-primary/40' : 'group-hover/divider:bg-primary/20'
+                    )}
+                  />
+                </div>
 
-            {/* Map panel */}
-            <div className={cn('flex-1 overflow-hidden', isResizing && 'pointer-events-none')}>
-              <CityMap city={city} />
-            </div>
+                {/* Map panel */}
+                <div className={cn('flex-1 overflow-hidden', isResizing && 'pointer-events-none')}>
+                  <CityMap city={city} />
+                </div>
+              </>
+            )}
           </div>
         ) : (
           /* ── Mobile layout ──────────────────────────────────────────────── */
