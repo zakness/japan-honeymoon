@@ -40,6 +40,7 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
   const [selectedPlace, setSelectedPlace] = useState<PlaceRow | null>(null)
   const [reservationTime, setReservationTime] = useState('')
   const [reservationNotes, setReservationNotes] = useState('')
+  const [isDecided, setIsDecided] = useState(false)
 
   // Transport state
   const [transportType, setTransportType] = useState<TransportType>('shinkansen')
@@ -73,6 +74,8 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
         place_id: selectedPlace.id,
         time_slot: effectiveTimeSlot,
         sort_order: currentItemCount,
+        // A reservation implies decided; the hook also enforces this.
+        is_decided: isDecided || !!reservationTime,
         ...(reservationTime && {
           reservation_time: reservationTime,
           reservation_notes: reservationNotes.trim() || null,
@@ -82,6 +85,7 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
       setSelectedPlace(null)
       setReservationTime('')
       setReservationNotes('')
+      setIsDecided(false)
       setOpen(false)
     } catch {
       toast.error('Failed to add place')
@@ -96,9 +100,11 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
         text_note: noteText.trim(),
         time_slot: timeSlot,
         sort_order: currentItemCount,
+        is_decided: isDecided,
       })
       toast.success('Note added')
       setNoteText('')
+      setIsDecided(false)
       setOpen(false)
     } catch {
       toast.error('Failed to add note')
@@ -235,6 +241,23 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
                         />
                       </div>
                     )}
+                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-input accent-foreground disabled:opacity-50"
+                        checked={isDecided || !!reservationTime}
+                        disabled={!!reservationTime}
+                        onChange={(e) => setIsDecided(e.target.checked)}
+                      />
+                      <span>
+                        Lock in as decided
+                        {reservationTime && (
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            (reservation implies decided)
+                          </span>
+                        )}
+                      </span>
+                    </label>
                   </div>
                   <Button
                     className="w-full"
@@ -262,6 +285,15 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
                   autoFocus
                 />
               </div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-input accent-foreground"
+                  checked={isDecided}
+                  onChange={(e) => setIsDecided(e.target.checked)}
+                />
+                <span>Lock in as decided</span>
+              </label>
               <Button
                 className="w-full"
                 disabled={!noteText.trim() || createItem.isPending}

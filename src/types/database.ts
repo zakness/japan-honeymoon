@@ -160,6 +160,7 @@ export type Database = {
           created_at: string
           day_date: string
           id: string
+          is_decided: boolean
           place_id: string | null
           reservation_notes: string | null
           reservation_time: string | null
@@ -172,6 +173,7 @@ export type Database = {
           created_at?: string
           day_date: string
           id?: string
+          is_decided?: boolean
           place_id?: string | null
           reservation_notes?: string | null
           reservation_time?: string | null
@@ -184,6 +186,7 @@ export type Database = {
           created_at?: string
           day_date?: string
           id?: string
+          is_decided?: boolean
           place_id?: string | null
           reservation_notes?: string | null
           reservation_time?: string | null

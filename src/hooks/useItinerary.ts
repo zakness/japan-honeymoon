@@ -1,10 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type {
-  ItineraryItemRow,
-  ItineraryItemInsert,
-  ItineraryItemUpdate,
-  ItineraryItemWithPlace,
+import {
+  applyDecidedInvariantToInsert,
+  applyDecidedInvariantToUpdate,
+  type ItineraryItemRow,
+  type ItineraryItemInsert,
+  type ItineraryItemUpdate,
+  type ItineraryItemWithPlace,
 } from '@/types/itinerary'
 import type { SlotItemKind, TransportItemRow } from '@/types/transport'
 import { TRANSPORT_KEY } from './useTransport'
@@ -81,7 +83,7 @@ export function useCreateItineraryItem() {
     mutationFn: async (item: ItineraryItemInsert) => {
       const { data, error } = await supabase
         .from('itinerary_items')
-        .insert(item)
+        .insert(applyDecidedInvariantToInsert(item))
         .select('*, place:places(*)')
         .single()
       if (error) throw error
@@ -103,7 +105,7 @@ export function useUpdateItineraryItem() {
     mutationFn: async ({ id, ...update }: ItineraryItemUpdate & { id: string }) => {
       const { data, error } = await supabase
         .from('itinerary_items')
-        .update(update)
+        .update(applyDecidedInvariantToUpdate(update))
         .eq('id', id)
         .select('*, place:places(*)')
         .single()
