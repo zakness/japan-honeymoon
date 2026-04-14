@@ -28,7 +28,13 @@ import { PlaceForm } from './PlaceForm'
 import { useDeletePlace } from '@/hooks/usePlaces'
 import { useCreateItineraryItem, usePlaceSchedule } from '@/hooks/useItinerary'
 import { PLACE_CATEGORIES, type PlaceRow, type PlacePriority } from '@/types/places'
-import { CITY_LABELS, TRIP_DAYS, type City } from '@/config/trip'
+import {
+  CITY_LABELS,
+  TRIP_DAYS,
+  formatTripDate,
+  formatTripDayLabel,
+  type City,
+} from '@/config/trip'
 
 const PRIORITY_STYLES: Record<PlacePriority, string> = {
   'must-do': 'bg-red-100 text-red-700',
@@ -52,7 +58,7 @@ export function PlaceDetail({ place: initialPlace, onClose }: PlaceDetailProps) 
   async function handleAddToDay(day: (typeof TRIP_DAYS)[number]) {
     try {
       await createItem.mutateAsync({ place_id: place.id, day_date: day.date, sort_order: 9999 })
-      toast.success(`Added to Day ${day.dayNumber} — ${day.label}`)
+      toast.success(`Added to ${formatTripDayLabel(day)}`)
       setDayPickerOpen(false)
     } catch {
       toast.error('Failed to add to day')
@@ -146,7 +152,7 @@ export function PlaceDetail({ place: initialPlace, onClose }: PlaceDetailProps) 
               return (
                 <Badge key={date} variant="secondary" className="text-xs gap-1">
                   <CalendarPlus className="h-3 w-3" />
-                  Day {day.dayNumber} — {day.label}
+                  {formatTripDayLabel(day)}
                 </Badge>
               )
             })}
@@ -224,7 +230,7 @@ export function PlaceDetail({ place: initialPlace, onClose }: PlaceDetailProps) 
                 </Button>
               }
             />
-            <PopoverContent className="w-52 p-1" align="start">
+            <PopoverContent className="w-60 p-1" align="start">
               <div className="max-h-64 overflow-y-auto">
                 {TRIP_DAYS.filter(
                   (day) => !place.city || day.cities.includes(place.city as City)
@@ -237,8 +243,8 @@ export function PlaceDetail({ place: initialPlace, onClose }: PlaceDetailProps) 
                       onClick={() => handleAddToDay(day)}
                       disabled={createItem.isPending}
                     >
-                      <span className="text-xs text-muted-foreground shrink-0 w-8">
-                        Day {day.dayNumber}
+                      <span className="text-xs text-muted-foreground shrink-0 w-[4.5rem] tabular-nums">
+                        {formatTripDate(day.date)}
                       </span>
                       <span className="flex-1">{day.label}</span>
                       {already && (
