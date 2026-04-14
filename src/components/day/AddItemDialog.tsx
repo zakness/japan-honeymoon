@@ -1,16 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { CirclePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -30,12 +23,21 @@ import type { PlaceRow } from '@/types/places'
 interface AddItemDialogProps {
   dayDate: string
   currentItemCount: number
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  /** Pre-selected time slot when the dialog opens. */
+  initialSlot: TimeSlot
 }
 
-export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps) {
-  const [open, setOpen] = useState(false)
+export function AddItemDialog({
+  dayDate,
+  currentItemCount,
+  open,
+  onOpenChange,
+  initialSlot,
+}: AddItemDialogProps) {
   const [tab, setTab] = useState<'place' | 'note' | 'transport'>('place')
-  const [timeSlot, setTimeSlot] = useState<TimeSlot>('morning')
+  const [timeSlot, setTimeSlot] = useState<TimeSlot>(initialSlot)
   const [noteText, setNoteText] = useState('')
   const [selectedPlace, setSelectedPlace] = useState<PlaceRow | null>(null)
   const [reservationTime, setReservationTime] = useState('')
@@ -52,6 +54,28 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
   const [transportArrivalTime, setTransportArrivalTime] = useState('')
   const [transportConfirmation, setTransportConfirmation] = useState('')
   const [transportNotes, setTransportNotes] = useState('')
+
+  // Reset all form state and sync the time-slot dropdown to `initialSlot`
+  // whenever the dialog transitions from closed → open. This gives every open
+  // a fresh form and prevents stale state from leaking between slot entry
+  // points after the state was lifted up to DayColumn.
+  useEffect(() => {
+    if (!open) return
+    setTab('place')
+    setTimeSlot(initialSlot)
+    setNoteText('')
+    setSelectedPlace(null)
+    setReservationTime('')
+    setReservationNotes('')
+    setIsDecided(false)
+    setTransportType('shinkansen')
+    setTransportOrigin(Object.values(CITY_LABELS)[0])
+    setTransportDestination(Object.values(CITY_LABELS)[0])
+    setTransportDepartureTime('')
+    setTransportArrivalTime('')
+    setTransportConfirmation('')
+    setTransportNotes('')
+  }, [open, initialSlot])
 
   const { data: unscheduled = [] } = useUnscheduledPlaces()
   const createItem = useCreateItineraryItem()
@@ -82,11 +106,7 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
         }),
       })
       toast.success(`${selectedPlace.name} added to ${effectiveTimeSlot}`)
-      setSelectedPlace(null)
-      setReservationTime('')
-      setReservationNotes('')
-      setIsDecided(false)
-      setOpen(false)
+      onOpenChange(false)
     } catch {
       toast.error('Failed to add place')
     }
@@ -103,9 +123,7 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
         is_decided: isDecided,
       })
       toast.success('Note added')
-      setNoteText('')
-      setIsDecided(false)
-      setOpen(false)
+      onOpenChange(false)
     } catch {
       toast.error('Failed to add note')
     }
@@ -128,33 +146,14 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
       })
       const label = TRANSPORT_TYPES.find((t) => t.value === transportType)?.label ?? 'Transport'
       toast.success(`${label} added`)
-      setTransportType('shinkansen')
-      setTransportOrigin(Object.values(CITY_LABELS)[0])
-      setTransportDestination(Object.values(CITY_LABELS)[0])
-      setTransportDepartureTime('')
-      setTransportArrivalTime('')
-      setTransportConfirmation('')
-      setTransportNotes('')
-      setOpen(false)
+      onOpenChange(false)
     } catch {
       toast.error('Failed to add transport')
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-            aria-label="Add to itinerary"
-          />
-        }
-      >
-        <CirclePlus className="h-5 w-5" />
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Add to itinerary</DialogTitle>

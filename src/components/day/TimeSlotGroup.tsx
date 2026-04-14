@@ -1,5 +1,6 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { Plus } from 'lucide-react'
 import { ItineraryItem } from './ItineraryItem'
 import { TransportItem } from './TransportItem'
 import { HotelAnchor } from './HotelAnchor'
@@ -23,6 +24,8 @@ interface TimeSlotGroupProps {
   hotelColors?: CityColor
   onSelectPlace?: (placeId: string) => void
   onSelectHotel?: (hotelId: string) => void
+  /** Fires when the user clicks the "+ Add" zone at the bottom of the slot. */
+  onAddClick?: (slot: TimeSlot) => void
 }
 
 export function TimeSlotGroup({
@@ -35,9 +38,9 @@ export function TimeSlotGroup({
   hotelColors = FALLBACK_HOTEL_COLORS,
   onSelectPlace,
   onSelectHotel,
+  onAddClick,
 }: TimeSlotGroupProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `slot-${dayDate}-${slot}` })
-  const isEmpty = items.length === 0 && !hotelAnchor && flightEvents.length === 0
 
   return (
     <div className="space-y-1.5">
@@ -83,16 +86,28 @@ export function TimeSlotGroup({
               onViewOnMap={onSelectHotel ? () => onSelectHotel(hotelAnchor.id) : undefined}
             />
           )}
-          {isEmpty && (
-            <div
-              className={cn(
-                'flex items-center justify-center h-10 rounded border border-dashed text-xs text-muted-foreground/50',
-                isOver ? 'border-accent-foreground/30' : 'border-border'
-              )}
-            >
-              Drop here
-            </div>
-          )}
+          {/*
+            "+ Add" zone — always the last child of the droppable container, so
+            it acts as both the click target for opening the add dialog (pre-
+            selecting this slot) and the visual focal point for drop-over
+            feedback. The actual drop target is still the whole slot container
+            above; this zone mirrors the `isOver` state so the affordance is
+            obvious whether or not the slot has existing items.
+          */}
+          <button
+            type="button"
+            onClick={() => onAddClick?.(slot)}
+            aria-label={`Add to ${label.toLowerCase()}`}
+            className={cn(
+              'flex w-full items-center justify-center gap-1 h-10 rounded border border-dashed text-xs transition-colors',
+              isOver
+                ? 'border-solid border-accent-foreground/40 text-accent-foreground ring-1 ring-accent'
+                : 'border-border text-muted-foreground/60 hover:text-foreground hover:border-muted-foreground/40'
+            )}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>{isOver ? 'Drop to add' : 'Add'}</span>
+          </button>
         </div>
       </SortableContext>
     </div>

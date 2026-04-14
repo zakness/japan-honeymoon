@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TimeSlotGroup } from '@/components/day/TimeSlotGroup'
 import { AddItemDialog } from '@/components/day/AddItemDialog'
@@ -8,7 +9,7 @@ import { useAccommodations, useAccommodationsForDate } from '@/hooks/useAccommod
 import { getCityColor, getDayByDate, getHotelColor } from '@/config/trip'
 import { mergeSlotItems } from '@/lib/transport-utils'
 import { getFlightEventsForDate } from '@/lib/logistics-utils'
-import { TIME_SLOTS, deriveTimeSlot } from '@/types/itinerary'
+import { TIME_SLOTS, deriveTimeSlot, type TimeSlot } from '@/types/itinerary'
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -17,6 +18,9 @@ interface DayColumnProps {
 }
 
 export function DayColumn({ dayDate }: DayColumnProps) {
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogInitialSlot, setDialogInitialSlot] = useState<TimeSlot>('morning')
+
   const { data: itineraryItems = [], isLoading: itineraryLoading } = useItineraryItems(dayDate)
   const { data: transportItems = [], isLoading: transportLoading } = useTransportItems(dayDate)
   const { data: flights = [], isLoading: flightsLoading } = useFlights()
@@ -54,14 +58,11 @@ export function DayColumn({ dayDate }: DayColumnProps) {
     <div className="w-64 shrink-0 flex flex-col border-r last:border-r-0 h-full">
       {/* Column header */}
       <div
-        className="px-3 py-2 border-b shrink-0 flex items-center justify-between gap-2"
+        className="px-3 py-2 border-b shrink-0 flex items-baseline gap-1.5"
         style={headerBg ? { background: headerBg } : undefined}
       >
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-xs font-medium text-muted-foreground">{dayName}</span>
-          <span className="text-lg font-bold leading-none">{dayNum}</span>
-        </div>
-        <AddItemDialog dayDate={dayDate} currentItemCount={totalItemCount} />
+        <span className="text-xs font-medium text-muted-foreground">{dayName}</span>
+        <span className="text-lg font-bold leading-none">{dayNum}</span>
       </div>
 
       {/* Column body */}
@@ -87,12 +88,24 @@ export function DayColumn({ dayDate }: DayColumnProps) {
                   flightEvents={flightEventsBySlot[value]}
                   hotelAnchor={anchor}
                   hotelColors={anchor ? getHotelColor(anchor, allHotels) : undefined}
+                  onAddClick={(clickedSlot) => {
+                    setDialogInitialSlot(clickedSlot)
+                    setDialogOpen(true)
+                  }}
                 />
               )
             })}
           </>
         )}
       </div>
+
+      <AddItemDialog
+        dayDate={dayDate}
+        currentItemCount={totalItemCount}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        initialSlot={dialogInitialSlot}
+      />
     </div>
   )
 }
