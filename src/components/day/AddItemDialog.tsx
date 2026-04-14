@@ -1,23 +1,18 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { Sunrise, Sun, Moon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 import { PlaceCard } from '@/components/places/PlaceCard'
 import { useCreateItineraryItem, useUnscheduledPlaces } from '@/hooks/useItinerary'
 import { useCreateTransportItem } from '@/hooks/useTransport'
 import { TIME_SLOTS, type TimeSlot, deriveTimeSlot } from '@/types/itinerary'
 import { TRANSPORT_TYPES, type TransportType } from '@/types/transport'
-import { CITY_LABELS } from '@/config/trip'
+import { CITY_LABELS, getCityColor, getDayByDate } from '@/config/trip'
 import type { PlaceRow } from '@/types/places'
 
 interface AddItemDialogProps {
@@ -152,47 +147,80 @@ export function AddItemDialog({
     }
   }
 
+  // Header background: solid city tint for single-city days, hard left/right
+  // split (origin → destination) for transit days — mirrors DayColumn.
+  const day = getDayByDate(dayDate)
+  const headerBg = (() => {
+    if (!day || day.cities.length === 0) return undefined
+    if (day.cities.length === 1) return getCityColor(day.cities[0]).tint
+    const origin = getCityColor(day.cities[0]).tint
+    const destination = getCityColor(day.cities[day.cities.length - 1]).tint
+    return `linear-gradient(to right, ${origin} 0%, ${origin} 50%, ${destination} 50%, ${destination} 100%)`
+  })()
+
+  const headerDate = new Date(dayDate + 'T00:00:00').toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
+  const headerLabel = day?.label ?? 'Add to itinerary'
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader
+          className="-mx-4 -mt-4 gap-0.5 rounded-t-xl border-b px-4 py-3"
+          style={headerBg ? { background: headerBg } : undefined}
+        >
           <DialogTitle>Add to itinerary</DialogTitle>
+          <p className="text-xs text-muted-foreground">
+            {headerLabel} · {headerDate}
+          </p>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Time slot */}
-          <div className="space-y-1.5">
-            <Label>Time of day</Label>
-            <Select
-              value={effectiveTimeSlot}
-              onValueChange={(v) => setTimeSlot(v as TimeSlot)}
-              disabled={timeSlotLocked}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TIME_SLOTS.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           <Tabs value={tab} onValueChange={(v) => setTab(v as 'place' | 'note' | 'transport')}>
-            <TabsList className="w-full">
-              <TabsTrigger value="place" className="flex-1">
-                Place
-              </TabsTrigger>
-              <TabsTrigger value="note" className="flex-1">
-                Note
-              </TabsTrigger>
-              <TabsTrigger value="transport" className="flex-1">
-                Transport
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex items-center gap-2">
+              <TabsList className="flex-1">
+                <TabsTrigger value="place" className="flex-1">
+                  Place
+                </TabsTrigger>
+                <TabsTrigger value="transport" className="flex-1">
+                  Transport
+                </TabsTrigger>
+                <TabsTrigger value="note" className="flex-1">
+                  Note
+                </TabsTrigger>
+              </TabsList>
+              <div
+                role="radiogroup"
+                aria-label="Time of day"
+                className="inline-flex h-8 shrink-0 items-center rounded-lg bg-muted p-[3px] text-muted-foreground"
+              >
+                {TIME_SLOTS.map(({ value, label }) => {
+                  const Icon = value === 'morning' ? Sunrise : value === 'afternoon' ? Sun : Moon
+                  const active = effectiveTimeSlot === value
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      aria-label={label}
+                      title={timeSlotLocked ? `${label} (locked by reservation time)` : label}
+                      disabled={timeSlotLocked}
+                      onClick={() => setTimeSlot(value)}
+                      className={cn(
+                        'inline-flex h-[calc(100%-1px)] items-center justify-center rounded-md px-2 text-foreground/60 transition-all hover:text-foreground focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50',
+                        active && 'bg-background text-foreground shadow-sm'
+                      )}
+                    >
+                      <Icon className="size-4" />
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
             <TabsContent value="place" className="space-y-3 mt-3">
               {unscheduled.length === 0 ? (
