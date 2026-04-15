@@ -5,6 +5,7 @@ import { AddItemDialog } from '@/components/day/AddItemDialog'
 import { useItineraryItems } from '@/hooks/useItinerary'
 import { useTransportItems } from '@/hooks/useTransport'
 import { useFlights } from '@/hooks/useFlights'
+import { HotelAnchor } from '@/components/day/HotelAnchor'
 import { useAccommodations, useAccommodationsForDate } from '@/hooks/useAccommodations'
 import { getCityColor, getDayByDate, getHotelColor } from '@/config/trip'
 import { mergeSlotItems } from '@/lib/transport-utils'
@@ -75,26 +76,34 @@ export function DayColumn({ dayDate }: DayColumnProps) {
           </>
         ) : (
           <>
-            {TIME_SLOTS.map(({ value, label }) => {
-              const anchor =
-                value === 'morning' ? morningHotel : value === 'evening' ? eveningHotel : null
-              return (
-                <TimeSlotGroup
-                  key={value}
-                  slot={value}
-                  label={label}
-                  items={grouped[value]}
-                  dayDate={dayDate}
-                  flightEvents={flightEventsBySlot[value]}
-                  hotelAnchor={anchor}
-                  hotelColors={anchor ? getHotelColor(anchor, allHotels) : undefined}
-                  onAddClick={(clickedSlot) => {
-                    setDialogInitialSlot(clickedSlot)
-                    setDialogOpen(true)
-                  }}
-                />
-              )
-            })}
+            {morningHotel && (
+              <HotelAnchor
+                hotel={morningHotel}
+                slot="morning"
+                colors={getHotelColor(morningHotel, allHotels)}
+              />
+            )}
+            {TIME_SLOTS.map(({ value, label }) => (
+              <TimeSlotGroup
+                key={value}
+                slot={value}
+                label={label}
+                items={grouped[value]}
+                dayDate={dayDate}
+                flightEvents={flightEventsBySlot[value]}
+                onAddClick={(clickedSlot) => {
+                  setDialogInitialSlot(clickedSlot)
+                  setDialogOpen(true)
+                }}
+              />
+            ))}
+            {eveningHotel && (
+              <HotelAnchor
+                hotel={eveningHotel}
+                slot="evening"
+                colors={getHotelColor(eveningHotel, allHotels)}
+              />
+            )}
           </>
         )}
       </div>

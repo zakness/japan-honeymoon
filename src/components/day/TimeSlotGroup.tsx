@@ -4,16 +4,11 @@ import { Plus } from 'lucide-react'
 import { TIME_SLOT_ICONS } from '@/lib/time-slot-icons'
 import { ItineraryItem } from './ItineraryItem'
 import { TransportItem } from './TransportItem'
-import { HotelAnchor } from './HotelAnchor'
 import { FlightEventCard } from './FlightEventCard'
 import { type TimeSlot } from '@/types/itinerary'
 import { type SlotItem } from '@/types/transport'
-import type { AccommodationRow } from '@/types/accommodations'
 import type { FlightEvent } from '@/lib/logistics-utils'
-import type { CityColor } from '@/config/trip'
 import { cn } from '@/lib/utils'
-
-const FALLBACK_HOTEL_COLORS: CityColor = { primary: '#5b21b6', tint: '#ede9fe' }
 
 interface TimeSlotGroupProps {
   slot: TimeSlot
@@ -21,10 +16,7 @@ interface TimeSlotGroupProps {
   items: SlotItem[]
   dayDate: string
   flightEvents?: FlightEvent[]
-  hotelAnchor?: AccommodationRow | null
-  hotelColors?: CityColor
   onSelectPlace?: (placeId: string) => void
-  onSelectHotel?: (hotelId: string) => void
   /** Fires when the user clicks the "+ Add" zone at the bottom of the slot. */
   onAddClick?: (slot: TimeSlot) => void
 }
@@ -35,10 +27,7 @@ export function TimeSlotGroup({
   items,
   dayDate,
   flightEvents = [],
-  hotelAnchor,
-  hotelColors = FALLBACK_HOTEL_COLORS,
   onSelectPlace,
-  onSelectHotel,
   onAddClick,
 }: TimeSlotGroupProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `slot-${dayDate}-${slot}` })
@@ -58,14 +47,6 @@ export function TimeSlotGroup({
             isOver ? 'bg-accent/50 ring-1 ring-accent' : ''
           )}
         >
-          {slot === 'morning' && hotelAnchor && (
-            <HotelAnchor
-              hotel={hotelAnchor}
-              slot="morning"
-              colors={hotelColors}
-              onViewOnMap={onSelectHotel ? () => onSelectHotel(hotelAnchor.id) : undefined}
-            />
-          )}
           {flightEvents.map((event) => (
             <FlightEventCard key={event.id} event={event} />
           ))}
@@ -80,14 +61,6 @@ export function TimeSlotGroup({
             ) : (
               <TransportItem key={item.data.id} item={item.data} dayDate={dayDate} />
             )
-          )}
-          {slot === 'evening' && hotelAnchor && (
-            <HotelAnchor
-              hotel={hotelAnchor}
-              slot="evening"
-              colors={hotelColors}
-              onViewOnMap={onSelectHotel ? () => onSelectHotel(hotelAnchor.id) : undefined}
-            />
           )}
           {/*
             "+ Add" zone — always the last child of the droppable container, so

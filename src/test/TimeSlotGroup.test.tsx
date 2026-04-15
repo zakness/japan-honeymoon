@@ -16,7 +16,6 @@ describe('TimeSlotGroup "+ Add" zone', () => {
     items: [] as SlotItem[],
     dayDate: '2026-05-15',
     flightEvents: [] as FlightEvent[],
-    hotelAnchor: null,
   }
 
   it('renders an add button labelled for the slot', () => {
