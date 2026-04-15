@@ -5,6 +5,7 @@ import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdow
 import { type TimeSlot, formatReservationTime } from '@/types/itinerary'
 import { TRANSPORT_TYPES, type TransportItemRow } from '@/types/transport'
 import { useDeleteTransportItem, useUpdateTransportItem } from '@/hooks/useTransport'
+import { getCityColor, getPrimaryCityForDate } from '@/config/trip'
 import { TransportDialog } from './TransportDialog'
 import {
   SortableItemCard,
@@ -25,6 +26,8 @@ export function TransportItem({ item, dayDate }: TransportItemProps) {
 
   const transportType = TRANSPORT_TYPES.find((t) => t.value === item.type)
   const timeSlot = item.time_slot as TimeSlot
+  const city = getPrimaryCityForDate(item.day_date)
+  const accentColor = city ? getCityColor(city).primary : undefined
 
   async function handleDelete() {
     try {
@@ -58,6 +61,7 @@ export function TransportItem({ item, dayDate }: TransportItemProps) {
       id={item.id}
       data={{ dayDate, kind: 'transport' as const, timeSlot: item.time_slot }}
       actions={actions}
+      accentColor={accentColor}
     >
       <div className="flex items-center gap-1.5">
         {transportType && <span className="text-sm">{transportType.icon}</span>}

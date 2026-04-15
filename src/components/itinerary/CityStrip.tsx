@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { CITY_LABELS, getCityColor, type City } from '@/config/trip'
 
@@ -7,9 +7,11 @@ const CITIES = Object.keys(CITY_LABELS) as City[]
 interface CityStripProps {
   selectedCity: City
   onSelectCity: (city: City) => void
+  /** Optional trailing content rendered after the scrollable city list, inside the same row. */
+  trailing?: ReactNode
 }
 
-export function CityStrip({ selectedCity, onSelectCity }: CityStripProps) {
+export function CityStrip({ selectedCity, onSelectCity, trailing }: CityStripProps) {
   const selectedRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -17,8 +19,11 @@ export function CityStrip({ selectedCity, onSelectCity }: CityStripProps) {
   }, [selectedCity])
 
   return (
-    <div className="border-b bg-background shrink-0">
-      <div className="overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+    <div className="border-b bg-background shrink-0 flex items-center">
+      <div
+        className="overflow-x-auto scrollbar-hide flex-1 min-w-0"
+        style={{ scrollbarWidth: 'none' }}
+      >
         <div className="flex gap-1 px-3 py-2">
           {CITIES.map((city) => {
             const isSelected = city === selectedCity
@@ -42,6 +47,7 @@ export function CityStrip({ selectedCity, onSelectCity }: CityStripProps) {
           })}
         </div>
       </div>
+      {trailing && <div className="shrink-0 pr-2">{trailing}</div>}
     </div>
   )
 }

@@ -1,45 +1,43 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { CirclePlus } from 'lucide-react'
+import { TIME_SLOT_ICONS } from '@/lib/time-slot-icons'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 import { PlaceCard } from '@/components/places/PlaceCard'
 import { useCreateItineraryItem, useUnscheduledPlaces } from '@/hooks/useItinerary'
 import { useCreateTransportItem } from '@/hooks/useTransport'
 import { TIME_SLOTS, type TimeSlot, deriveTimeSlot } from '@/types/itinerary'
 import { TRANSPORT_TYPES, type TransportType } from '@/types/transport'
-import { CITY_LABELS } from '@/config/trip'
+import { CITY_LABELS, getCityColor, getDayByDate } from '@/config/trip'
 import type { PlaceRow } from '@/types/places'
 
 interface AddItemDialogProps {
   dayDate: string
   currentItemCount: number
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  /** Pre-selected time slot when the dialog opens. */
+  initialSlot: TimeSlot
 }
 
-export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps) {
-  const [open, setOpen] = useState(false)
+export function AddItemDialog({
+  dayDate,
+  currentItemCount,
+  open,
+  onOpenChange,
+  initialSlot,
+}: AddItemDialogProps) {
   const [tab, setTab] = useState<'place' | 'note' | 'transport'>('place')
-  const [timeSlot, setTimeSlot] = useState<TimeSlot>('morning')
+  const [timeSlot, setTimeSlot] = useState<TimeSlot>(initialSlot)
   const [noteText, setNoteText] = useState('')
   const [selectedPlace, setSelectedPlace] = useState<PlaceRow | null>(null)
   const [reservationTime, setReservationTime] = useState('')
   const [reservationNotes, setReservationNotes] = useState('')
+  const [isDecided, setIsDecided] = useState(false)
 
   // Transport state
   const [transportType, setTransportType] = useState<TransportType>('shinkansen')
@@ -51,6 +49,28 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
   const [transportArrivalTime, setTransportArrivalTime] = useState('')
   const [transportConfirmation, setTransportConfirmation] = useState('')
   const [transportNotes, setTransportNotes] = useState('')
+
+  // Reset all form state and sync the time-slot dropdown to `initialSlot`
+  // whenever the dialog transitions from closed → open. This gives every open
+  // a fresh form and prevents stale state from leaking between slot entry
+  // points after the state was lifted up to DayColumn.
+  useEffect(() => {
+    if (!open) return
+    setTab('place')
+    setTimeSlot(initialSlot)
+    setNoteText('')
+    setSelectedPlace(null)
+    setReservationTime('')
+    setReservationNotes('')
+    setIsDecided(false)
+    setTransportType('shinkansen')
+    setTransportOrigin(Object.values(CITY_LABELS)[0])
+    setTransportDestination(Object.values(CITY_LABELS)[0])
+    setTransportDepartureTime('')
+    setTransportArrivalTime('')
+    setTransportConfirmation('')
+    setTransportNotes('')
+  }, [open, initialSlot])
 
   const { data: unscheduled = [] } = useUnscheduledPlaces()
   const createItem = useCreateItineraryItem()
@@ -73,16 +93,15 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
         place_id: selectedPlace.id,
         time_slot: effectiveTimeSlot,
         sort_order: currentItemCount,
+        // A reservation implies decided; the hook also enforces this.
+        is_decided: isDecided || !!reservationTime,
         ...(reservationTime && {
           reservation_time: reservationTime,
           reservation_notes: reservationNotes.trim() || null,
         }),
       })
       toast.success(`${selectedPlace.name} added to ${effectiveTimeSlot}`)
-      setSelectedPlace(null)
-      setReservationTime('')
-      setReservationNotes('')
-      setOpen(false)
+      onOpenChange(false)
     } catch {
       toast.error('Failed to add place')
     }
@@ -96,10 +115,10 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
         text_note: noteText.trim(),
         time_slot: timeSlot,
         sort_order: currentItemCount,
+        is_decided: isDecided,
       })
       toast.success('Note added')
-      setNoteText('')
-      setOpen(false)
+      onOpenChange(false)
     } catch {
       toast.error('Failed to add note')
     }
@@ -122,72 +141,86 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
       })
       const label = TRANSPORT_TYPES.find((t) => t.value === transportType)?.label ?? 'Transport'
       toast.success(`${label} added`)
-      setTransportType('shinkansen')
-      setTransportOrigin(Object.values(CITY_LABELS)[0])
-      setTransportDestination(Object.values(CITY_LABELS)[0])
-      setTransportDepartureTime('')
-      setTransportArrivalTime('')
-      setTransportConfirmation('')
-      setTransportNotes('')
-      setOpen(false)
+      onOpenChange(false)
     } catch {
       toast.error('Failed to add transport')
     }
   }
 
+  // Header background: solid city tint for single-city days, hard left/right
+  // split (origin → destination) for transit days — mirrors DayColumn.
+  const day = getDayByDate(dayDate)
+  const headerBg = (() => {
+    if (!day || day.cities.length === 0) return undefined
+    if (day.cities.length === 1) return getCityColor(day.cities[0]).tint
+    const origin = getCityColor(day.cities[0]).tint
+    const destination = getCityColor(day.cities[day.cities.length - 1]).tint
+    return `linear-gradient(to right, ${origin} 0%, ${origin} 50%, ${destination} 50%, ${destination} 100%)`
+  })()
+
+  const headerDate = new Date(dayDate + 'T00:00:00').toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
+  const headerLabel = day?.label ?? 'Add to itinerary'
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-            aria-label="Add to itinerary"
-          />
-        }
-      >
-        <CirclePlus className="h-5 w-5" />
-      </DialogTrigger>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader
+          className="-mx-4 -mt-4 gap-0.5 rounded-t-xl border-b px-4 py-3"
+          style={headerBg ? { background: headerBg } : undefined}
+        >
           <DialogTitle>Add to itinerary</DialogTitle>
+          <p className="text-xs text-muted-foreground">
+            {headerLabel} · {headerDate}
+          </p>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Time slot */}
-          <div className="space-y-1.5">
-            <Label>Time of day</Label>
-            <Select
-              value={effectiveTimeSlot}
-              onValueChange={(v) => setTimeSlot(v as TimeSlot)}
-              disabled={timeSlotLocked}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TIME_SLOTS.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           <Tabs value={tab} onValueChange={(v) => setTab(v as 'place' | 'note' | 'transport')}>
-            <TabsList className="w-full">
-              <TabsTrigger value="place" className="flex-1">
-                Place
-              </TabsTrigger>
-              <TabsTrigger value="note" className="flex-1">
-                Note
-              </TabsTrigger>
-              <TabsTrigger value="transport" className="flex-1">
-                Transport
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex items-center gap-2">
+              <TabsList className="flex-1">
+                <TabsTrigger value="place" className="flex-1">
+                  Place
+                </TabsTrigger>
+                <TabsTrigger value="transport" className="flex-1">
+                  Transport
+                </TabsTrigger>
+                <TabsTrigger value="note" className="flex-1">
+                  Note
+                </TabsTrigger>
+              </TabsList>
+              <div
+                role="radiogroup"
+                aria-label="Time of day"
+                className="inline-flex h-8 shrink-0 items-center rounded-lg bg-muted p-[3px] text-muted-foreground"
+              >
+                {TIME_SLOTS.map(({ value, label }) => {
+                  const Icon = TIME_SLOT_ICONS[value]
+                  const active = effectiveTimeSlot === value
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      aria-label={label}
+                      title={timeSlotLocked ? `${label} (locked by reservation time)` : label}
+                      disabled={timeSlotLocked}
+                      onClick={() => setTimeSlot(value)}
+                      className={cn(
+                        'inline-flex h-[calc(100%-1px)] items-center justify-center rounded-md px-2 text-foreground/60 transition-all hover:text-foreground focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50',
+                        active && 'bg-background text-foreground shadow-sm'
+                      )}
+                    >
+                      <Icon className="size-4" />
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
             <TabsContent value="place" className="space-y-3 mt-3">
               {unscheduled.length === 0 ? (
@@ -235,6 +268,23 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
                         />
                       </div>
                     )}
+                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-input accent-foreground disabled:opacity-50"
+                        checked={isDecided || !!reservationTime}
+                        disabled={!!reservationTime}
+                        onChange={(e) => setIsDecided(e.target.checked)}
+                      />
+                      <span>
+                        Lock in as decided
+                        {reservationTime && (
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            (reservation implies decided)
+                          </span>
+                        )}
+                      </span>
+                    </label>
                   </div>
                   <Button
                     className="w-full"
@@ -262,6 +312,15 @@ export function AddItemDialog({ dayDate, currentItemCount }: AddItemDialogProps)
                   autoFocus
                 />
               </div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-input accent-foreground"
+                  checked={isDecided}
+                  onChange={(e) => setIsDecided(e.target.checked)}
+                />
+                <span>Lock in as decided</span>
+              </label>
               <Button
                 className="w-full"
                 disabled={!noteText.trim() || createItem.isPending}

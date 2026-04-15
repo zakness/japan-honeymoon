@@ -17,6 +17,7 @@ function makeItineraryItem(
     text_note: 'note',
     reservation_time: null,
     reservation_notes: null,
+    is_decided: false,
     place: null,
     ...overrides,
   }

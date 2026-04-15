@@ -37,3 +37,17 @@ export function parseSlotDropId(id: string): { dayDate: string; slot: TimeSlot }
   const m = id.match(/^slot-(\d{4}-\d{2}-\d{2})-(\w+)$/)
   return m ? { dayDate: m[1], slot: m[2] as TimeSlot } : null
 }
+
+/**
+ * Invariant: a reservation implies the item is decided. These helpers apply
+ * that rule to insert/update payloads before they hit Supabase. Clearing a
+ * reservation does NOT flip `is_decided` back — a user may still consider the
+ * plan locked in without a specific time.
+ */
+export function applyDecidedInvariantToInsert(item: ItineraryItemInsert): ItineraryItemInsert {
+  return item.reservation_time ? { ...item, is_decided: true } : item
+}
+
+export function applyDecidedInvariantToUpdate(update: ItineraryItemUpdate): ItineraryItemUpdate {
+  return update.reservation_time != null ? { ...update, is_decided: true } : update
+}

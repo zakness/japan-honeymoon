@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Map } from 'lucide-react'
 import { NavBar, type AppView } from './NavBar'
 import { ErrorBoundary } from './ErrorBoundary'
 import { NotesView } from '@/components/notes/NotesView'
 import { LogisticsView } from '@/components/logistics/LogisticsView'
 import { ItineraryView } from '@/components/itinerary/ItineraryView'
 import { CityStrip } from '@/components/itinerary/CityStrip'
+import { Button } from '@/components/ui/button'
 import { type City } from '@/config/trip'
 
 export interface NavState {
@@ -30,6 +32,7 @@ function toHash(state: NavState): string {
 
 export function AppShell() {
   const [nav, setNav] = useState<NavState>(parseHash)
+  const [mapVisible, setMapVisible] = useState(true)
 
   useEffect(() => {
     const handler = () => setNav(parseHash())
@@ -59,13 +62,27 @@ export function AppShell() {
           <CityStrip
             selectedCity={activeCity}
             onSelectCity={(city) => navigate({ view: 'itinerary', city })}
+            trailing={
+              <Button
+                variant={mapVisible ? 'secondary' : 'ghost'}
+                size="icon"
+                onClick={() => setMapVisible((v) => !v)}
+                aria-label={mapVisible ? 'Hide map' : 'Show map'}
+                aria-pressed={mapVisible}
+                title={mapVisible ? 'Hide map' : 'Show map'}
+              >
+                <Map />
+              </Button>
+            }
           />
         )}
       </div>
 
       <main className="flex-1 overflow-hidden">
         <ErrorBoundary>
-          {nav.view === 'itinerary' && <ItineraryView city={activeCity} onNavigate={navigate} />}
+          {nav.view === 'itinerary' && (
+            <ItineraryView city={activeCity} onNavigate={navigate} mapVisible={mapVisible} />
+          )}
           {nav.view === 'notes' && <NotesView />}
           {nav.view === 'logistics' && <LogisticsView />}
         </ErrorBoundary>

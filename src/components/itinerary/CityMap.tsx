@@ -5,7 +5,13 @@ import { HotelMarker } from '@/components/map/HotelMarker'
 import { PlaceInfoWindow } from './PlaceInfoWindow'
 import { usePlaces } from '@/hooks/usePlaces'
 import { useAccommodations } from '@/hooks/useAccommodations'
-import { getDaysForCity, CITY_MAP_CENTER, CITY_LABELS, type City } from '@/config/trip'
+import {
+  getDaysForCity,
+  CITY_MAP_CENTER,
+  CITY_LABELS,
+  formatTripDayLabel,
+  type City,
+} from '@/config/trip'
 import { GOOGLE_MAP_ID } from '@/lib/google-maps'
 import type { PlaceRow } from '@/types/places'
 import type { AccommodationRow } from '@/types/accommodations'
@@ -143,7 +149,7 @@ export function CityMap({ city }: CityMapProps) {
           <option value={ALL}>All {CITY_LABELS[city]} days</option>
           {cityDays.map((day) => (
             <option key={day.date} value={day.date}>
-              Day {day.dayNumber} — {day.label}
+              {formatTripDayLabel(day)}
             </option>
           ))}
         </select>

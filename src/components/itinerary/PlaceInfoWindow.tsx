@@ -1,6 +1,6 @@
 import { CATEGORY_ICONS, CATEGORY_LABELS } from '@/lib/google-maps'
 import { usePlaceSchedule } from '@/hooks/useItinerary'
-import { getDayByDate } from '@/config/trip'
+import { formatTripDayLabel, getDayByDate } from '@/config/trip'
 import type { PlaceRow, PlaceCategory } from '@/types/places'
 
 interface PlaceInfoWindowProps {
@@ -27,7 +27,7 @@ export function PlaceInfoWindow({ place }: PlaceInfoWindowProps) {
             const day = getDayByDate(date)
             return (
               <p key={date} className="pl-1">
-                {day ? `Day ${day.dayNumber} — ${day.label}` : date}
+                {day ? formatTripDayLabel(day) : date}
               </p>
             )
           })}

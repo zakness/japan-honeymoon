@@ -10,12 +10,23 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { TIME_SLOTS, type TimeSlot } from '@/types/itinerary'
+import { TIME_SLOT_ICONS } from '@/lib/time-slot-icons'
 
 interface SortableItemCardProps {
   id: string
   data: Record<string, unknown>
   children: ReactNode
   actions?: ReactNode
+  /**
+   * Visual variant. `speculative` renders a dashed, faded card to distinguish
+   * "maybe" items from locked-in plans. Defaults to `decided`.
+   */
+  variant?: 'decided' | 'speculative'
+  /**
+   * Hex color used to tint a `decided` card's border and shadow. Ignored for
+   * speculative cards. Typically the city's `primary` color.
+   */
+  accentColor?: string
 }
 
 /**
@@ -23,23 +34,48 @@ interface SortableItemCardProps {
  * drag handle, and a top-right action tray that only reserves layout space
  * when hovered (via absolute positioning).
  */
-export function SortableItemCard({ id, data, children, actions }: SortableItemCardProps) {
+export function SortableItemCard({
+  id,
+  data,
+  children,
+  actions,
+  variant = 'decided',
+  accentColor,
+}: SortableItemCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     data,
   })
 
-  const style = {
+  const baseStyle: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition: isDragging ? 'none' : transition,
     opacity: isDragging ? 0 : 1,
   }
 
+  // Decided cards get a city-tinted border + colored shadow when an accent is
+  // provided. Hex+alpha suffix: `55` ≈ 33% (border), `33` ≈ 20% (shadow).
+  const style: React.CSSProperties =
+    variant === 'decided' && accentColor
+      ? {
+          ...baseStyle,
+          borderColor: `${accentColor}55`,
+          boxShadow: `0 1px 3px 0 ${accentColor}33, 0 1px 2px -1px ${accentColor}33`,
+        }
+      : baseStyle
+
+  const variantClasses =
+    variant === 'speculative'
+      ? 'border-dashed border-muted-foreground/40 bg-transparent'
+      : accentColor
+        ? 'bg-card'
+        : 'bg-card shadow-sm'
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="relative flex items-start gap-2 rounded-lg border bg-card p-2.5 group"
+      className={`relative flex items-start gap-2 rounded-lg border p-2.5 group ${variantClasses}`}
     >
       <button
         {...attributes}
@@ -101,15 +137,19 @@ interface TimeSlotMenuItemsProps {
 export function TimeSlotMenuItems({ current, onChange }: TimeSlotMenuItemsProps) {
   return (
     <>
-      {TIME_SLOTS.map((slot) => (
-        <DropdownMenuItem
-          key={slot.value}
-          onClick={() => onChange(slot.value)}
-          className={current === slot.value ? 'font-medium' : ''}
-        >
-          {slot.label}
-        </DropdownMenuItem>
-      ))}
+      {TIME_SLOTS.map((slot) => {
+        const Icon = TIME_SLOT_ICONS[slot.value]
+        return (
+          <DropdownMenuItem
+            key={slot.value}
+            onClick={() => onChange(slot.value)}
+            className={current === slot.value ? 'font-medium' : ''}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {slot.label}
+          </DropdownMenuItem>
+        )
+      })}
     </>
   )
 }

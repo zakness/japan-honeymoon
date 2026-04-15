@@ -62,9 +62,13 @@ Required env vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_GOOGLE_M
 
 **Itinerary view** — `src/components/itinerary/ItineraryView.tsx`. Left half: horizontally scrollable day columns (one per day in the selected city) plus a sticky Unscheduled column. Right half: `CityMap` scoped to the selected city. City strip at top switches between the 5 cities. On mobile: map fills screen, bottom sheet (58vh) holds the columns. DnD is handled by `useCrossItineraryDnD` (`src/hooks/`) which supports same-day, cross-slot, cross-day, and unscheduled→day moves.
 
+**Adding itinerary items** — each `TimeSlotGroup` renders an always-visible "+ Add" zone as the last child of the slot's droppable container. Clicking it opens `AddItemDialog` (a controlled component lifted to `DayColumn`) pre-selecting that slot. The zone also mirrors the parent slot's `isOver` drop state, so it doubles as the visual focal point for drag-over feedback — the actual drop target is still the full slot container, not the zone itself. `AddItemDialog` resets all form state on every closed→open transition so the dialog starts fresh no matter which slot was clicked.
+
 **Hardcoded trip config** — all 16 days, cities, and transit flags live in `src/config/trip.ts`. `getDaysForCity(city)` and `CITY_MAP_CENTER` are used by the itinerary view.
 
 **City colors** — the palette (`CITY_COLORS`) and helpers (`getCityColor`, `getHotelColor`) live in `src/config/trip.ts`. Each city has a `primary`/`tint` pair; cities with multiple hotels declare `variants` ordered by `check_in_date`. City-identity surfaces (city strip, day column header) use `getCityColor`; per-hotel surfaces (hotel pills, hotel map markers, logistics entries) use `getHotelColor` which resolves the variant.
+
+**Speculative vs decided items** — itinerary items have an `is_decided` boolean. Decided items render with a solid, city-tinted border + shadow (`SortableItemCard` `variant="decided"` + `accentColor`); speculative items get a dashed muted border and no fill. Invariant: setting a `reservation_time` implies decided — enforced by `applyDecidedInvariantToInsert`/`applyDecidedInvariantToUpdate` in `src/types/itinerary.ts`, which wrap every `useCreateItineraryItem`/`useUpdateItineraryItem` payload. Clearing a reservation does NOT flip `is_decided` back. Transport items don't have the flag — they always render decided.
 
 **Two-step unscheduled query** — PostgREST doesn't support subqueries. `useUnscheduledPlaces` (`src/hooks/useItinerary.ts`) fetches scheduled place IDs first, then excludes them in a second query.
 

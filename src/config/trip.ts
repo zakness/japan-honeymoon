@@ -69,6 +69,33 @@ export function getDayByDate(date: string): TripDay | undefined {
   return TRIP_DAYS.find((d) => d.date === date)
 }
 
+const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const MONTH_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+]
+
+/** "Sun, May 24" — weekday + month + day from a YYYY-MM-DD string. */
+export function formatTripDate(date: string): string {
+  const d = new Date(date + 'T00:00:00')
+  return `${WEEKDAY_SHORT[d.getDay()]}, ${MONTH_SHORT[d.getMonth()]} ${d.getDate()}`
+}
+
+/** "Sun, May 24 — Hakone → Kyoto" — full day label with city label appended. */
+export function formatTripDayLabel(day: TripDay): string {
+  return `${formatTripDate(day.date)} — ${day.label}`
+}
+
 export function getPrimaryCityForDate(date: string): City | undefined {
   const day = getDayByDate(date)
   return day?.cities[day.cities.length - 1]
