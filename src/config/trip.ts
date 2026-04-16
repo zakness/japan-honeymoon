@@ -91,6 +91,12 @@ export function formatTripDate(date: string): string {
   return `${WEEKDAY_SHORT[d.getDay()]}, ${MONTH_SHORT[d.getMonth()]} ${d.getDate()}`
 }
 
+/** "Sun 24" — compact weekday + day-of-month from a YYYY-MM-DD string. */
+export function formatTripDateShort(date: string): string {
+  const d = new Date(date + 'T00:00:00')
+  return `${WEEKDAY_SHORT[d.getDay()]} ${d.getDate()}`
+}
+
 /** "Sun, May 24 — Hakone → Kyoto" — full day label with city label appended. */
 export function formatTripDayLabel(day: TripDay): string {
   return `${formatTripDate(day.date)} — ${day.label}`
