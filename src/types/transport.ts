@@ -1,3 +1,5 @@
+import type { ComponentType } from 'react'
+import { TrainFront, Train, Ship, Bus, Car, TramFront } from 'lucide-react'
 import type { Database } from './database'
 import type { ItineraryItemWithPlace } from './itinerary'
 
@@ -8,13 +10,15 @@ export type TransportItemUpdate = Database['public']['Tables']['transport_items'
 // Narrowed union type — DB stores as `string`
 export type TransportType = 'shinkansen' | 'local_train' | 'ferry' | 'bus' | 'taxi' | 'subway'
 
-export const TRANSPORT_TYPES: { value: TransportType; label: string; icon: string }[] = [
-  { value: 'shinkansen', label: 'Shinkansen', icon: '🚄' },
-  { value: 'local_train', label: 'Local Train', icon: '🚃' },
-  { value: 'ferry', label: 'Ferry', icon: '⛴️' },
-  { value: 'bus', label: 'Bus', icon: '🚌' },
-  { value: 'taxi', label: 'Taxi', icon: '🚕' },
-  { value: 'subway', label: 'Subway', icon: '🚇' },
+export type TransportIcon = ComponentType<{ size?: number; className?: string; color?: string }>
+
+export const TRANSPORT_TYPES: { value: TransportType; label: string; icon: TransportIcon }[] = [
+  { value: 'shinkansen', label: 'Shinkansen', icon: TrainFront },
+  { value: 'local_train', label: 'Local Train', icon: Train },
+  { value: 'ferry', label: 'Ferry', icon: Ship },
+  { value: 'bus', label: 'Bus', icon: Bus },
+  { value: 'taxi', label: 'Taxi', icon: Car },
+  { value: 'subway', label: 'Subway', icon: TramFront },
 ]
 
 export type SlotItemKind = 'itinerary' | 'transport'

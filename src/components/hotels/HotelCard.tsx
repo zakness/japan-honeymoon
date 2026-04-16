@@ -1,4 +1,4 @@
-import { ExternalLink, MapPin } from 'lucide-react'
+import { ExternalLink, MapPin, Hotel } from 'lucide-react'
 import type { AccommodationRow } from '@/types/accommodations'
 
 interface HotelCardProps {
@@ -36,7 +36,7 @@ export function HotelCard({ hotel, onViewOnMap }: HotelCardProps) {
             {CITY_LABELS[hotel.city] ?? hotel.city}
           </p>
         </div>
-        <span className="text-lg flex-shrink-0">🏨</span>
+        <Hotel size={20} className="shrink-0 text-muted-foreground" />
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-xs">

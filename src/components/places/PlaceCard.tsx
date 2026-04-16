@@ -2,7 +2,7 @@ import { MapPin, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { PLACE_CATEGORIES, type PlaceRow, type PlacePriority } from '@/types/places'
-import { CITY_LABELS, type City } from '@/config/trip'
+import { CITY_LABELS, formatTripDateShort, type City } from '@/config/trip'
 
 const PRIORITY_STYLES: Record<PlacePriority, string> = {
   'must-do': 'bg-red-100 text-red-700 border-red-200',
@@ -15,9 +15,10 @@ interface PlaceCardProps {
   onClick?: () => void
   selected?: boolean
   compact?: boolean
+  scheduledDates?: string[]
 }
 
-export function PlaceCard({ place, onClick, selected, compact }: PlaceCardProps) {
+export function PlaceCard({ place, onClick, selected, compact, scheduledDates }: PlaceCardProps) {
   const category = PLACE_CATEGORIES.find((c) => c.value === place.category)
   const photos = Array.isArray(place.photos) ? (place.photos as string[]) : []
   const priority = place.priority as PlacePriority
@@ -47,7 +48,7 @@ export function PlaceCard({ place, onClick, selected, compact }: PlaceCardProps)
         <div className="min-w-0 flex-1">
           {/* Name + category icon */}
           <div className="flex items-start gap-1.5">
-            {category && <span className="text-base leading-tight">{category.icon}</span>}
+            {category && <category.icon size={16} className="shrink-0 text-muted-foreground" />}
             <span className="font-medium text-sm leading-tight line-clamp-1">{place.name}</span>
           </div>
 
@@ -80,6 +81,11 @@ export function PlaceCard({ place, onClick, selected, compact }: PlaceCardProps)
                 {place.rating.toFixed(1)}
               </span>
             )}
+            {scheduledDates?.map((date) => (
+              <Badge key={date} variant="secondary" className="text-[10px] py-0 px-1">
+                {formatTripDateShort(date)}
+              </Badge>
+            ))}
           </div>
         </div>
       </div>

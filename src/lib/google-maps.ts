@@ -16,19 +16,3 @@ export const CATEGORY_COLORS: Record<PlaceCategory, string> = {
   attraction: '#3b82f6', // blue
   nature_park: '#22c55e', // green
 }
-
-export const CATEGORY_ICONS: Record<PlaceCategory, string> = {
-  restaurant: '🍜',
-  cafe_bar: '☕',
-  shopping: '🛍️',
-  attraction: '🏯',
-  nature_park: '🌿',
-}
-
-export const CATEGORY_LABELS: Record<PlaceCategory, string> = {
-  restaurant: 'Restaurant',
-  cafe_bar: 'Cafe / Bar',
-  shopping: 'Shopping',
-  attraction: 'Attraction',
-  nature_park: 'Nature / Park',
-}

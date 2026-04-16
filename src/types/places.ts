@@ -1,3 +1,5 @@
+import type { ComponentType } from 'react'
+import { UtensilsCrossed, Coffee, ShoppingBag, Landmark, TreePine } from 'lucide-react'
 import type { Database } from './database'
 
 export type PlaceRow = Database['public']['Tables']['places']['Row']
@@ -10,12 +12,14 @@ export type PlaceCategory = 'restaurant' | 'cafe_bar' | 'shopping' | 'attraction
 export type PlacePriority = 'must-do' | 'want-to' | 'if-time'
 export type PlaceStatus = 'researching' | 'booked' | 'visited'
 
-export const PLACE_CATEGORIES: { value: PlaceCategory; label: string; icon: string }[] = [
-  { value: 'restaurant', label: 'Restaurant', icon: '🍜' },
-  { value: 'cafe_bar', label: 'Cafe / Bar', icon: '☕' },
-  { value: 'shopping', label: 'Shopping', icon: '🛍️' },
-  { value: 'attraction', label: 'Attraction', icon: '🏯' },
-  { value: 'nature_park', label: 'Nature / Park', icon: '🌿' },
+export type CategoryIcon = ComponentType<{ size?: number; className?: string; color?: string }>
+
+export const PLACE_CATEGORIES: { value: PlaceCategory; label: string; icon: CategoryIcon }[] = [
+  { value: 'restaurant', label: 'Restaurant', icon: UtensilsCrossed },
+  { value: 'cafe_bar', label: 'Cafe / Bar', icon: Coffee },
+  { value: 'shopping', label: 'Shopping', icon: ShoppingBag },
+  { value: 'attraction', label: 'Attraction', icon: Landmark },
+  { value: 'nature_park', label: 'Nature / Park', icon: TreePine },
 ]
 
 export const PLACE_PRIORITIES: { value: PlacePriority; label: string }[] = [

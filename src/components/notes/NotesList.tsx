@@ -10,6 +10,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useState } from 'react'
+import { StickyNote } from 'lucide-react'
 import { NoteCard } from './NoteCard'
 import { useReorderNotes } from '@/hooks/useNotes'
 import type { NoteRow } from '@/types/notes'
@@ -49,7 +50,7 @@ export function NotesList({ notes, selectedId, onSelect }: NotesListProps) {
   if (notes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center gap-2">
-        <p className="text-3xl">📝</p>
+        <StickyNote size={32} className="text-muted-foreground" />
         <p className="text-sm font-medium">No notes yet</p>
         <p className="text-xs text-muted-foreground">Create your first note above</p>
       </div>

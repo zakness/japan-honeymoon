@@ -1,3 +1,4 @@
+import { Hotel } from 'lucide-react'
 import { formatReservationTime } from '@/types/itinerary'
 import { CITY_LABELS, getHotelColor } from '@/config/trip'
 import type { AccommodationRow } from '@/types/accommodations'
@@ -19,10 +20,10 @@ export function HotelEntry({ hotel, kind, allHotels }: HotelEntryProps) {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <span
-            className="text-base w-7 h-7 flex items-center justify-center rounded-full flex-shrink-0"
+            className="w-7 h-7 flex items-center justify-center rounded-full shrink-0"
             style={{ backgroundColor: bgColor }}
           >
-            🏨
+            <Hotel size={14} />
           </span>
           <div>
             <p className="text-sm font-semibold leading-tight">{hotel.name}</p>

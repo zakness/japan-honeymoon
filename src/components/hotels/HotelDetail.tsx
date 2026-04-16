@@ -1,4 +1,4 @@
-import { ExternalLink, MapPin, CalendarDays, Hash, User } from 'lucide-react'
+import { ExternalLink, MapPin, CalendarDays, Hash, User, Hotel } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import type { AccommodationRow } from '@/types/accommodations'
 import { CITY_LABELS } from '@/config/trip'
@@ -29,7 +29,7 @@ export function HotelDetail({ hotel }: HotelDetailProps) {
         {/* Header */}
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-xl">🏨</span>
+            <Hotel size={20} className="shrink-0 text-muted-foreground" />
             <h2 className="text-lg font-semibold leading-tight">{hotel.name}</h2>
           </div>
           <div className="flex flex-wrap gap-1.5 mt-2">

@@ -1,3 +1,4 @@
+import { Hotel, BedDouble } from 'lucide-react'
 import type { AccommodationRow } from '@/types/accommodations'
 import type { CityColor } from '@/config/trip'
 
@@ -9,7 +10,7 @@ interface HotelAnchorProps {
 }
 
 export function HotelAnchor({ hotel, slot, colors, onViewOnMap }: HotelAnchorProps) {
-  const emoji = slot === 'morning' ? '🌅' : '🛏️'
+  const Icon = slot === 'morning' ? Hotel : BedDouble
   const title = slot === 'morning' ? `Waking up at ${hotel.name}` : `Sleeping at ${hotel.name}`
 
   return (
@@ -18,7 +19,7 @@ export function HotelAnchor({ hotel, slot, colors, onViewOnMap }: HotelAnchorPro
       style={{ backgroundColor: colors.tint, color: colors.primary }}
       title={title}
     >
-      <span className="text-sm">{emoji}</span>
+      <Icon size={16} />
       <span className="truncate flex-1">{hotel.name}</span>
       {onViewOnMap && (
         <button

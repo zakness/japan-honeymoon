@@ -39,7 +39,7 @@ export function NavBar({ activeView, onViewChange, mobile }: NavBarProps) {
   return (
     <nav className="border-b bg-background">
       <div className="flex h-14 items-center px-4 gap-1">
-        <span className="mr-4 font-semibold text-sm tracking-tight">🇯🇵 Japan 2026</span>
+        <span className="mr-4 font-semibold text-sm tracking-tight">Japan 2026</span>
         <div className="flex gap-1">
           {TABS.map(({ id, label, Icon }) => (
             <button

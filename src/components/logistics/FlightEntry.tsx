@@ -1,3 +1,4 @@
+import { PlaneTakeoff } from 'lucide-react'
 import { AIRPORT_TIMEZONES } from '@/lib/logistics-utils'
 import type { FlightRow } from '@/types/flights'
 
@@ -35,7 +36,7 @@ export function FlightEntry({ flight }: FlightEntryProps) {
     <div className="rounded-lg border bg-card p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
-          <span className="text-base">✈️</span>
+          <PlaneTakeoff size={16} />
           <span className="text-sm font-semibold">
             {flight.airline} {flight.flight_number}
           </span>

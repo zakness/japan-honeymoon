@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
-import { PLACE_CATEGORIES } from '@/types/places'
+import { PLACE_CATEGORIES, type PlaceRow } from '@/types/places'
 import {
   type TimeSlot,
   type ItineraryItemWithPlace,
@@ -23,7 +23,12 @@ import {
 interface ItineraryItemProps {
   item: ItineraryItemWithPlace
   dayDate: string
-  onSelectPlace?: (placeId: string) => void
+  /**
+   * Fires when the user clicks a scheduled place's name. The parent (DayColumn)
+   * is expected to route this into AppShell's lifted selection handler with
+   * `'day-column'` as the origin.
+   */
+  onSelectPlace?: (place: PlaceRow) => void
 }
 
 export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemProps) {
@@ -125,10 +130,10 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
       {isPlace && place ? (
         <div>
           <div className="flex items-center gap-1.5">
-            {category && <span className="text-sm">{category.icon}</span>}
+            {category && <category.icon size={14} className="shrink-0 text-muted-foreground" />}
             <button
               className="text-sm font-medium hover:underline text-left leading-tight"
-              onClick={() => onSelectPlace?.(place.id)}
+              onClick={() => onSelectPlace?.(place)}
             >
               {place.name}
             </button>

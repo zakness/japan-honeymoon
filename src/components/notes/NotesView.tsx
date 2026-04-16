@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, StickyNote } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -84,7 +84,7 @@ export function NotesView() {
           </>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center gap-2 text-muted-foreground">
-            <p className="text-3xl">📝</p>
+            <StickyNote size={32} className="text-muted-foreground" />
             <p className="text-sm">Select a note or create a new one</p>
           </div>
         )}

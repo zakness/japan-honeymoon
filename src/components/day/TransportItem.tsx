@@ -64,7 +64,9 @@ export function TransportItem({ item, dayDate }: TransportItemProps) {
       accentColor={accentColor}
     >
       <div className="flex items-center gap-1.5">
-        {transportType && <span className="text-sm">{transportType.icon}</span>}
+        {transportType && (
+          <transportType.icon size={14} className="shrink-0 text-muted-foreground" />
+        )}
         <span className="text-sm font-medium">
           {item.origin} → {item.destination}
         </span>
