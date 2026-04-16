@@ -13,7 +13,9 @@ export function TransportEntry({ item }: TransportEntryProps) {
     <div className="rounded-lg border bg-card p-3 space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
-          {transportType && <span className="text-base">{transportType.icon}</span>}
+          {transportType && (
+            <transportType.icon size={16} className="shrink-0 text-muted-foreground" />
+          )}
           <div>
             <p className="text-sm font-semibold leading-tight">
               {item.origin} → {item.destination}

@@ -48,7 +48,7 @@ export function PlaceCard({ place, onClick, selected, compact, scheduledDates }:
         <div className="min-w-0 flex-1">
           {/* Name + category icon */}
           <div className="flex items-start gap-1.5">
-            {category && <span className="text-base leading-tight">{category.icon}</span>}
+            {category && <category.icon size={16} className="shrink-0 text-muted-foreground" />}
             <span className="font-medium text-sm leading-tight line-clamp-1">{place.name}</span>
           </div>
 

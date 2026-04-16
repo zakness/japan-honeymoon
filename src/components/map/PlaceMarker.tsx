@@ -1,7 +1,7 @@
+import { MapPin } from 'lucide-react'
 import { AdvancedMarker } from '@vis.gl/react-google-maps'
-import { CATEGORY_COLORS, CATEGORY_ICONS } from '@/lib/google-maps'
-import type { PlaceRow } from '@/types/places'
-import type { PlaceCategory } from '@/types/places'
+import { CATEGORY_COLORS } from '@/lib/google-maps'
+import { PLACE_CATEGORIES, type PlaceRow, type PlaceCategory } from '@/types/places'
 
 interface PlaceMarkerProps {
   place: PlaceRow
@@ -23,7 +23,7 @@ export function PlaceMarker({
 
   const category = place.category as PlaceCategory
   const color = CATEGORY_COLORS[category] ?? '#6b7280'
-  const icon = CATEGORY_ICONS[category] ?? '📍'
+  const Icon = PLACE_CATEGORIES.find((c) => c.value === category)?.icon ?? MapPin
   const isScheduled = scheduledDayCount > 0
 
   return (
@@ -48,7 +48,7 @@ export function PlaceMarker({
           className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white shadow-md text-sm"
           title={place.name}
         >
-          {icon}
+          <Icon size={14} color="white" />
         </div>
         {isScheduled && (
           <div

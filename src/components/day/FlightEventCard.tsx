@@ -1,3 +1,4 @@
+import { PlaneTakeoff, PlaneLanding } from 'lucide-react'
 import { formatReservationTime } from '@/types/itinerary'
 import type { FlightEvent } from '@/lib/logistics-utils'
 
@@ -14,7 +15,7 @@ export function FlightEventCard({ event }: FlightEventCardProps) {
   return (
     <div className="rounded-lg border bg-card p-3 flex items-center justify-between gap-2">
       <div className="flex items-center gap-1.5">
-        <span className="text-base">{isDeparture ? '✈️' : '🛬'}</span>
+        {isDeparture ? <PlaneTakeoff size={16} /> : <PlaneLanding size={16} />}
         <div>
           <p className="text-sm font-semibold leading-tight">
             {isDeparture ? 'Depart' : 'Arrive'} {airport}

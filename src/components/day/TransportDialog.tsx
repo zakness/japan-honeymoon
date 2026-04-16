@@ -82,7 +82,7 @@ export function TransportDialog({ item, open, onOpenChange }: TransportDialogPro
             >
               {TRANSPORT_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
-                  {t.icon} {t.label}
+                  {t.label}
                 </option>
               ))}
             </select>

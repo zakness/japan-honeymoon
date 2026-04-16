@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface Props {
@@ -21,7 +22,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
-          <p className="text-3xl">⚠️</p>
+          <AlertTriangle size={32} className="text-destructive" />
           <p className="font-semibold">Something went wrong</p>
           <p className="text-sm text-muted-foreground max-w-xs">
             {this.state.error?.message ?? 'An unexpected error occurred.'}

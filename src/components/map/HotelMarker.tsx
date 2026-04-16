@@ -1,3 +1,4 @@
+import { Hotel } from 'lucide-react'
 import { AdvancedMarker } from '@vis.gl/react-google-maps'
 import { getHotelColor } from '@/config/trip'
 import type { AccommodationRow } from '@/types/accommodations'
@@ -35,7 +36,7 @@ export function HotelMarker({ hotel, allHotels, selected, dimmed, onClick }: Hot
         className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-white cursor-pointer text-base"
         title={hotel.name}
       >
-        🏨
+        <Hotel size={16} color="white" />
       </div>
     </AdvancedMarker>
   )

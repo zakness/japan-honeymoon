@@ -110,7 +110,7 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
         {/* Header */}
         <div>
           <div className="flex items-center gap-2">
-            {category && <span className="text-xl">{category.icon}</span>}
+            {category && <category.icon size={20} className="shrink-0 text-muted-foreground" />}
             <h2 className="text-lg font-semibold leading-tight">{place.name}</h2>
           </div>
           <div className="flex flex-wrap gap-1.5 mt-2">

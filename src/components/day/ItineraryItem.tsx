@@ -130,7 +130,7 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
       {isPlace && place ? (
         <div>
           <div className="flex items-center gap-1.5">
-            {category && <span className="text-sm">{category.icon}</span>}
+            {category && <category.icon size={14} className="shrink-0 text-muted-foreground" />}
             <button
               className="text-sm font-medium hover:underline text-left leading-tight"
               onClick={() => onSelectPlace?.(place)}

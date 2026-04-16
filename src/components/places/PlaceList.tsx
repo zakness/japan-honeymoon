@@ -75,7 +75,9 @@ export function PlaceList({ onSelectPlace, selectedPlaceId }: PlaceListProps) {
             <SelectItem value={ALL}>All categories</SelectItem>
             {PLACE_CATEGORIES.map((c) => (
               <SelectItem key={c.value} value={c.value}>
-                {c.icon} {c.label}
+                <span className="inline-flex items-center gap-1.5">
+                  <c.icon size={16} /> {c.label}
+                </span>
               </SelectItem>
             ))}
           </SelectContent>

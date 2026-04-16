@@ -249,7 +249,7 @@ export function UnscheduledColumn({
                   )}
                   title={cat.label}
                 >
-                  {cat.icon}
+                  <cat.icon size={14} />
                 </button>
               )
             })}
