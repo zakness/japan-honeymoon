@@ -1,14 +1,16 @@
-import { useState, useRef, useEffect } from 'react'
+import { useCallback, useState, useRef, useEffect } from 'react'
 import { DndContext, DragOverlay } from '@dnd-kit/core'
 import { ItineraryItem } from '@/components/day/ItineraryItem'
 import { TransportItem } from '@/components/day/TransportItem'
 import { PlaceCard } from '@/components/places/PlaceCard'
 import { cn } from '@/lib/utils'
-import type { NavState } from '@/components/layout/AppShell'
+import type { NavState, SelectionOrigin, SelectPlaceHandler } from '@/components/layout/AppShell'
 import { getDaysForCity, type City, type TripDay } from '@/config/trip'
 import { useCrossItineraryDnD } from '@/hooks/useCrossItineraryDnD'
+import type { PlaceRow } from '@/types/places'
 import { CityStrip } from './CityStrip'
 import { CityMap } from './CityMap'
+import { PlaceDetailCard } from './PlaceDetailCard'
 import { DayColumn } from './DayColumn'
 import { UnscheduledColumn } from './UnscheduledColumn'
 
@@ -17,6 +19,14 @@ interface ItineraryViewProps {
   onNavigate: (state: NavState) => void
   /** Desktop map visibility — controlled by AppShell so the toggle can live in the top nav. */
   mapVisible?: boolean
+  /** Unified place selection — null when nothing is selected. Owned by AppShell. */
+  selectedPlace: PlaceRow | null
+  /** Where the current selection originated (see AppShell for rationale). */
+  selectionOrigin: SelectionOrigin | null
+  /** Unified selection handler — routes clicks from backlog / marker / day-column. */
+  onSelectPlace: SelectPlaceHandler
+  /** Opens the edit dialog at AppShell level for a given place. */
+  onEditPlace: (place: PlaceRow) => void
 }
 
 /**
@@ -45,7 +55,15 @@ function useIsDesktop() {
 // smaller (≈38.2%). 100 / φ ≈ 61.8034.
 const GOLDEN_RATIO_SPLIT = 61.8034
 
-export function ItineraryView({ city, onNavigate, mapVisible = true }: ItineraryViewProps) {
+export function ItineraryView({
+  city,
+  onNavigate,
+  mapVisible = true,
+  selectedPlace,
+  selectionOrigin,
+  onSelectPlace,
+  onEditPlace,
+}: ItineraryViewProps) {
   const [splitPercent, setSplitPercent] = useState(GOLDEN_RATIO_SPLIT)
   const [isResizing, setIsResizing] = useState(false)
   const splitContainerRef = useRef<HTMLDivElement>(null)
@@ -75,12 +93,24 @@ export function ItineraryView({ city, onNavigate, mapVisible = true }: Itinerary
     setIsResizing(false)
   }
 
+  // Day-column clicks route through the unified handler with `'day-column'`
+  // origin baked in. Memoized so DayColumn's effect deps stay stable.
+  const handleSelectFromDayColumn = useCallback(
+    (place: PlaceRow) => onSelectPlace(place, 'day-column'),
+    [onSelectPlace]
+  )
+
   const itineraryPanel = (
     <>
-      <UnscheduledColumn city={city} />
+      <UnscheduledColumn
+        city={city}
+        onSelectPlace={onSelectPlace}
+        selectedPlace={selectedPlace}
+        selectionOrigin={selectionOrigin}
+      />
       <div className="flex overflow-x-auto">
         {cityDays.map((day) => (
-          <DayColumn key={day.date} dayDate={day.date} />
+          <DayColumn key={day.date} dayDate={day.date} onSelectPlace={handleSelectFromDayColumn} />
         ))}
       </div>
     </>
@@ -127,7 +157,12 @@ export function ItineraryView({ city, onNavigate, mapVisible = true }: Itinerary
 
                 {/* Map panel */}
                 <div className={cn('flex-1 overflow-hidden', isResizing && 'pointer-events-none')}>
-                  <CityMap city={city} />
+                  <CityMap
+                    city={city}
+                    selectedPlace={selectedPlace}
+                    onSelectPlace={onSelectPlace}
+                    onEditPlace={onEditPlace}
+                  />
                 </div>
               </>
             )}
@@ -136,19 +171,49 @@ export function ItineraryView({ city, onNavigate, mapVisible = true }: Itinerary
           /* ── Mobile layout ──────────────────────────────────────────────── */
           <div className="flex-1 relative overflow-hidden">
             <div className="absolute inset-0">
-              <CityMap city={city} />
+              <CityMap
+                city={city}
+                selectedPlace={selectedPlace}
+                onSelectPlace={onSelectPlace}
+                onEditPlace={onEditPlace}
+              />
             </div>
 
-            <div
-              className="absolute bottom-0 left-0 right-0 bg-background border-t rounded-t-2xl shadow-2xl flex flex-col"
-              style={{ height: '58vh' }}
-            >
-              <div className="flex items-center justify-center pt-2 pb-1 shrink-0">
-                <div className="w-8 h-1 rounded-full bg-muted-foreground/30" />
+            {selectedPlace ? (
+              /* Place detail sheet — replaces the day-columns sheet while a
+                 place is selected. The itinerary sheet collapses to an 80px
+                 peek handle underneath so the user can tap it to dismiss. */
+              <>
+                <div
+                  className="absolute bottom-0 left-0 right-0 bg-background border-t rounded-t-2xl shadow-2xl flex flex-col"
+                  style={{ height: '50vh' }}
+                >
+                  <div className="flex items-center justify-center pt-2 pb-1 shrink-0">
+                    <div className="w-8 h-1 rounded-full bg-muted-foreground/30" />
+                  </div>
+                  <div className="flex-1 overflow-hidden px-1">
+                    <PlaceDetailCard
+                      place={selectedPlace}
+                      onClose={() => onSelectPlace(null)}
+                      onEdit={() => onEditPlace(selectedPlace)}
+                      variant="sheet"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* Default itinerary sheet */
+              <div
+                className="absolute bottom-0 left-0 right-0 bg-background border-t rounded-t-2xl shadow-2xl flex flex-col"
+                style={{ height: '58vh' }}
+              >
+                <div className="flex items-center justify-center pt-2 pb-1 shrink-0">
+                  <div className="w-8 h-1 rounded-full bg-muted-foreground/30" />
+                </div>
+                <CityStrip selectedCity={city} onSelectCity={handleSelectCity} />
+                <div className="flex flex-1 overflow-hidden">{itineraryPanel}</div>
               </div>
-              <CityStrip selectedCity={city} onSelectCity={handleSelectCity} />
-              <div className="flex flex-1 overflow-hidden">{itineraryPanel}</div>
-            </div>
+            )}
           </div>
         )}
 

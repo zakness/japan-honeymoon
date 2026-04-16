@@ -7,6 +7,7 @@ import { TransportItem } from './TransportItem'
 import { FlightEventCard } from './FlightEventCard'
 import { type TimeSlot } from '@/types/itinerary'
 import { type SlotItem } from '@/types/transport'
+import type { PlaceRow } from '@/types/places'
 import type { FlightEvent } from '@/lib/logistics-utils'
 import { cn } from '@/lib/utils'
 
@@ -16,7 +17,8 @@ interface TimeSlotGroupProps {
   items: SlotItem[]
   dayDate: string
   flightEvents?: FlightEvent[]
-  onSelectPlace?: (placeId: string) => void
+  /** Fires when the user clicks a scheduled place's name — routed up to AppShell. */
+  onSelectPlace?: (place: PlaceRow) => void
   /** Fires when the user clicks the "+ Add" zone at the bottom of the slot. */
   onAddClick?: (slot: TimeSlot) => void
 }

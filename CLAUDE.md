@@ -78,6 +78,8 @@ Required env vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_GOOGLE_M
 
 **Data layer** — mutations and queries are co-located in hooks under `src/hooks/`. Components don't call Supabase directly.
 
+**Unified place selection** — `AppShell` owns `selectedPlace` / `selectionOrigin` state. Three click surfaces converge: backlog card (`'backlog'`), map marker (`'marker'`), and day-column place name (`'day-column'`). The overloaded `SelectPlaceHandler` type forces callers to provide an origin when setting a real place. Clicking a backlog card while the map is hidden auto-reveals it. `CityMap` renders a floating `PlaceDetailCard` over the map when a place is selected; on mobile, a 50vh detail sheet replaces the itinerary sheet. `UnscheduledColumn` highlights and auto-scrolls to the selected card (skipping scroll when origin is `'backlog'`). `PlaceEditDialog` is mounted once at AppShell level, driven by `editingPlace` state. `useScheduledDatesByPlace` is the bulk query powering marker badges — prefer it over the per-place `usePlaceSchedule` in list/map contexts. Hotels still use the legacy `InfoWindow` — out of scope of the places unification.
+
 ---
 
 ## Testing

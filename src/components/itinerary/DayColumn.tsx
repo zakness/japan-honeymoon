@@ -11,14 +11,21 @@ import { getCityColor, getDayByDate, getHotelColor } from '@/config/trip'
 import { mergeSlotItems } from '@/lib/transport-utils'
 import { getFlightEventsForDate } from '@/lib/logistics-utils'
 import { TIME_SLOTS, deriveTimeSlot, type TimeSlot } from '@/types/itinerary'
+import type { PlaceRow } from '@/types/places'
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 interface DayColumnProps {
   dayDate: string
+  /**
+   * Fires when a user clicks a scheduled place's name inside one of the time
+   * slots. Gets routed up to AppShell's unified selection handler with the
+   * `'day-column'` origin baked in by ItineraryView.
+   */
+  onSelectPlace?: (place: PlaceRow) => void
 }
 
-export function DayColumn({ dayDate }: DayColumnProps) {
+export function DayColumn({ dayDate, onSelectPlace }: DayColumnProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogInitialSlot, setDialogInitialSlot] = useState<TimeSlot>('morning')
 
@@ -91,6 +98,7 @@ export function DayColumn({ dayDate }: DayColumnProps) {
                 items={grouped[value]}
                 dayDate={dayDate}
                 flightEvents={flightEventsBySlot[value]}
+                onSelectPlace={onSelectPlace}
                 onAddClick={(clickedSlot) => {
                   setDialogInitialSlot(clickedSlot)
                   setDialogOpen(true)

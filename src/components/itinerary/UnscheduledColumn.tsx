@@ -1,41 +1,70 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { ChevronLeft, ChevronRight, Plus, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { PlaceCard } from '@/components/places/PlaceCard'
-import { PlaceDetail } from '@/components/places/PlaceDetail'
 import { PlaceForm } from '@/components/places/PlaceForm'
 import { useUnscheduledPlaces } from '@/hooks/useItinerary'
 import { type City } from '@/config/trip'
 import type { PlaceRow } from '@/types/places'
+import type { SelectPlaceHandler, SelectionOrigin } from '@/components/layout/AppShell'
 
-function DraggablePlaceCard({ place, onClick }: { place: PlaceRow; onClick: () => void }) {
+interface DraggablePlaceCardProps {
+  place: PlaceRow
+  selected: boolean
+  onClick: () => void
+  cardRef?: React.Ref<HTMLDivElement>
+}
+
+function DraggablePlaceCard({ place, selected, onClick, cardRef }: DraggablePlaceCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `unscheduled-${place.id}`,
     data: { place },
   })
+
+  // Merge the dnd-kit ref with the scroll-target ref
+  const mergedRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      setNodeRef(node)
+      if (typeof cardRef === 'function') cardRef(node)
+      else if (cardRef && 'current' in cardRef)
+        (cardRef as React.MutableRefObject<HTMLDivElement | null>).current = node
+    },
+    [setNodeRef, cardRef]
+  )
+
   return (
     <div
-      ref={setNodeRef}
+      ref={mergedRef}
       className={isDragging ? 'opacity-50' : undefined}
       {...listeners}
       {...attributes}
     >
-      <PlaceCard place={place} compact onClick={onClick} />
+      <PlaceCard place={place} compact selected={selected} onClick={onClick} />
     </div>
   )
 }
 
 interface UnscheduledColumnProps {
   city: City
+  /** Unified selection handler — routes clicks into AppShell's lifted state. */
+  onSelectPlace: SelectPlaceHandler
+  /** Currently-selected place (or null). Used for card highlight. */
+  selectedPlace: PlaceRow | null
+  /** Where the current selection originated — used for the auto-scroll skip rule. */
+  selectionOrigin: SelectionOrigin | null
 }
 
-export function UnscheduledColumn({ city }: UnscheduledColumnProps) {
+export function UnscheduledColumn({
+  city,
+  onSelectPlace,
+  selectedPlace,
+  selectionOrigin,
+}: UnscheduledColumnProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [addPlaceOpen, setAddPlaceOpen] = useState(false)
-  const [detailPlace, setDetailPlace] = useState<PlaceRow | null>(null)
   const [search, setSearch] = useState('')
 
   const { data: allUnscheduled = [] } = useUnscheduledPlaces()
@@ -47,6 +76,19 @@ export function UnscheduledColumn({ city }: UnscheduledColumnProps) {
       (p) => p.name.toLowerCase().includes(q) || (p.notes?.toLowerCase().includes(q) ?? false)
     )
   }, [allUnscheduled, city, search])
+
+  // Per-card refs for auto-scroll.
+  const cardRefs = useRef(new Map<string, HTMLDivElement>())
+
+  // When a place is selected from the map marker or day-column, scroll the
+  // matching backlog card into view. Skip when the user clicked the backlog
+  // card itself — they already know where it is.
+  const selectedId = selectedPlace?.id ?? null
+  useEffect(() => {
+    if (!selectedId || selectionOrigin === 'backlog') return
+    const el = cardRefs.current.get(selectedId)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [selectedId, selectionOrigin])
 
   if (collapsed) {
     return (
@@ -141,7 +183,12 @@ export function UnscheduledColumn({ city }: UnscheduledColumnProps) {
               <DraggablePlaceCard
                 key={place.id}
                 place={place}
-                onClick={() => setDetailPlace(place)}
+                selected={selectedPlace?.id === place.id}
+                onClick={() => onSelectPlace(place, 'backlog')}
+                cardRef={(node: HTMLDivElement | null) => {
+                  if (node) cardRefs.current.set(place.id, node)
+                  else cardRefs.current.delete(place.id)
+                }}
               />
             ))
           )}
@@ -158,12 +205,6 @@ export function UnscheduledColumn({ city }: UnscheduledColumnProps) {
             onSuccess={() => setAddPlaceOpen(false)}
             onCancel={() => setAddPlaceOpen(false)}
           />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!detailPlace} onOpenChange={(open) => !open && setDetailPlace(null)}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          {detailPlace && <PlaceDetail place={detailPlace} onClose={() => setDetailPlace(null)} />}
         </DialogContent>
       </Dialog>
     </>

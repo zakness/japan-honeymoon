@@ -99,7 +99,7 @@ function emptyFormState(): FormState {
 
 export function PlaceForm({ place, defaultCity, onSuccess, onCancel }: PlaceFormProps) {
   const isEditing = !!place
-  const [manualMode, setManualMode] = useState(isEditing && !place.google_place_id)
+  const [manualMode, setManualMode] = useState(false)
   const [form, setForm] = useState<FormState>(
     isEditing ? placeToFormState(place) : { ...emptyFormState(), city: defaultCity ?? '' }
   )
@@ -198,26 +198,24 @@ export function PlaceForm({ place, defaultCity, onSuccess, onCancel }: PlaceForm
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Search or manual toggle */}
-      {!isEditing && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>Search Google Maps</Label>
-            <button
-              type="button"
-              className="text-xs text-muted-foreground underline underline-offset-2"
-              onClick={() => setManualMode((m) => !m)}
-            >
-              {manualMode ? 'Search Google Maps' : 'Enter manually'}
-            </button>
-          </div>
-          {!manualMode && (
-            <PlaceSearch
-              onPlaceSelected={handleGooglePlaceSelected}
-              placeholder="Search for a restaurant, attraction…"
-            />
-          )}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label>{isEditing ? 'Look up on Google Maps' : 'Search Google Maps'}</Label>
+          <button
+            type="button"
+            className="text-xs text-muted-foreground underline underline-offset-2"
+            onClick={() => setManualMode((m) => !m)}
+          >
+            {manualMode ? 'Search Google Maps' : 'Enter manually'}
+          </button>
         </div>
-      )}
+        {!manualMode && (
+          <PlaceSearch
+            onPlaceSelected={handleGooglePlaceSelected}
+            placeholder="Search for a restaurant, attraction…"
+          />
+        )}
+      </div>
 
       {/* Name */}
       <div className="space-y-1.5">

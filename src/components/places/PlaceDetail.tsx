@@ -8,6 +8,7 @@ import {
   Pencil,
   Trash2,
   CalendarPlus,
+  MapPinOff,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -24,6 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { PlaceForm } from './PlaceForm'
 import { useDeletePlace } from '@/hooks/usePlaces'
 import { useCreateItineraryItem, usePlaceSchedule } from '@/hooks/useItinerary'
@@ -42,14 +44,21 @@ const PRIORITY_STYLES: Record<PlacePriority, string> = {
   'if-time': 'bg-gray-100 text-gray-600',
 }
 
-interface PlaceDetailProps {
+interface PlaceDetailContentProps {
   place: PlaceRow
+  /** Called when user clicks Edit — opens the edit dialog at AppShell level. */
+  onEdit: () => void
+  /** Called after a successful delete so the parent can clear selection. */
   onClose?: () => void
 }
 
-export function PlaceDetail({ place: initialPlace, onClose }: PlaceDetailProps) {
-  const [editing, setEditing] = useState(false)
-  const [place, setPlace] = useState(initialPlace)
+/**
+ * Read-only view of a place. Renders inside either the floating `PlaceDetailCard`
+ * (on the map) or a modal sheet — it doesn't own its own viewport positioning.
+ * Edit is delegated upward via `onEdit`; delete + add-to-day are handled inline
+ * because their affordances (AlertDialog, Popover) are scoped to the action.
+ */
+export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailContentProps) {
   const [dayPickerOpen, setDayPickerOpen] = useState(false)
   const deletePlace = useDeletePlace()
   const createItem = useCreateItineraryItem()
@@ -65,10 +74,6 @@ export function PlaceDetail({ place: initialPlace, onClose }: PlaceDetailProps) 
     }
   }
 
-  const category = PLACE_CATEGORIES.find((c) => c.value === place.category)
-  const photos = Array.isArray(place.photos) ? (place.photos as string[]) : []
-  const priority = place.priority as PlacePriority
-
   async function handleDelete() {
     try {
       await deletePlace.mutateAsync(place.id)
@@ -79,24 +84,11 @@ export function PlaceDetail({ place: initialPlace, onClose }: PlaceDetailProps) 
     }
   }
 
-  if (editing) {
-    return (
-      <div className="p-4">
-        <h3 className="font-semibold mb-4">Edit place</h3>
-        <PlaceForm
-          place={place}
-          onSuccess={(updated) => {
-            setPlace(updated)
-            setEditing(false)
-          }}
-          onCancel={() => setEditing(false)}
-        />
-      </div>
-    )
-  }
-
-  // Parse hours from JSONB — Google returns { weekdayDescriptions: string[] }
+  const category = PLACE_CATEGORIES.find((c) => c.value === place.category)
+  const photos = Array.isArray(place.photos) ? (place.photos as string[]) : []
+  const priority = place.priority as PlacePriority
   const hours = place.hours as { weekdayDescriptions?: string[] } | null
+  const hasCoords = place.lat != null && place.lng != null
 
   return (
     <div className="flex flex-col gap-4">
@@ -142,6 +134,19 @@ export function PlaceDetail({ place: initialPlace, onClose }: PlaceDetailProps) 
             )}
           </div>
         </div>
+
+        {/* No-location state — subtle badge + fix button */}
+        {!hasCoords && (
+          <div className="flex items-center justify-between gap-2 rounded-md border border-dashed bg-muted/40 px-3 py-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <MapPinOff className="h-3.5 w-3.5" />
+              <span>No location — add one to see this place on the map.</span>
+            </div>
+            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={onEdit}>
+              Add location
+            </Button>
+          </div>
+        )}
 
         {/* Scheduled days */}
         {scheduledDates.length > 0 && (
@@ -256,7 +261,7 @@ export function PlaceDetail({ place: initialPlace, onClose }: PlaceDetailProps) 
               </div>
             </PopoverContent>
           </Popover>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditing(true)}>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={onEdit}>
             <Pencil className="h-4 w-4" />
             Edit
           </Button>
@@ -294,5 +299,43 @@ export function PlaceDetail({ place: initialPlace, onClose }: PlaceDetailProps) 
         </div>
       </div>
     </div>
+  )
+}
+
+interface PlaceEditDialogProps {
+  /** When non-null, the dialog is open editing this place. */
+  place: PlaceRow | null
+  onOpenChange: (open: boolean) => void
+  /**
+   * Called with the saved row after a successful edit. AppShell uses this to
+   * refresh the `selectedPlace` so the detail card shows the new data.
+   */
+  onSuccess?: (updated: PlaceRow) => void
+}
+
+/**
+ * Centered modal wrapping `PlaceForm` for editing an existing place. Single
+ * mount point at AppShell level; opening is driven by an `editingPlace` state
+ * that `PlaceDetailContent` pokes via its `onEdit` callback.
+ */
+export function PlaceEditDialog({ place, onOpenChange, onSuccess }: PlaceEditDialogProps) {
+  return (
+    <Dialog open={!!place} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit place</DialogTitle>
+        </DialogHeader>
+        {place && (
+          <PlaceForm
+            place={place}
+            onSuccess={(updated) => {
+              onSuccess?.(updated)
+              onOpenChange(false)
+            }}
+            onCancel={() => onOpenChange(false)}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }

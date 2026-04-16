@@ -75,6 +75,34 @@ export function usePlaceSchedule(placeId: string) {
   })
 }
 
+/**
+ * Returns a map of placeId → scheduled day_dates for ALL scheduled places.
+ * Lets map/marker consumers cheaply answer "is this place scheduled, and on how
+ * many days?" without N per-place queries. Prefer this over `usePlaceSchedule`
+ * in bulk contexts (map markers, place lists); use `usePlaceSchedule` only for
+ * a single place where the surrounding context is just one row.
+ */
+export function useScheduledDatesByPlace() {
+  return useQuery({
+    queryKey: [...ITINERARY_KEY, 'schedule-by-place'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('itinerary_items')
+        .select('place_id, day_date')
+        .not('place_id', 'is', null)
+      if (error) throw error
+      const map = new Map<string, string[]>()
+      for (const row of data) {
+        if (!row.place_id) continue
+        const list = map.get(row.place_id)
+        if (list) list.push(row.day_date)
+        else map.set(row.place_id, [row.day_date])
+      }
+      return map
+    },
+  })
+}
+
 // ---- Mutations ----
 
 export function useCreateItineraryItem() {
@@ -92,6 +120,7 @@ export function useCreateItineraryItem() {
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, created.day_date] })
       queryClient.invalidateQueries({ queryKey: [...PLACES_KEY, 'unscheduled'] })
+      queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, 'schedule-by-place'] })
       if (created.place_id) {
         queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, 'place', created.place_id] })
       }
@@ -114,6 +143,11 @@ export function useUpdateItineraryItem() {
     },
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, updated.day_date] })
+      // Keep `schedule-by-place` in sync. In practice no current caller changes
+      // `day_date` through this mutation (cross-day moves go through
+      // `useReorderDayItemsDynamic` / `useMoveItemToDay`), but we invalidate
+      // defensively so the cache stays correct if that ever changes.
+      queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, 'schedule-by-place'] })
     },
   })
 }
@@ -129,6 +163,7 @@ export function useDeleteItineraryItem() {
     onSuccess: ({ dayDate }) => {
       queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, dayDate] })
       queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, 'place'] })
+      queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, 'schedule-by-place'] })
       queryClient.invalidateQueries({ queryKey: [...PLACES_KEY, 'unscheduled'] })
     },
   })
