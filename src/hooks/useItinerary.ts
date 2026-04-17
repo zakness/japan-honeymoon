@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { deleteStorageObjects } from '@/lib/storage'
 import {
   applyDecidedInvariantToInsert,
   applyDecidedInvariantToUpdate,
@@ -156,8 +157,18 @@ export function useDeleteItineraryItem() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, dayDate }: { id: string; dayDate: string }) => {
+      // Grab images before delete so we can clean up Storage. Place-backed
+      // items never set `images` (photos live on `places`), so this is a
+      // no-op for them.
+      const { data: existing } = await supabase
+        .from('itinerary_items')
+        .select('images')
+        .eq('id', id)
+        .maybeSingle()
       const { error } = await supabase.from('itinerary_items').delete().eq('id', id)
       if (error) throw error
+      const urls = Array.isArray(existing?.images) ? (existing.images as string[]) : []
+      if (urls.length > 0) void deleteStorageObjects(urls)
       return { dayDate }
     },
     onSuccess: ({ dayDate }) => {

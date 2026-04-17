@@ -22,6 +22,8 @@ export function NoteCard({ note, selected, onClick }: NoteCardProps) {
   }
 
   const preview = note.body?.split('\n').find((l) => l.trim()) ?? ''
+  const images = Array.isArray(note.images) ? (note.images as string[]) : []
+  const thumb = images[0]
 
   return (
     <div
@@ -44,6 +46,11 @@ export function NoteCard({ note, selected, onClick }: NoteCardProps) {
       >
         <GripVertical className="h-4 w-4" />
       </button>
+      {thumb && (
+        <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-md bg-muted">
+          <img src={thumb} alt="" className="h-full w-full object-cover" />
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium leading-tight truncate">{note.title}</p>
         {preview && (
