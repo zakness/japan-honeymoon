@@ -1,8 +1,6 @@
 import { useState } from 'react'
-import { MapPin, StickyNote, Clock, Lock, Unlock } from 'lucide-react'
+import { StickyNote, Clock, Lock, Unlock } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { PLACE_CATEGORIES, type PlaceRow } from '@/types/places'
 import {
@@ -13,6 +11,8 @@ import {
 import { getCityColor, getPrimaryCityForDate } from '@/config/trip'
 import { useDeleteItineraryItem, useUpdateItineraryItem } from '@/hooks/useItinerary'
 import { ReservationDialog } from './ReservationDialog'
+import { TextNoteDialog } from './TextNoteDialog'
+import { PlaceCardBanner } from '../places/PlaceCardBanner'
 import {
   SortableItemCard,
   TimeSlotMenu,
@@ -34,24 +34,14 @@ interface ItineraryItemProps {
 export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemProps) {
   const deleteItem = useDeleteItineraryItem()
   const updateItem = useUpdateItineraryItem()
-  const [editingNote, setEditingNote] = useState(false)
-  const [noteText, setNoteText] = useState(item.text_note ?? '')
   const [reservationOpen, setReservationOpen] = useState(false)
+  const [textNoteOpen, setTextNoteOpen] = useState(false)
 
   async function handleDelete() {
     try {
       await deleteItem.mutateAsync({ id: item.id, dayDate })
     } catch {
       toast.error('Failed to remove item')
-    }
-  }
-
-  async function handleSaveNote() {
-    try {
-      await updateItem.mutateAsync({ id: item.id, text_note: noteText })
-      setEditingNote(false)
-    } catch {
-      toast.error('Failed to update note')
     }
   }
 
@@ -77,6 +67,29 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
   const timeSlot = item.time_slot as TimeSlot
   const city = getPrimaryCityForDate(item.day_date)
   const accentColor = city ? getCityColor(city).primary : undefined
+
+  const placePhotos = place && Array.isArray(place.photos) ? (place.photos as string[]) : []
+  const noteImages = Array.isArray(item.images) ? (item.images as string[]) : []
+
+  // Place-backed items always get a banner (photo or city-tinted fallback) for
+  // visual consistency with the backlog. Text-notes only get a banner when
+  // they actually have images — a bare note shouldn't be forced into a tinted
+  // block with no signal.
+  let banner: React.ReactNode = undefined
+  if (isPlace) {
+    banner = (
+      <PlaceCardBanner
+        photoUrl={placePhotos[0]}
+        city={city}
+        icon={category?.icon ?? StickyNote}
+        className="h-16"
+      />
+    )
+  } else if (noteImages.length > 0) {
+    banner = (
+      <PlaceCardBanner photoUrl={noteImages[0]} city={city} icon={StickyNote} className="h-16" />
+    )
+  }
 
   const actions = (
     <>
@@ -126,6 +139,7 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
       actions={actions}
       variant={item.is_decided ? 'decided' : 'speculative'}
       accentColor={accentColor}
+      banner={banner}
     >
       {isPlace && place ? (
         <div>
@@ -153,53 +167,20 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
               {item.reservation_notes}
             </p>
           )}
-          {place.address && (
-            <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
-              <MapPin className="h-3 w-3 flex-shrink-0" />
-              <span className="line-clamp-1">{place.address}</span>
-            </div>
-          )}
           <ReservationDialog item={item} open={reservationOpen} onOpenChange={setReservationOpen} />
         </div>
       ) : (
         <div>
-          <div className="flex items-center gap-1.5">
-            <StickyNote className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-            {editingNote ? (
-              <div className="flex-1 space-y-1.5">
-                <Textarea
-                  value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
-                  rows={2}
-                  className="text-sm"
-                  autoFocus
-                />
-                <div className="flex gap-1.5">
-                  <Button size="sm" className="h-6 text-xs" onClick={handleSaveNote}>
-                    Save
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 text-xs"
-                    onClick={() => {
-                      setEditingNote(false)
-                      setNoteText(item.text_note ?? '')
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <button
-                className="text-sm text-left leading-tight hover:underline"
-                onClick={() => setEditingNote(true)}
-              >
-                {item.text_note || <span className="text-muted-foreground italic">Empty note</span>}
-              </button>
-            )}
+          <div className="flex items-start gap-1.5">
+            <StickyNote className="h-3.5 w-3.5 mt-0.5 text-muted-foreground flex-shrink-0" />
+            <button
+              className="text-sm text-left leading-tight hover:underline line-clamp-3"
+              onClick={() => setTextNoteOpen(true)}
+            >
+              {item.text_note || <span className="text-muted-foreground italic">Empty note</span>}
+            </button>
           </div>
+          <TextNoteDialog item={item} open={textNoteOpen} onOpenChange={setTextNoteOpen} />
         </div>
       )}
     </SortableItemCard>

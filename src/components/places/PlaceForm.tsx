@@ -14,11 +14,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { PlaceSearch } from './PlaceSearch'
+import { PhotoGrid } from './PhotoGrid'
 import { useCreatePlace, useUpdatePlace } from '@/hooks/usePlaces'
 import {
   PLACE_CATEGORIES,
   PLACE_PRIORITIES,
   PLACE_STATUSES,
+  markPrimaryPhoto,
   type PlaceRow,
   type GooglePlaceData,
   type PlaceCategory,
@@ -53,6 +55,8 @@ interface FormState {
   notes: string
   tagInput: string
   tags: string[]
+  photos: string[]
+  hours: unknown
 }
 
 function placeToFormState(place: PlaceRow): FormState {
@@ -73,6 +77,8 @@ function placeToFormState(place: PlaceRow): FormState {
     notes: place.notes ?? '',
     tagInput: '',
     tags: place.tags ?? [],
+    photos: Array.isArray(place.photos) ? (place.photos as string[]) : [],
+    hours: place.hours ?? null,
   }
 }
 
@@ -94,6 +100,8 @@ function emptyFormState(): FormState {
     notes: '',
     tagInput: '',
     tags: [],
+    photos: [],
+    hours: null,
   }
 }
 
@@ -124,6 +132,8 @@ export function PlaceForm({ place, defaultCity, onSuccess, onCancel }: PlaceForm
       priceLevel: data.priceLevel?.toString() ?? '',
       website: data.website ?? '',
       phone: data.phone ?? '',
+      photos: data.photos ?? [],
+      hours: data.hours ?? null,
     }))
   }
 
@@ -176,6 +186,8 @@ export function PlaceForm({ place, defaultCity, onSuccess, onCancel }: PlaceForm
       city: form.city || null,
       notes: form.notes || null,
       tags: form.tags.length > 0 ? form.tags : null,
+      photos: form.photos.length > 0 ? form.photos : null,
+      hours: form.hours ?? null,
     }
 
     try {
@@ -364,6 +376,21 @@ export function PlaceForm({ place, defaultCity, onSuccess, onCancel }: PlaceForm
           </div>
         )}
       </div>
+
+      {/* Photos — click to set primary (first photo is used in card banners + carousel) */}
+      {form.photos.length > 0 && (
+        <div className="space-y-1.5">
+          <Label>Photos</Label>
+          <PhotoGrid
+            photos={form.photos}
+            primaryUrl={form.photos[0]}
+            onSelectPrimary={(url) => set('photos', markPrimaryPhoto(form.photos, url))}
+          />
+          <p className="text-xs text-muted-foreground">
+            Click a photo to set it as the primary — used in card banners.
+          </p>
+        </div>
+      )}
 
       {/* Notes */}
       <div className="space-y-1.5">

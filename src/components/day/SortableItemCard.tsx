@@ -27,6 +27,11 @@ interface SortableItemCardProps {
    * speculative cards. Typically the city's `primary` color.
    */
   accentColor?: string
+  /**
+   * Optional full-width header (typically a `PlaceCardBanner`). When provided,
+   * it renders edge-to-edge at the top of the card, above the grip/content row.
+   */
+  banner?: ReactNode
 }
 
 /**
@@ -41,6 +46,7 @@ export function SortableItemCard({
   actions,
   variant = 'decided',
   accentColor,
+  banner,
 }: SortableItemCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
@@ -75,18 +81,21 @@ export function SortableItemCard({
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative flex items-start gap-2 rounded-lg border p-2.5 group ${variantClasses}`}
+      className={`relative rounded-lg border group overflow-hidden ${variantClasses}`}
     >
-      <button
-        {...attributes}
-        {...listeners}
-        className="mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground touch-none flex-shrink-0"
-        aria-label="Drag to reorder"
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
+      {banner}
+      <div className="flex items-start gap-2 p-2.5">
+        <button
+          {...attributes}
+          {...listeners}
+          className="mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground touch-none flex-shrink-0"
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
 
-      <div className="flex-1 min-w-0">{children}</div>
+        <div className="flex-1 min-w-0">{children}</div>
+      </div>
 
       {actions && (
         <div className="absolute top-2 right-2 flex items-center gap-0.5 rounded-md bg-card/95 opacity-0 group-hover:opacity-100 transition-opacity">

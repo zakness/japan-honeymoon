@@ -108,6 +108,9 @@ export function useUpdatePlace() {
     },
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: PLACES_KEY })
+      // Itinerary items embed a joined `place` — refetch so edits (e.g.
+      // re-searching Google to pick up photos) propagate to day-column cards.
+      queryClient.invalidateQueries({ queryKey: ['itinerary'] })
       queryClient.setQueryData([...PLACES_KEY, updated.id], updated)
     },
   })

@@ -47,3 +47,14 @@ export interface GooglePlaceData {
   phone?: string
   photos?: string[]
 }
+
+/**
+ * Move `url` to index 0 in `photos`. The first element is treated as the
+ * primary photo everywhere in the UI (banners, carousel order). If the url
+ * isn't in the array, returns the input unchanged.
+ */
+export function markPrimaryPhoto(photos: string[], url: string): string[] {
+  if (photos[0] === url) return photos
+  if (!photos.includes(url)) return photos
+  return [url, ...photos.filter((p) => p !== url)]
+}

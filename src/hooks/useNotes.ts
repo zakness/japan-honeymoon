@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { deleteStorageObjects } from '@/lib/storage'
 import type { NoteRow, NoteInsert, NoteUpdate } from '@/types/notes'
 
 const NOTES_KEY = ['notes'] as const
@@ -59,8 +60,18 @@ export function useDeleteNote() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
+      // Fetch images first so we can clean up Storage objects *after* the
+      // row is gone — we can't rely on a DB trigger because anon can't hold
+      // the service role key.
+      const { data: existing } = await supabase
+        .from('notes')
+        .select('images')
+        .eq('id', id)
+        .maybeSingle()
       const { error } = await supabase.from('notes').delete().eq('id', id)
       if (error) throw error
+      const urls = Array.isArray(existing?.images) ? (existing.images as string[]) : []
+      if (urls.length > 0) void deleteStorageObjects(urls)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: NOTES_KEY })

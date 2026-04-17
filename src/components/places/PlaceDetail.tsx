@@ -26,6 +26,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Lightbox } from '@/components/shared/Lightbox'
+import { useLightbox } from '@/hooks/useLightbox'
 import { PlaceForm } from './PlaceForm'
 import { useDeletePlace } from '@/hooks/usePlaces'
 import { useCreateItineraryItem, usePlaceSchedule } from '@/hooks/useItinerary'
@@ -60,6 +62,7 @@ interface PlaceDetailContentProps {
  */
 export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailContentProps) {
   const [dayPickerOpen, setDayPickerOpen] = useState(false)
+  const lightbox = useLightbox()
   const deletePlace = useDeletePlace()
   const createItem = useCreateItineraryItem()
   const { data: scheduledDates = [] } = usePlaceSchedule(place.id)
@@ -96,12 +99,19 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
       {photos.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
           {photos.map((url, i) => (
-            <img
+            <button
               key={i}
-              src={url}
-              alt={`${place.name} photo ${i + 1}`}
-              className="h-40 w-60 rounded-lg object-cover flex-shrink-0"
-            />
+              type="button"
+              onClick={() => lightbox.openAt(photos, i)}
+              className="flex-shrink-0 rounded-lg overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={`Open photo ${i + 1}`}
+            >
+              <img
+                src={url}
+                alt={`${place.name} photo ${i + 1}`}
+                className="h-40 w-60 object-cover"
+              />
+            </button>
           ))}
         </div>
       )}
@@ -298,6 +308,12 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
           </AlertDialog>
         </div>
       </div>
+      <Lightbox
+        open={lightbox.open}
+        images={lightbox.images}
+        startIndex={lightbox.startIndex}
+        onClose={lightbox.close}
+      />
     </div>
   )
 }

@@ -8,149 +8,101 @@ export type Database = {
   }
   public: {
     Tables: {
-      flights: {
-        Row: {
-          id: string
-          airline: string
-          flight_number: string
-          dep_airport: string
-          arr_airport: string
-          departure_at: string
-          arrival_at: string
-          confirmation: string
-          notes: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          airline: string
-          flight_number: string
-          dep_airport: string
-          arr_airport: string
-          departure_at: string
-          arrival_at: string
-          confirmation: string
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          airline?: string
-          flight_number?: string
-          dep_airport?: string
-          arr_airport?: string
-          departure_at?: string
-          arrival_at?: string
-          confirmation?: string
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      transport_items: {
-        Row: {
-          id: string
-          day_date: string
-          type: string
-          origin: string
-          destination: string
-          departure_time: string
-          arrival_time: string | null
-          confirmation: string | null
-          notes: string | null
-          time_slot: string
-          sort_order: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          day_date: string
-          type: string
-          origin: string
-          destination: string
-          departure_time: string
-          arrival_time?: string | null
-          confirmation?: string | null
-          notes?: string | null
-          time_slot?: string
-          sort_order: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          day_date?: string
-          type?: string
-          origin?: string
-          destination?: string
-          departure_time?: string
-          arrival_time?: string | null
-          confirmation?: string | null
-          notes?: string | null
-          time_slot?: string
-          sort_order?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       accommodations: {
         Row: {
-          id: string
-          name: string
-          city: string
-          check_in_date: string
-          check_out_date: string
-          confirmation_numbers: string[]
-          booking_url: string | null
           address: string | null
+          booked_by: string | null
+          booking_url: string | null
+          check_in_date: string
+          check_in_time: string | null
+          check_out_date: string
+          check_out_time: string | null
+          city: string
+          confirmation_numbers: string[]
+          created_at: string
+          id: string
           lat: number | null
           lng: number | null
+          name: string
+          updated_at: string
           website: string | null
-          booked_by: string | null
-          check_in_time: string | null
-          check_out_time: string | null
+        }
+        Insert: {
+          address?: string | null
+          booked_by?: string | null
+          booking_url?: string | null
+          check_in_date: string
+          check_in_time?: string | null
+          check_out_date: string
+          check_out_time?: string | null
+          city: string
+          confirmation_numbers?: string[]
+          created_at?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          name: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          booked_by?: string | null
+          booking_url?: string | null
+          check_in_date?: string
+          check_in_time?: string | null
+          check_out_date?: string
+          check_out_time?: string | null
+          city?: string
+          confirmation_numbers?: string[]
+          created_at?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          name?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      flights: {
+        Row: {
+          airline: string
+          arr_airport: string
+          arrival_at: string
+          confirmation: string
           created_at: string
+          dep_airport: string
+          departure_at: string
+          flight_number: string
+          id: string
+          notes: string | null
           updated_at: string
         }
         Insert: {
-          id?: string
-          name: string
-          city: string
-          check_in_date: string
-          check_out_date: string
-          confirmation_numbers?: string[]
-          booking_url?: string | null
-          address?: string | null
-          lat?: number | null
-          lng?: number | null
-          website?: string | null
-          booked_by?: string | null
-          check_in_time?: string | null
-          check_out_time?: string | null
+          airline: string
+          arr_airport: string
+          arrival_at: string
+          confirmation: string
           created_at?: string
+          dep_airport: string
+          departure_at: string
+          flight_number: string
+          id?: string
+          notes?: string | null
           updated_at?: string
         }
         Update: {
-          id?: string
-          name?: string
-          city?: string
-          check_in_date?: string
-          check_out_date?: string
-          confirmation_numbers?: string[]
-          booking_url?: string | null
-          address?: string | null
-          lat?: number | null
-          lng?: number | null
-          website?: string | null
-          booked_by?: string | null
-          check_in_time?: string | null
-          check_out_time?: string | null
+          airline?: string
+          arr_airport?: string
+          arrival_at?: string
+          confirmation?: string
           created_at?: string
+          dep_airport?: string
+          departure_at?: string
+          flight_number?: string
+          id?: string
+          notes?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -160,6 +112,7 @@ export type Database = {
           created_at: string
           day_date: string
           id: string
+          images: Json | null
           is_decided: boolean
           place_id: string | null
           reservation_notes: string | null
@@ -173,6 +126,7 @@ export type Database = {
           created_at?: string
           day_date: string
           id?: string
+          images?: Json | null
           is_decided?: boolean
           place_id?: string | null
           reservation_notes?: string | null
@@ -186,6 +140,7 @@ export type Database = {
           created_at?: string
           day_date?: string
           id?: string
+          images?: Json | null
           is_decided?: boolean
           place_id?: string | null
           reservation_notes?: string | null
@@ -210,6 +165,7 @@ export type Database = {
           body: string | null
           created_at: string
           id: string
+          images: Json | null
           sort_order: number
           title: string
           updated_at: string
@@ -218,6 +174,7 @@ export type Database = {
           body?: string | null
           created_at?: string
           id?: string
+          images?: Json | null
           sort_order?: number
           title: string
           updated_at?: string
@@ -226,6 +183,7 @@ export type Database = {
           body?: string | null
           created_at?: string
           id?: string
+          images?: Json | null
           sort_order?: number
           title?: string
           updated_at?: string
@@ -298,6 +256,54 @@ export type Database = {
           tags?: string[] | null
           updated_at?: string
           website?: string | null
+        }
+        Relationships: []
+      }
+      transport_items: {
+        Row: {
+          arrival_time: string | null
+          confirmation: string | null
+          created_at: string
+          day_date: string
+          departure_time: string
+          destination: string
+          id: string
+          notes: string | null
+          origin: string
+          sort_order: number
+          time_slot: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          arrival_time?: string | null
+          confirmation?: string | null
+          created_at?: string
+          day_date: string
+          departure_time: string
+          destination: string
+          id?: string
+          notes?: string | null
+          origin: string
+          sort_order: number
+          time_slot?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          arrival_time?: string | null
+          confirmation?: string | null
+          created_at?: string
+          day_date?: string
+          departure_time?: string
+          destination?: string
+          id?: string
+          notes?: string | null
+          origin?: string
+          sort_order?: number
+          time_slot?: string
+          type?: string
+          updated_at?: string
         }
         Relationships: []
       }
