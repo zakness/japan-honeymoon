@@ -16,6 +16,7 @@ import {
 import { PlaceSearch } from './PlaceSearch'
 import { PhotoGrid } from './PhotoGrid'
 import { useCreatePlace, useUpdatePlace } from '@/hooks/usePlaces'
+import type { Json } from '@/types/database'
 import {
   PLACE_CATEGORIES,
   PLACE_PRIORITIES,
@@ -56,7 +57,7 @@ interface FormState {
   tagInput: string
   tags: string[]
   photos: string[]
-  hours: unknown
+  hours: Json | null
 }
 
 function placeToFormState(place: PlaceRow): FormState {
@@ -78,7 +79,7 @@ function placeToFormState(place: PlaceRow): FormState {
     tagInput: '',
     tags: place.tags ?? [],
     photos: Array.isArray(place.photos) ? (place.photos as string[]) : [],
-    hours: place.hours ?? null,
+    hours: (place.hours as Json | null) ?? null,
   }
 }
 
@@ -133,7 +134,7 @@ export function PlaceForm({ place, defaultCity, onSuccess, onCancel }: PlaceForm
       website: data.website ?? '',
       phone: data.phone ?? '',
       photos: data.photos ?? [],
-      hours: data.hours ?? null,
+      hours: (data.hours as Json | null) ?? null,
     }))
   }
 
