@@ -2,7 +2,7 @@ import { supabase } from './supabase'
 
 export const TRIP_IMAGES_BUCKET = 'trip-images'
 
-export type StorageOwnerKind = 'places' | 'notes' | 'note-items'
+export type StorageOwnerKind = 'places' | 'notes' | 'note-items' | 'hotels'
 
 /**
  * Build the object path inside the bucket. Paths are namespaced by owner kind +

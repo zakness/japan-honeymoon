@@ -1,8 +1,11 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { AccommodationRow } from '@/types/accommodations'
+import type { TablesUpdate } from '@/types/database'
 
 const ACCOMMODATIONS_KEY = ['accommodations'] as const
+
+export type AccommodationUpdate = TablesUpdate<'accommodations'>
 
 export function useAccommodations() {
   return useQuery({
@@ -31,4 +34,23 @@ export function useAccommodationsForDate(date: string) {
   const eveningHotel = all.find((a) => a.check_in_date <= date && date < a.check_out_date) ?? null
 
   return { morningHotel, eveningHotel }
+}
+
+export function useUpdateAccommodation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...patch }: AccommodationUpdate & { id: string }) => {
+      const { data, error } = await supabase
+        .from('accommodations')
+        .update(patch)
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+      return data as AccommodationRow
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ACCOMMODATIONS_KEY })
+    },
+  })
 }
