@@ -7,9 +7,11 @@ import { LogisticsView } from '@/components/logistics/LogisticsView'
 import { ItineraryView } from '@/components/itinerary/ItineraryView'
 import { CityStrip } from '@/components/itinerary/CityStrip'
 import { PlaceEditDialog } from '@/components/places/PlaceDetail'
+import { HotelEditDialog } from '@/components/hotels/HotelEditDialog'
 import { Button } from '@/components/ui/button'
 import { type City } from '@/config/trip'
 import type { PlaceRow } from '@/types/places'
+import type { AccommodationRow } from '@/types/accommodations'
 
 export interface NavState {
   view: AppView
@@ -57,6 +59,8 @@ export function AppShell() {
   const [selectedPlace, setSelectedPlace] = useState<PlaceRow | null>(null)
   const [selectionOrigin, setSelectionOrigin] = useState<SelectionOrigin | null>(null)
   const [editingPlace, setEditingPlace] = useState<PlaceRow | null>(null)
+  const [selectedHotel, setSelectedHotel] = useState<AccommodationRow | null>(null)
+  const [editingHotel, setEditingHotel] = useState<AccommodationRow | null>(null)
 
   useEffect(() => {
     const handler = () => setNav(parseHash())
@@ -80,12 +84,25 @@ export function AppShell() {
     ((place: PlaceRow | null, origin?: SelectionOrigin) => {
       setSelectedPlace(place)
       setSelectionOrigin(place ? (origin ?? null) : null)
+      if (place) setSelectedHotel(null)
       if (place && origin === 'backlog') {
         setMapVisible((visible) => (visible ? visible : true))
       }
     }) as SelectPlaceHandler,
     []
   )
+
+  /**
+   * Hotels and places are mutually exclusive on the map. Selecting a hotel
+   * clears any active place; the inverse is handled in `handleSelectPlace`.
+   */
+  const handleSelectHotel = useCallback((hotel: AccommodationRow | null) => {
+    if (hotel) {
+      setSelectedPlace(null)
+      setSelectionOrigin(null)
+    }
+    setSelectedHotel(hotel)
+  }, [])
 
   /**
    * Open the edit dialog for a place. Called from inside the detail card's
@@ -97,12 +114,20 @@ export function AppShell() {
     setEditingPlace(place)
   }, [])
 
+  const handleEditHotel = useCallback((hotel: AccommodationRow) => {
+    setEditingHotel(hotel)
+  }, [])
+
   /**
    * After a successful edit, refresh `selectedPlace` so the still-open card
    * shows the new data instead of the stale row we had when it opened.
    */
   const handleEditSuccess = useCallback((updated: PlaceRow) => {
     setSelectedPlace((current) => (current?.id === updated.id ? updated : current))
+  }, [])
+
+  const handleEditHotelSuccess = useCallback((updated: AccommodationRow) => {
+    setSelectedHotel((current) => (current?.id === updated.id ? updated : current))
   }, [])
 
   function handleViewChange(view: AppView) {
@@ -149,10 +174,13 @@ export function AppShell() {
               selectionOrigin={selectionOrigin}
               onSelectPlace={handleSelectPlace}
               onEditPlace={handleEditPlace}
+              selectedHotel={selectedHotel}
+              onSelectHotel={handleSelectHotel}
+              onEditHotel={handleEditHotel}
             />
           )}
           {nav.view === 'notes' && <NotesView />}
-          {nav.view === 'logistics' && <LogisticsView />}
+          {nav.view === 'logistics' && <LogisticsView onEditHotel={handleEditHotel} />}
         </ErrorBoundary>
       </main>
 
@@ -170,6 +198,13 @@ export function AppShell() {
           if (!open) setEditingPlace(null)
         }}
         onSuccess={handleEditSuccess}
+      />
+      <HotelEditDialog
+        hotel={editingHotel}
+        onOpenChange={(open) => {
+          if (!open) setEditingHotel(null)
+        }}
+        onSuccess={handleEditHotelSuccess}
       />
     </div>
   )

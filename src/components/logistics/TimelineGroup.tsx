@@ -17,9 +17,10 @@ interface TimelineGroupProps {
   date: string
   entries: LogisticsEntry[]
   allHotels: AccommodationRow[]
+  onEditHotel?: (hotel: AccommodationRow) => void
 }
 
-export function TimelineGroup({ date, entries, allHotels }: TimelineGroupProps) {
+export function TimelineGroup({ date, entries, allHotels, onEditHotel }: TimelineGroupProps) {
   return (
     <div>
       <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
@@ -39,7 +40,12 @@ export function TimelineGroup({ date, entries, allHotels }: TimelineGroupProps) 
               />
               {entry.kind === 'flight' && <FlightEntry flight={entry.data} />}
               {(entry.kind === 'hotel_checkin' || entry.kind === 'hotel_checkout') && (
-                <HotelEntry hotel={entry.data} kind={entry.kind} allHotels={allHotels} />
+                <HotelEntry
+                  hotel={entry.data}
+                  kind={entry.kind}
+                  allHotels={allHotels}
+                  onEdit={onEditHotel}
+                />
               )}
               {entry.kind === 'transport' && <TransportEntry item={entry.data} />}
             </div>

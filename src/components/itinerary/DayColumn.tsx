@@ -12,6 +12,7 @@ import { mergeSlotItems } from '@/lib/transport-utils'
 import { getFlightEventsForDate } from '@/lib/logistics-utils'
 import { TIME_SLOTS, deriveTimeSlot, type TimeSlot } from '@/types/itinerary'
 import type { PlaceRow } from '@/types/places'
+import type { AccommodationRow } from '@/types/accommodations'
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -23,9 +24,11 @@ interface DayColumnProps {
    * `'day-column'` origin baked in by ItineraryView.
    */
   onSelectPlace?: (place: PlaceRow) => void
+  /** Fires when the user clicks a hotel anchor — selects the hotel on the map. */
+  onSelectHotel?: (hotel: AccommodationRow) => void
 }
 
-export function DayColumn({ dayDate, onSelectPlace }: DayColumnProps) {
+export function DayColumn({ dayDate, onSelectPlace, onSelectHotel }: DayColumnProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogInitialSlot, setDialogInitialSlot] = useState<TimeSlot>('morning')
 
@@ -88,6 +91,7 @@ export function DayColumn({ dayDate, onSelectPlace }: DayColumnProps) {
                 hotel={morningHotel}
                 slot="morning"
                 colors={getHotelColor(morningHotel, allHotels)}
+                onSelect={onSelectHotel}
               />
             )}
             {TIME_SLOTS.map(({ value, label }) => (
@@ -110,6 +114,7 @@ export function DayColumn({ dayDate, onSelectPlace }: DayColumnProps) {
                 hotel={eveningHotel}
                 slot="evening"
                 colors={getHotelColor(eveningHotel, allHotels)}
+                onSelect={onSelectHotel}
               />
             )}
           </>

@@ -12,7 +12,7 @@ import { getCityColor, getPrimaryCityForDate } from '@/config/trip'
 import { useDeleteItineraryItem, useUpdateItineraryItem } from '@/hooks/useItinerary'
 import { ReservationDialog } from './ReservationDialog'
 import { TextNoteDialog } from './TextNoteDialog'
-import { PlaceCardBanner } from '../places/PlaceCardBanner'
+import { CardBanner } from '@/components/shared/CardBanner'
 import {
   SortableItemCard,
   TimeSlotMenu,
@@ -70,6 +70,7 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
 
   const placePhotos = place && Array.isArray(place.photos) ? (place.photos as string[]) : []
   const noteImages = Array.isArray(item.images) ? (item.images as string[]) : []
+  const bannerColors = city ? getCityColor(city) : undefined
 
   // Place-backed items always get a banner (photo or city-tinted fallback) for
   // visual consistency with the backlog. Text-notes only get a banner when
@@ -78,16 +79,21 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
   let banner: React.ReactNode = undefined
   if (isPlace) {
     banner = (
-      <PlaceCardBanner
+      <CardBanner
         photoUrl={placePhotos[0]}
-        city={city}
+        colors={bannerColors}
         icon={category?.icon ?? StickyNote}
         className="h-16"
       />
     )
   } else if (noteImages.length > 0) {
     banner = (
-      <PlaceCardBanner photoUrl={noteImages[0]} city={city} icon={StickyNote} className="h-16" />
+      <CardBanner
+        photoUrl={noteImages[0]}
+        colors={bannerColors}
+        icon={StickyNote}
+        className="h-16"
+      />
     )
   }
 

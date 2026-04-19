@@ -9,6 +9,7 @@ describe('buildStoragePath', () => {
   it('supports each owner kind', () => {
     expect(buildStoragePath('places', 'p1', 'x.jpg')).toBe('places/p1/x.jpg')
     expect(buildStoragePath('note-items', 'n1', 'x.jpg')).toBe('note-items/n1/x.jpg')
+    expect(buildStoragePath('hotels', 'h1', 'x.jpg')).toBe('hotels/h1/x.jpg')
   })
 })
 
