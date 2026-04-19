@@ -20,10 +20,16 @@ export type Database = {
           city: string
           confirmation_numbers: string[]
           created_at: string
+          google_place_id: string | null
           id: string
           lat: number | null
           lng: number | null
           name: string
+          notes: string | null
+          phone: string | null
+          photos: Json
+          rating: number | null
+          tags: string[]
           updated_at: string
           website: string | null
         }
@@ -38,10 +44,16 @@ export type Database = {
           city: string
           confirmation_numbers?: string[]
           created_at?: string
+          google_place_id?: string | null
           id?: string
           lat?: number | null
           lng?: number | null
           name: string
+          notes?: string | null
+          phone?: string | null
+          photos?: Json
+          rating?: number | null
+          tags?: string[]
           updated_at?: string
           website?: string | null
         }
@@ -56,10 +68,16 @@ export type Database = {
           city?: string
           confirmation_numbers?: string[]
           created_at?: string
+          google_place_id?: string | null
           id?: string
           lat?: number | null
           lng?: number | null
           name?: string
+          notes?: string | null
+          phone?: string | null
+          photos?: Json
+          rating?: number | null
+          tags?: string[]
           updated_at?: string
           website?: string | null
         }
