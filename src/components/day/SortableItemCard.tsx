@@ -28,7 +28,7 @@ interface SortableItemCardProps {
    */
   accentColor?: string
   /**
-   * Optional full-width header (typically a `PlaceCardBanner`). When provided,
+   * Optional full-width header (typically a `CardBanner`). When provided,
    * it renders edge-to-edge at the top of the card, above the grip/content row.
    */
   banner?: ReactNode

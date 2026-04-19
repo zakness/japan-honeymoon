@@ -2,8 +2,8 @@ import { Star } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { PLACE_CATEGORIES, type PlaceRow, type PlacePriority } from '@/types/places'
-import { CITY_LABELS, formatTripDateShort, type City } from '@/config/trip'
-import { PlaceCardBanner } from './PlaceCardBanner'
+import { CITY_LABELS, formatTripDateShort, getCityColor, type City } from '@/config/trip'
+import { CardBanner } from '@/components/shared/CardBanner'
 
 const PRIORITY_STYLES: Record<PlacePriority, string> = {
   'must-do': 'bg-red-100 text-red-700 border-red-200',
@@ -39,7 +39,12 @@ export function PlaceCard({ place, onClick, selected, compact, scheduledDates }:
       )}
     >
       {Icon && (
-        <PlaceCardBanner photoUrl={photos[0]} city={city} icon={Icon} className={bannerHeight} />
+        <CardBanner
+          photoUrl={photos[0]}
+          colors={city ? getCityColor(city) : undefined}
+          icon={Icon}
+          className={bannerHeight}
+        />
       )}
 
       <div className={cn(compact ? 'p-2.5' : 'p-3')}>
