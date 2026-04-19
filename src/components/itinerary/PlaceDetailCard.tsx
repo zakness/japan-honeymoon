@@ -50,21 +50,17 @@ export function PlaceDetailCard({
       role="dialog"
       aria-label={`${place.name} details`}
     >
-      {/* Close button — floats in the top-right of the card content */}
-      <div className="sticky top-0 z-10 flex items-center justify-end bg-background/95 px-2 pt-2 backdrop-blur-sm">
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-7 w-7"
-          onClick={onClose}
-          aria-label="Close details"
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-      <div className="px-3 pb-3">
-        <PlaceDetailContent place={place} onEdit={onEdit} onClose={onClose} />
-      </div>
+      {/* Close button — absolute overlay so the hero image runs full-bleed. */}
+      <Button
+        size="icon"
+        variant="ghost"
+        className="absolute top-2 right-2 z-20 h-7 w-7 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white"
+        onClick={onClose}
+        aria-label="Close details"
+      >
+        <X className="h-4 w-4" />
+      </Button>
+      <PlaceDetailContent place={place} onEdit={onEdit} onClose={onClose} />
     </div>
   )
 }
