@@ -5,8 +5,13 @@ import { useFlights } from '@/hooks/useFlights'
 import { useAccommodations } from '@/hooks/useAccommodations'
 import { useAllTransportItems } from '@/hooks/useTransport'
 import { buildLogisticsTimeline, groupEntriesByDate } from '@/lib/logistics-utils'
+import type { AccommodationRow } from '@/types/accommodations'
 
-export function LogisticsView() {
+interface LogisticsViewProps {
+  onEditHotel?: (hotel: AccommodationRow) => void
+}
+
+export function LogisticsView({ onEditHotel }: LogisticsViewProps) {
   const { data: flights = [], isLoading: flightsLoading } = useFlights()
   const { data: accommodations = [], isLoading: hotelsLoading } = useAccommodations()
   const { data: transport = [], isLoading: transportLoading } = useAllTransportItems()
@@ -32,7 +37,13 @@ export function LogisticsView() {
     <div className="h-full overflow-y-auto">
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
         {groups.map(({ date, entries }) => (
-          <TimelineGroup key={date} date={date} entries={entries} allHotels={accommodations} />
+          <TimelineGroup
+            key={date}
+            date={date}
+            entries={entries}
+            allHotels={accommodations}
+            onEditHotel={onEditHotel}
+          />
         ))}
       </div>
     </div>

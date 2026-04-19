@@ -27,6 +27,12 @@ function makeHotel(overrides: Partial<AccommodationRow> & { id: string }): Accom
     lng: overrides.lng ?? null,
     website: overrides.website ?? null,
     booked_by: overrides.booked_by ?? null,
+    google_place_id: overrides.google_place_id ?? null,
+    rating: overrides.rating ?? null,
+    photos: overrides.photos ?? [],
+    tags: overrides.tags ?? [],
+    notes: overrides.notes ?? null,
+    phone: overrides.phone ?? null,
     created_at: overrides.created_at ?? '2026-01-01T00:00:00Z',
     updated_at: overrides.updated_at ?? '2026-01-01T00:00:00Z',
   }
