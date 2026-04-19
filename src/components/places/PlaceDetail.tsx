@@ -9,6 +9,8 @@ import {
   Trash2,
   CalendarPlus,
   MapPinOff,
+  ChevronDown,
+  Copy,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -46,6 +48,63 @@ const PRIORITY_STYLES: Record<PlacePriority, string> = {
   'if-time': 'bg-gray-100 text-gray-600',
 }
 
+/** Parse "10:00 AM", "10:00", "10 AM" → minutes since midnight. */
+function parseTimeToMinutes(s: string): number | null {
+  const m = s.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i)
+  if (!m) return null
+  let h = parseInt(m[1], 10)
+  const min = m[2] ? parseInt(m[2], 10) : 0
+  const ampm = m[3]?.toUpperCase()
+  if (ampm === 'PM' && h < 12) h += 12
+  if (ampm === 'AM' && h === 12) h = 0
+  return h * 60 + min
+}
+
+/**
+ * Derive a one-line open-now summary from Google's `weekdayDescriptions`
+ * (Monday-first, 7 entries, e.g. "Monday: 10:00 AM – 10:30 PM" or "Monday: Closed").
+ * Returns `null` if the shape is unexpected — caller falls back to plain "Hours".
+ */
+function getOpenStatus(
+  weekdayDescriptions: string[],
+  now: Date
+): { openNow: boolean; label: string } | null {
+  if (weekdayDescriptions.length !== 7) return null
+  const jsDay = now.getDay() // 0=Sun, 1=Mon
+  const idx = jsDay === 0 ? 6 : jsDay - 1 // Google is Monday-first
+  const line = weekdayDescriptions[idx] ?? ''
+  const rest = line.includes(':') ? line.slice(line.indexOf(':') + 1).trim() : line.trim()
+
+  if (/closed/i.test(rest)) {
+    for (let i = 1; i <= 7; i++) {
+      const nextLine = weekdayDescriptions[(idx + i) % 7] ?? ''
+      if (/closed/i.test(nextLine)) continue
+      const nextRest = nextLine.includes(':')
+        ? nextLine.slice(nextLine.indexOf(':') + 1).trim()
+        : nextLine.trim()
+      const openStr = nextRest.split(/[–-]/)[0]?.trim()
+      if (openStr) return { openNow: false, label: `Closed · opens ${openStr}` }
+      break
+    }
+    return { openNow: false, label: 'Closed' }
+  }
+
+  const parts = rest.split(/[–-]/).map((s) => s.trim())
+  if (parts.length !== 2) return null
+  const openMin = parseTimeToMinutes(parts[0])
+  const closeMin = parseTimeToMinutes(parts[1])
+  if (openMin == null || closeMin == null) return null
+
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const openNow =
+    closeMin < openMin
+      ? nowMin >= openMin || nowMin < closeMin // wraps past midnight
+      : nowMin >= openMin && nowMin < closeMin
+  return openNow
+    ? { openNow: true, label: `Open · closes ${parts[1]}` }
+    : { openNow: false, label: `Closed · opens ${parts[0]}` }
+}
+
 interface PlaceDetailContentProps {
   place: PlaceRow
   /** Called when user clicks Edit — opens the edit dialog at AppShell level. */
@@ -62,6 +121,8 @@ interface PlaceDetailContentProps {
  */
 export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailContentProps) {
   const [dayPickerOpen, setDayPickerOpen] = useState(false)
+  const [hoursOpen, setHoursOpen] = useState(false)
+  const [addressOpen, setAddressOpen] = useState(false)
   const lightbox = useLightbox()
   const deletePlace = useDeletePlace()
   const createItem = useCreateItineraryItem()
@@ -94,34 +155,52 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
   const hasCoords = place.lat != null && place.lng != null
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Photo carousel */}
+    <div className="flex flex-col">
+      {/* Hero photo — full-bleed top of the card (clipped by card's rounded overflow). */}
       {photos.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {photos.map((url, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => lightbox.openAt(photos, i)}
-              className="flex-shrink-0 rounded-lg overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={`Open photo ${i + 1}`}
-            >
-              <img
-                src={url}
-                alt={`${place.name} photo ${i + 1}`}
-                className="h-40 w-60 object-cover"
-              />
-            </button>
-          ))}
-        </div>
+        <button
+          type="button"
+          onClick={() => lightbox.openAt(photos, 0)}
+          className="relative block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          aria-label={photos.length > 1 ? `Open photos (${photos.length})` : 'Open photo'}
+        >
+          <img src={photos[0]} alt={`${place.name} photo`} className="h-32 w-full object-cover" />
+          {photos.length > 1 && (
+            <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-medium text-white">
+              +{photos.length - 1}
+            </span>
+          )}
+        </button>
       )}
 
-      <div className="px-1 space-y-3">
+      <div className={`px-3 pb-3 space-y-3 ${photos.length > 0 ? 'pt-3' : 'pt-10'}`}>
         {/* Header */}
         <div>
           <div className="flex items-center gap-2">
             {category && <category.icon size={20} className="shrink-0 text-muted-foreground" />}
-            <h2 className="text-lg font-semibold leading-tight">{place.name}</h2>
+            <h2 className="flex-1 text-lg font-semibold leading-tight">{place.name}</h2>
+            {place.website && (
+              <a
+                href={place.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Open website"
+                title={place.website}
+              >
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            )}
+            {place.phone && (
+              <a
+                href={`tel:${place.phone}`}
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`Call ${place.phone}`}
+                title={place.phone}
+              >
+                <Phone className="h-4 w-4" />
+              </a>
+            )}
           </div>
           <div className="flex flex-wrap gap-1.5 mt-2">
             <span
@@ -174,11 +253,35 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
           </div>
         )}
 
-        {/* Address */}
+        {/* Address — clamped to one line by default, click to expand. Copy button sits inline. */}
         {place.address && (
-          <div className="flex items-start gap-2 text-sm text-muted-foreground">
-            <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <span>{place.address}</span>
+          <div className="flex items-start gap-1">
+            <button
+              type="button"
+              onClick={() => setAddressOpen((v) => !v)}
+              className="flex flex-1 items-start gap-2 text-left text-sm text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+              aria-expanded={addressOpen}
+            >
+              <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <span className={addressOpen ? '' : 'line-clamp-1'}>{place.address}</span>
+            </button>
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.stopPropagation()
+                try {
+                  await navigator.clipboard.writeText(place.address!)
+                  toast.success('Address copied')
+                } catch {
+                  toast.error('Failed to copy')
+                }
+              }}
+              className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="Copy address"
+              title="Copy address"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </button>
           </div>
         )}
 
@@ -193,41 +296,40 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
           </div>
         )}
 
-        {/* Hours */}
-        {hours?.weekdayDescriptions && (
+        {/* Hours — collapsed by default with an "open now" summary; expands to the full week. */}
+        {hours?.weekdayDescriptions && hours.weekdayDescriptions.length > 0 && (
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-sm font-medium">
+            <button
+              type="button"
+              onClick={() => setHoursOpen((v) => !v)}
+              className="flex w-full items-center gap-1.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+              aria-expanded={hoursOpen}
+            >
               <Clock className="h-4 w-4" />
-              Hours
-            </div>
-            <ul className="text-xs text-muted-foreground space-y-0.5 pl-5">
-              {hours.weekdayDescriptions.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
+              {(() => {
+                const status = getOpenStatus(hours.weekdayDescriptions ?? [], new Date())
+                if (!status) return <span>Hours</span>
+                return (
+                  <span className={status.openNow ? 'text-green-600' : 'text-muted-foreground'}>
+                    {status.label}
+                  </span>
+                )
+              })()}
+              <ChevronDown
+                className={`ml-auto h-4 w-4 text-muted-foreground transition-transform ${
+                  hoursOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+            {hoursOpen && (
+              <ul className="text-xs text-muted-foreground space-y-0.5 pl-5">
+                {hours.weekdayDescriptions.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
-
-        {/* Links */}
-        <div className="flex flex-wrap gap-2">
-          {place.website && (
-            <a
-              href={place.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-sm text-primary hover:underline"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              Website
-            </a>
-          )}
-          {place.phone && (
-            <span className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Phone className="h-3.5 w-3.5" />
-              {place.phone}
-            </span>
-          )}
-        </div>
 
         {/* Notes */}
         {place.notes && (
