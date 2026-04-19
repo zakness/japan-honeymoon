@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { DndContext, DragOverlay } from '@dnd-kit/core'
 import { ItineraryItem } from '@/components/day/ItineraryItem'
 import { TransportItem } from '@/components/day/TransportItem'
@@ -8,9 +8,11 @@ import type { NavState, SelectionOrigin, SelectPlaceHandler } from '@/components
 import { getDaysForCity, type City, type TripDay } from '@/config/trip'
 import { useCrossItineraryDnD } from '@/hooks/useCrossItineraryDnD'
 import type { PlaceRow } from '@/types/places'
+import type { AccommodationRow } from '@/types/accommodations'
 import { CityStrip } from './CityStrip'
 import { CityMap } from './CityMap'
 import { PlaceDetailCard } from './PlaceDetailCard'
+import { HotelDetailCard } from './HotelDetailCard'
 import { DayColumn } from './DayColumn'
 import { UnscheduledColumn } from './UnscheduledColumn'
 
@@ -27,6 +29,12 @@ interface ItineraryViewProps {
   onSelectPlace: SelectPlaceHandler
   /** Opens the edit dialog at AppShell level for a given place. */
   onEditPlace: (place: PlaceRow) => void
+  /** Lifted hotel selection — owned by AppShell. */
+  selectedHotel: AccommodationRow | null
+  /** Lifted hotel selection handler — enforces place/hotel mutual exclusion. */
+  onSelectHotel: (hotel: AccommodationRow | null) => void
+  /** Opens the edit dialog at AppShell level for a given hotel. */
+  onEditHotel: (hotel: AccommodationRow) => void
 }
 
 /**
@@ -63,6 +71,9 @@ export function ItineraryView({
   selectionOrigin,
   onSelectPlace,
   onEditPlace,
+  selectedHotel,
+  onSelectHotel,
+  onEditHotel,
 }: ItineraryViewProps) {
   const [splitPercent, setSplitPercent] = useState(GOLDEN_RATIO_SPLIT)
   const [isResizing, setIsResizing] = useState(false)
@@ -110,7 +121,12 @@ export function ItineraryView({
       />
       <div className="flex overflow-x-auto">
         {cityDays.map((day) => (
-          <DayColumn key={day.date} dayDate={day.date} onSelectPlace={handleSelectFromDayColumn} />
+          <DayColumn
+            key={day.date}
+            dayDate={day.date}
+            onSelectPlace={handleSelectFromDayColumn}
+            onSelectHotel={onSelectHotel}
+          />
         ))}
       </div>
     </>
@@ -162,6 +178,9 @@ export function ItineraryView({
                     selectedPlace={selectedPlace}
                     onSelectPlace={onSelectPlace}
                     onEditPlace={onEditPlace}
+                    selectedHotel={selectedHotel}
+                    onSelectHotel={onSelectHotel}
+                    onEditHotel={onEditHotel}
                   />
                 </div>
               </>
@@ -176,6 +195,9 @@ export function ItineraryView({
                 selectedPlace={selectedPlace}
                 onSelectPlace={onSelectPlace}
                 onEditPlace={onEditPlace}
+                selectedHotel={selectedHotel}
+                onSelectHotel={onSelectHotel}
+                onEditHotel={onEditHotel}
               />
             </div>
 
@@ -183,24 +205,40 @@ export function ItineraryView({
               /* Place detail sheet — replaces the day-columns sheet while a
                  place is selected. The itinerary sheet collapses to an 80px
                  peek handle underneath so the user can tap it to dismiss. */
-              <>
-                <div
-                  className="absolute bottom-0 left-0 right-0 bg-background border-t rounded-t-2xl shadow-2xl flex flex-col"
-                  style={{ height: '50vh' }}
-                >
-                  <div className="flex items-center justify-center pt-2 pb-1 shrink-0">
-                    <div className="w-8 h-1 rounded-full bg-muted-foreground/30" />
-                  </div>
-                  <div className="flex-1 overflow-hidden px-1">
-                    <PlaceDetailCard
-                      place={selectedPlace}
-                      onClose={() => onSelectPlace(null)}
-                      onEdit={() => onEditPlace(selectedPlace)}
-                      variant="sheet"
-                    />
-                  </div>
+              <div
+                className="absolute bottom-0 left-0 right-0 bg-background border-t rounded-t-2xl shadow-2xl flex flex-col"
+                style={{ height: '50vh' }}
+              >
+                <div className="flex items-center justify-center pt-2 pb-1 shrink-0">
+                  <div className="w-8 h-1 rounded-full bg-muted-foreground/30" />
                 </div>
-              </>
+                <div className="flex-1 overflow-hidden px-1">
+                  <PlaceDetailCard
+                    place={selectedPlace}
+                    onClose={() => onSelectPlace(null)}
+                    onEdit={() => onEditPlace(selectedPlace)}
+                    variant="sheet"
+                  />
+                </div>
+              </div>
+            ) : selectedHotel ? (
+              /* Hotel detail sheet — same shape as the place sheet. */
+              <div
+                className="absolute bottom-0 left-0 right-0 bg-background border-t rounded-t-2xl shadow-2xl flex flex-col"
+                style={{ height: '50vh' }}
+              >
+                <div className="flex items-center justify-center pt-2 pb-1 shrink-0">
+                  <div className="w-8 h-1 rounded-full bg-muted-foreground/30" />
+                </div>
+                <div className="flex-1 overflow-hidden px-1">
+                  <HotelDetailCard
+                    hotel={selectedHotel}
+                    onClose={() => onSelectHotel(null)}
+                    onEdit={() => onEditHotel(selectedHotel)}
+                    variant="sheet"
+                  />
+                </div>
+              </div>
             ) : (
               /* Default itinerary sheet */
               <div

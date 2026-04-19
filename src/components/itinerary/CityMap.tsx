@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { Map as GMap, InfoWindow, useMap } from '@vis.gl/react-google-maps'
+import { Map as GMap, useMap } from '@vis.gl/react-google-maps'
 import { PlaceMarker } from '@/components/map/PlaceMarker'
 import { HotelMarker } from '@/components/map/HotelMarker'
 import { PlaceDetailCard } from './PlaceDetailCard'
+import { HotelDetailCard } from './HotelDetailCard'
 import { usePlaces } from '@/hooks/usePlaces'
 import { useAccommodations } from '@/hooks/useAccommodations'
 import { useScheduledDatesByPlace } from '@/hooks/useItinerary'
@@ -106,6 +107,18 @@ function CityMapContent({
     }
   }, [map, selectedId, selectedLat, selectedLng])
 
+  // Mirror the place-pan effect for hotel selection so day-column hotel
+  // clicks (which set selectedHotel without going through the map) also pan.
+  const selectedHotelId = selectedHotel?.id ?? null
+  const selectedHotelLat = selectedHotel?.lat ?? null
+  const selectedHotelLng = selectedHotel?.lng ?? null
+  useEffect(() => {
+    if (!map || !selectedHotelId) return
+    if (selectedHotelLat && selectedHotelLng) {
+      smoothPanTo(map, { lat: selectedHotelLat, lng: selectedHotelLng })
+    }
+  }, [map, selectedHotelId, selectedHotelLat, selectedHotelLng])
+
   const hasSelection = !!selectedPlace || !!selectedHotel
 
   function handlePlaceClick(place: PlaceRow) {
@@ -140,23 +153,6 @@ function CityMapContent({
           onClick={handleHotelClick}
         />
       ))}
-      {/* Hotel InfoWindow stays — hotels are out of scope of the places
-          unification. The place InfoWindow was retired in favor of
-          `PlaceDetailCard`, rendered outside `<Map>` at the CityMap level. */}
-      {selectedHotel?.lat && selectedHotel?.lng && (
-        <InfoWindow
-          position={{ lat: selectedHotel.lat, lng: selectedHotel.lng }}
-          onCloseClick={() => onSelectHotel(null)}
-          pixelOffset={[0, -40]}
-        >
-          <div className="min-w-[120px] py-0.5">
-            <p className="text-sm font-semibold">{selectedHotel.name}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {selectedHotel.check_in_date} → {selectedHotel.check_out_date}
-            </p>
-          </div>
-        </InfoWindow>
-      )}
     </>
   )
 }
@@ -169,11 +165,23 @@ interface CityMapProps {
   onSelectPlace: SelectPlaceHandler
   /** Opens the edit dialog at AppShell level for the currently-selected place. */
   onEditPlace: (place: PlaceRow) => void
+  /** Lifted to ItineraryView so day-column hotel clicks can drive map selection. */
+  selectedHotel: AccommodationRow | null
+  onSelectHotel: (hotel: AccommodationRow | null) => void
+  /** Opens the edit dialog at AppShell level for the currently-selected hotel. */
+  onEditHotel: (hotel: AccommodationRow) => void
 }
 
-export function CityMap({ city, selectedPlace, onSelectPlace, onEditPlace }: CityMapProps) {
+export function CityMap({
+  city,
+  selectedPlace,
+  onSelectPlace,
+  onEditPlace,
+  selectedHotel,
+  onSelectHotel,
+  onEditHotel,
+}: CityMapProps) {
   const [selectedDay, setSelectedDay] = useState<string>(ALL)
-  const [selectedHotel, setSelectedHotel] = useState<AccommodationRow | null>(null)
   const { data: scheduleMap } = useScheduledDatesByPlace()
   const prevCityRef = useRef(city)
 
@@ -189,9 +197,9 @@ export function CityMap({ city, selectedPlace, onSelectPlace, onEditPlace }: Cit
     if (prevCityRef.current === city) return
     prevCityRef.current = city
     onSelectPlace(null)
-    setSelectedHotel(null)
+    onSelectHotel(null)
     setSelectedDay(ALL)
-  }, [city, onSelectPlace])
+  }, [city, onSelectPlace, onSelectHotel])
 
   // Filter auto-reset: if a day filter is active and the user selects a place
   // that isn't scheduled on that day, the marker wouldn't render and the card
@@ -216,7 +224,7 @@ export function CityMap({ city, selectedPlace, onSelectPlace, onEditPlace }: Cit
           onChange={(e) => {
             setSelectedDay(e.target.value)
             onSelectPlace(null)
-            setSelectedHotel(null)
+            onSelectHotel(null)
           }}
           className="rounded-md border bg-background px-2 py-1 text-xs shadow-sm focus:outline-none"
         >
@@ -240,7 +248,7 @@ export function CityMap({ city, selectedPlace, onSelectPlace, onEditPlace }: Cit
         className="h-full w-full"
         onClick={() => {
           onSelectPlace(null)
-          setSelectedHotel(null)
+          onSelectHotel(null)
         }}
       >
         <CityMapContent
@@ -250,18 +258,26 @@ export function CityMap({ city, selectedPlace, onSelectPlace, onEditPlace }: Cit
           selectedHotel={selectedHotel}
           scheduleMap={scheduleMap}
           onSelectPlace={onSelectPlace}
-          onSelectHotel={setSelectedHotel}
+          onSelectHotel={onSelectHotel}
         />
       </GMap>
 
-      {/* Floating detail card for the selected place. Rendered outside the
-          `<Map>` element so it's a normal React-positioned node over the map
-          surface. Hotels still use the in-map `InfoWindow` above. */}
+      {/* Floating detail cards rendered outside the `<Map>` element so they're
+          normal React-positioned nodes layered over the map surface. Place and
+          hotel cards are mutually exclusive (enforced upstream in
+          ItineraryView), so they share the same top-right slot. */}
       {selectedPlace && (
         <PlaceDetailCard
           place={selectedPlace}
           onClose={() => onSelectPlace(null)}
           onEdit={() => onEditPlace(selectedPlace)}
+        />
+      )}
+      {selectedHotel && !selectedPlace && (
+        <HotelDetailCard
+          hotel={selectedHotel}
+          onClose={() => onSelectHotel(null)}
+          onEdit={() => onEditHotel(selectedHotel)}
         />
       )}
     </div>
