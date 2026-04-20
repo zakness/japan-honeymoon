@@ -81,19 +81,16 @@ export function TransportItem({ journey, dayDate, onSelect }: TransportItemProps
       data={{ dayDate, kind: 'transport' as const, timeSlot: parent.time_slot }}
       actions={actions}
       accentColor={accentColor}
+      onCardClick={onSelect ? () => onSelect(journey) : undefined}
     >
       {/* Row 1 — origin → destination, with time range on the right */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <button
-            type="button"
-            className="block w-full text-left text-sm font-medium leading-tight truncate hover:underline"
-            onClick={() => onSelect?.(journey)}
-          >
+          <span className="block w-full text-left text-sm font-medium leading-tight truncate">
             {display.originName && display.destinationName
               ? `${display.originName} → ${display.destinationName}`
               : display.title}
-          </button>
+          </span>
           {(display.earliestDeparture || display.latestArrival) && (
             <div className="mt-0.5 text-xs text-muted-foreground">
               {display.earliestDeparture && formatReservationTime(display.earliestDeparture)}

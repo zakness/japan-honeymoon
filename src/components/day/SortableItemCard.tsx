@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Clock, GripVertical, Trash2 } from 'lucide-react'
+import { Clock, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -29,15 +29,23 @@ interface SortableItemCardProps {
   accentColor?: string
   /**
    * Optional full-width header (typically a `CardBanner`). When provided,
-   * it renders edge-to-edge at the top of the card, above the grip/content row.
+   * it renders edge-to-edge at the top of the card, above the content row.
    */
   banner?: ReactNode
+  /**
+   * When provided, the content region becomes clickable and this fires on click.
+   * The action tray sits outside the click region, so tray buttons don't need
+   * to stopPropagation.
+   */
+  onCardClick?: () => void
 }
 
 /**
- * Shared shell for draggable itinerary/transport cards: sortable wrapper,
- * drag handle, and a top-right action tray that only reserves layout space
- * when hovered (via absolute positioning).
+ * Shared shell for draggable itinerary/transport cards: sortable wrapper
+ * (whole card is the drag source), optional content-region click handler, and
+ * a top-right action tray that only reserves layout space when hovered (via
+ * absolute positioning). The action tray sits outside the click region, so
+ * tray buttons don't need to stopPropagation.
  */
 export function SortableItemCard({
   id,
@@ -47,6 +55,7 @@ export function SortableItemCard({
   variant = 'decided',
   accentColor,
   banner,
+  onCardClick,
 }: SortableItemCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
@@ -77,25 +86,40 @@ export function SortableItemCard({
         ? 'bg-card'
         : 'bg-card shadow-sm'
 
+  const clickable = (
+    <>
+      {banner}
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0 p-2.5">{children}</div>
+      </div>
+    </>
+  )
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative rounded-lg border group overflow-hidden ${variantClasses}`}
+      {...attributes}
+      {...listeners}
+      className={`relative rounded-lg border group overflow-hidden cursor-grab active:cursor-grabbing touch-none ${variantClasses}`}
     >
-      {banner}
-      <div className="flex items-start gap-2 p-2.5">
-        <button
-          {...attributes}
-          {...listeners}
-          className="mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground touch-none flex-shrink-0"
-          aria-label="Drag to reorder"
+      {onCardClick ? (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={onCardClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              onCardClick()
+            }
+          }}
         >
-          <GripVertical className="h-4 w-4" />
-        </button>
-
-        <div className="flex-1 min-w-0">{children}</div>
-      </div>
+          {clickable}
+        </div>
+      ) : (
+        clickable
+      )}
 
       {actions && (
         <div className="absolute top-2 right-2 flex items-center gap-0.5 rounded-md bg-card/95 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -132,7 +156,9 @@ export function TimeSlotMenu({ timeSlot, children }: TimeSlotMenuProps) {
       >
         <Clock className="h-3.5 w-3.5" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">{children}</DropdownMenuContent>
+      <DropdownMenuContent align="end" className="min-w-40">
+        {children}
+      </DropdownMenuContent>
     </DropdownMenu>
   )
 }
