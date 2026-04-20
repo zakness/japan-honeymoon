@@ -8,10 +8,12 @@ import { ItineraryView } from '@/components/itinerary/ItineraryView'
 import { CityStrip } from '@/components/itinerary/CityStrip'
 import { PlaceEditDialog } from '@/components/places/PlaceDetail'
 import { HotelEditDialog } from '@/components/hotels/HotelEditDialog'
+import { TransportDialog } from '@/components/day/TransportDialog'
 import { Button } from '@/components/ui/button'
 import { type City } from '@/config/trip'
 import type { PlaceRow } from '@/types/places'
 import type { AccommodationRow } from '@/types/accommodations'
+import type { Journey } from '@/types/transport'
 
 export interface NavState {
   view: AppView
@@ -61,6 +63,8 @@ export function AppShell() {
   const [editingPlace, setEditingPlace] = useState<PlaceRow | null>(null)
   const [selectedHotel, setSelectedHotel] = useState<AccommodationRow | null>(null)
   const [editingHotel, setEditingHotel] = useState<AccommodationRow | null>(null)
+  const [selectedJourney, setSelectedJourney] = useState<Journey | null>(null)
+  const [editingJourney, setEditingJourney] = useState<Journey | null>(null)
 
   useEffect(() => {
     const handler = () => setNav(parseHash())
@@ -84,7 +88,10 @@ export function AppShell() {
     ((place: PlaceRow | null, origin?: SelectionOrigin) => {
       setSelectedPlace(place)
       setSelectionOrigin(place ? (origin ?? null) : null)
-      if (place) setSelectedHotel(null)
+      if (place) {
+        setSelectedHotel(null)
+        setSelectedJourney(null)
+      }
       if (place && origin === 'backlog') {
         setMapVisible((visible) => (visible ? visible : true))
       }
@@ -93,15 +100,26 @@ export function AppShell() {
   )
 
   /**
-   * Hotels and places are mutually exclusive on the map. Selecting a hotel
-   * clears any active place; the inverse is handled in `handleSelectPlace`.
+   * Places, hotels, and journeys are mutually exclusive on the map. Each
+   * setter clears the other two branches; this keeps the three kinds of
+   * detail card from ever rendering simultaneously.
    */
   const handleSelectHotel = useCallback((hotel: AccommodationRow | null) => {
     if (hotel) {
       setSelectedPlace(null)
       setSelectionOrigin(null)
+      setSelectedJourney(null)
     }
     setSelectedHotel(hotel)
+  }, [])
+
+  const handleSelectJourney = useCallback((journey: Journey | null) => {
+    if (journey) {
+      setSelectedPlace(null)
+      setSelectionOrigin(null)
+      setSelectedHotel(null)
+    }
+    setSelectedJourney(journey)
   }, [])
 
   /**
@@ -116,6 +134,10 @@ export function AppShell() {
 
   const handleEditHotel = useCallback((hotel: AccommodationRow) => {
     setEditingHotel(hotel)
+  }, [])
+
+  const handleEditJourney = useCallback((journey: Journey) => {
+    setEditingJourney(journey)
   }, [])
 
   /**
@@ -177,10 +199,15 @@ export function AppShell() {
               selectedHotel={selectedHotel}
               onSelectHotel={handleSelectHotel}
               onEditHotel={handleEditHotel}
+              selectedJourney={selectedJourney}
+              onSelectJourney={handleSelectJourney}
+              onEditJourney={handleEditJourney}
             />
           )}
           {nav.view === 'notes' && <NotesView />}
-          {nav.view === 'logistics' && <LogisticsView onEditHotel={handleEditHotel} />}
+          {nav.view === 'logistics' && (
+            <LogisticsView onEditHotel={handleEditHotel} onEditJourney={handleEditJourney} />
+          )}
         </ErrorBoundary>
       </main>
 
@@ -206,6 +233,15 @@ export function AppShell() {
         }}
         onSuccess={handleEditHotelSuccess}
       />
+      {editingJourney && (
+        <TransportDialog
+          journey={editingJourney}
+          open={!!editingJourney}
+          onOpenChange={(open) => {
+            if (!open) setEditingJourney(null)
+          }}
+        />
+      )}
     </div>
   )
 }
