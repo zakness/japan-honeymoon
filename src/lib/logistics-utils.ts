@@ -1,6 +1,6 @@
 import type { FlightRow } from '@/types/flights'
 import type { AccommodationRow } from '@/types/accommodations'
-import type { TransportItemRow } from '@/types/transport'
+import type { Journey } from '@/types/transport'
 
 // ---- Airport → IANA timezone map ----
 
@@ -20,7 +20,7 @@ export type LogisticsEntry =
   | { kind: 'flight'; date: string; sortTime: string | null; data: FlightRow }
   | { kind: 'hotel_checkin'; date: string; sortTime: string | null; data: AccommodationRow }
   | { kind: 'hotel_checkout'; date: string; sortTime: string | null; data: AccommodationRow }
-  | { kind: 'transport'; date: string; sortTime: string | null; data: TransportItemRow }
+  | { kind: 'transport'; date: string; sortTime: string | null; data: Journey }
 
 // ---- Internal helpers ----
 
@@ -92,7 +92,7 @@ export function getFlightEventsForDate(flights: FlightRow[], date: string): Flig
 export function buildLogisticsTimeline(
   flights: FlightRow[],
   accommodations: AccommodationRow[],
-  transportItems: TransportItemRow[]
+  journeys: Journey[]
 ): LogisticsEntry[] {
   const entries: LogisticsEntry[] = []
 
@@ -120,12 +120,15 @@ export function buildLogisticsTimeline(
     })
   }
 
-  for (const t of transportItems) {
+  for (const j of journeys) {
+    // Times are stored as HH:MM:SS; lexical sort matches chronological for same-day legs.
+    const departures = j.legs.map((l) => l.departure_time).filter(Boolean) as string[]
+    const earliest = departures.length > 0 ? departures.reduce((a, b) => (a < b ? a : b)) : null
     entries.push({
       kind: 'transport',
-      date: t.day_date,
-      sortTime: normalizeTimeColumn(t.departure_time),
-      data: t,
+      date: j.parent.day_date,
+      sortTime: normalizeTimeColumn(earliest),
+      data: j,
     })
   }
 

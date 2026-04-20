@@ -9,11 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { PlaceCard } from '@/components/places/PlaceCard'
 import { useCreateItineraryItem, useUnscheduledPlaces } from '@/hooks/useItinerary'
-import { useCreateTransportItem } from '@/hooks/useTransport'
+import { useCreateJourney, type LegDraft } from '@/hooks/useTransport'
 import { TIME_SLOTS, type TimeSlot, deriveTimeSlot } from '@/types/itinerary'
-import { TRANSPORT_TYPES, type TransportType } from '@/types/transport'
-import { CITY_LABELS, getCityColor, getDayByDate } from '@/config/trip'
+import { getCityColor, getDayByDate } from '@/config/trip'
 import type { PlaceRow } from '@/types/places'
+import { TransportLegEditor, legsAreValid } from './TransportLegEditor'
 
 interface AddItemDialogProps {
   dayDate: string
@@ -38,16 +38,8 @@ export function AddItemDialog({
   const [reservationTime, setReservationTime] = useState('')
   const [reservationNotes, setReservationNotes] = useState('')
   const [isDecided, setIsDecided] = useState(false)
-
-  // Transport state
-  const [transportType, setTransportType] = useState<TransportType>('shinkansen')
-  const [transportOrigin, setTransportOrigin] = useState(() => Object.values(CITY_LABELS)[0])
-  const [transportDestination, setTransportDestination] = useState(
-    () => Object.values(CITY_LABELS)[0]
-  )
-  const [transportDepartureTime, setTransportDepartureTime] = useState('')
-  const [transportArrivalTime, setTransportArrivalTime] = useState('')
-  const [transportConfirmation, setTransportConfirmation] = useState('')
+  const [transportLegs, setTransportLegs] = useState<LegDraft[]>([])
+  const [transportTitle, setTransportTitle] = useState('')
   const [transportNotes, setTransportNotes] = useState('')
 
   // Reset all form state and sync the time-slot dropdown to `initialSlot`
@@ -63,27 +55,45 @@ export function AddItemDialog({
     setReservationTime('')
     setReservationNotes('')
     setIsDecided(false)
-    setTransportType('shinkansen')
-    setTransportOrigin(Object.values(CITY_LABELS)[0])
-    setTransportDestination(Object.values(CITY_LABELS)[0])
-    setTransportDepartureTime('')
-    setTransportArrivalTime('')
-    setTransportConfirmation('')
+    setTransportLegs([
+      {
+        mode: 'shinkansen',
+        origin_name: '',
+        origin_place_id: null,
+        origin_lat: null,
+        origin_lng: null,
+        destination_name: '',
+        destination_place_id: null,
+        destination_lat: null,
+        destination_lng: null,
+        departure_time: '',
+        arrival_time: null,
+        is_booked: false,
+        confirmation: null,
+        notes: null,
+      },
+    ])
+    setTransportTitle('')
     setTransportNotes('')
   }, [open, initialSlot])
 
   const { data: unscheduled = [] } = useUnscheduledPlaces()
   const createItem = useCreateItineraryItem()
-  const createTransport = useCreateTransportItem()
+  const createJourney = useCreateJourney()
 
-  const effectiveTimeSlot =
-    tab === 'transport' && transportDepartureTime
-      ? deriveTimeSlot(transportDepartureTime)
-      : reservationTime
-        ? deriveTimeSlot(reservationTime)
-        : timeSlot
+  // Earliest leg departure drives the transport tab's time slot.
+  const earliestLegDeparture = transportLegs
+    .map((l) => l.departure_time)
+    .filter(Boolean)
+    .sort()[0]
 
-  const timeSlotLocked = (tab === 'transport' && !!transportDepartureTime) || !!reservationTime
+  const effectiveTimeSlot = (() => {
+    if (tab === 'transport' && earliestLegDeparture) return deriveTimeSlot(earliestLegDeparture)
+    if (reservationTime) return deriveTimeSlot(reservationTime)
+    return timeSlot
+  })()
+
+  const timeSlotLocked = !!reservationTime || (tab === 'transport' && !!earliestLegDeparture)
 
   async function handleAddPlace() {
     if (!selectedPlace) return
@@ -107,6 +117,29 @@ export function AddItemDialog({
     }
   }
 
+  async function handleAddTransport() {
+    if (!legsAreValid(transportLegs)) {
+      toast.error('Each leg needs origin, destination, and departure time')
+      return
+    }
+    try {
+      await createJourney.mutateAsync({
+        parent: {
+          day_date: dayDate,
+          time_slot: effectiveTimeSlot,
+          sort_order: currentItemCount,
+          title: transportTitle.trim() || null,
+          notes: transportNotes.trim() || null,
+        },
+        legs: transportLegs,
+      })
+      toast.success('Transport added')
+      onOpenChange(false)
+    } catch {
+      toast.error('Failed to add transport')
+    }
+  }
+
   async function handleAddNote() {
     if (!noteText.trim()) return
     try {
@@ -121,29 +154,6 @@ export function AddItemDialog({
       onOpenChange(false)
     } catch {
       toast.error('Failed to add note')
-    }
-  }
-
-  async function handleAddTransport() {
-    if (!transportOrigin.trim() || !transportDestination.trim() || !transportDepartureTime) return
-    try {
-      await createTransport.mutateAsync({
-        day_date: dayDate,
-        type: transportType,
-        origin: transportOrigin.trim(),
-        destination: transportDestination.trim(),
-        departure_time: transportDepartureTime,
-        arrival_time: transportArrivalTime || null,
-        confirmation: transportConfirmation.trim() || null,
-        notes: transportNotes.trim() || null,
-        time_slot: deriveTimeSlot(transportDepartureTime),
-        sort_order: currentItemCount,
-      })
-      const label = TRANSPORT_TYPES.find((t) => t.value === transportType)?.label ?? 'Transport'
-      toast.success(`${label} added`)
-      onOpenChange(false)
-    } catch {
-      toast.error('Failed to add transport')
     }
   }
 
@@ -167,7 +177,7 @@ export function AddItemDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader
           className="-mx-4 -mt-4 gap-0.5 rounded-t-xl border-b px-4 py-3"
           style={headerBg ? { background: headerBg } : undefined}
@@ -332,106 +342,36 @@ export function AddItemDialog({
 
             <TabsContent value="transport" className="space-y-3 mt-3">
               <div className="space-y-1.5">
-                <Label htmlFor="add-transport-type">Type</Label>
-                <select
-                  id="add-transport-type"
-                  value={transportType}
-                  onChange={(e) => setTransportType(e.target.value as TransportType)}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                >
-                  {TRANSPORT_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="add-transport-origin">From</Label>
-                  <select
-                    id="add-transport-origin"
-                    value={transportOrigin}
-                    onChange={(e) => setTransportOrigin(e.target.value)}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  >
-                    {Object.entries(CITY_LABELS).map(([, label]) => (
-                      <option key={label} value={label}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="add-transport-destination">To</Label>
-                  <select
-                    id="add-transport-destination"
-                    value={transportDestination}
-                    onChange={(e) => setTransportDestination(e.target.value)}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  >
-                    {Object.entries(CITY_LABELS).map(([, label]) => (
-                      <option key={label} value={label}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="add-transport-departure">Departs</Label>
-                  <input
-                    id="add-transport-departure"
-                    type="time"
-                    value={transportDepartureTime}
-                    onChange={(e) => setTransportDepartureTime(e.target.value)}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="add-transport-arrival">Arrives (optional)</Label>
-                  <input
-                    id="add-transport-arrival"
-                    type="time"
-                    value={transportArrivalTime}
-                    onChange={(e) => setTransportArrivalTime(e.target.value)}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="add-transport-confirmation">Confirmation # (optional)</Label>
+                <Label htmlFor="transport-title">Title (optional)</Label>
                 <input
-                  id="add-transport-confirmation"
+                  id="transport-title"
                   type="text"
-                  value={transportConfirmation}
-                  onChange={(e) => setTransportConfirmation(e.target.value)}
-                  placeholder="e.g. ABC-12345"
+                  value={transportTitle}
+                  onChange={(e) => setTransportTitle(e.target.value)}
+                  placeholder="e.g. Kyoto → Naoshima"
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 />
               </div>
 
+              <TransportLegEditor legs={transportLegs} onChange={setTransportLegs} />
+
               <div className="space-y-1.5">
-                <Label htmlFor="add-transport-notes">Notes (optional)</Label>
+                <Label htmlFor="transport-journey-notes">Journey notes (optional)</Label>
                 <Textarea
-                  id="add-transport-notes"
+                  id="transport-journey-notes"
                   value={transportNotes}
                   onChange={(e) => setTransportNotes(e.target.value)}
-                  placeholder="e.g. Reserved seats car 7, row 14"
                   rows={2}
+                  placeholder="e.g. Seat reservations done on JR site…"
                 />
               </div>
 
               <Button
                 className="w-full"
-                disabled={!transportDepartureTime || createTransport.isPending}
+                disabled={!legsAreValid(transportLegs) || createJourney.isPending}
                 onClick={handleAddTransport}
               >
-                {createTransport.isPending ? 'Adding…' : 'Add transport'}
+                {createJourney.isPending ? 'Adding…' : 'Add transport'}
               </Button>
             </TabsContent>
           </Tabs>

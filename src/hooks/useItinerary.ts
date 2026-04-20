@@ -9,7 +9,7 @@ import {
   type ItineraryItemUpdate,
   type ItineraryItemWithPlace,
 } from '@/types/itinerary'
-import type { SlotItemKind, TransportItemRow } from '@/types/transport'
+import type { Journey, SlotItemKind } from '@/types/transport'
 import { TRANSPORT_KEY } from './useTransport'
 
 export const ITINERARY_KEY = ['itinerary'] as const
@@ -276,20 +276,24 @@ export function useReorderDayItemsDynamic() {
             .sort((a, b) => a.sort_order - b.sort_order)
         }
       )
-      queryClient.setQueryData(
-        [...TRANSPORT_KEY, dayDate],
-        (old: TransportItemRow[] | undefined) => {
-          if (!old) return old
-          return old
-            .map((item) => {
-              const update = items.find((u) => u.kind === 'transport' && u.id === item.id)
-              return update
-                ? { ...item, sort_order: update.sort_order, time_slot: update.time_slot }
-                : item
-            })
-            .sort((a, b) => a.sort_order - b.sort_order)
-        }
-      )
+      queryClient.setQueryData([...TRANSPORT_KEY, dayDate], (old: Journey[] | undefined) => {
+        if (!old) return old
+        return old
+          .map((j) => {
+            const update = items.find((u) => u.kind === 'transport' && u.id === j.parent.id)
+            return update
+              ? {
+                  ...j,
+                  parent: {
+                    ...j.parent,
+                    sort_order: update.sort_order,
+                    time_slot: update.time_slot,
+                  },
+                }
+              : j
+          })
+          .sort((a, b) => a.parent.sort_order - b.parent.sort_order)
+      })
       return { previousItinerary, previousTransport }
     },
     onError: (_err, { dayDate }, context) => {
@@ -345,20 +349,24 @@ export function useReorderDayItems(dayDate: string) {
         }
       )
 
-      queryClient.setQueryData(
-        [...TRANSPORT_KEY, dayDate],
-        (old: TransportItemRow[] | undefined) => {
-          if (!old) return old
-          return old
-            .map((item) => {
-              const update = items.find((u) => u.kind === 'transport' && u.id === item.id)
-              return update
-                ? { ...item, sort_order: update.sort_order, time_slot: update.time_slot }
-                : item
-            })
-            .sort((a, b) => a.sort_order - b.sort_order)
-        }
-      )
+      queryClient.setQueryData([...TRANSPORT_KEY, dayDate], (old: Journey[] | undefined) => {
+        if (!old) return old
+        return old
+          .map((j) => {
+            const update = items.find((u) => u.kind === 'transport' && u.id === j.parent.id)
+            return update
+              ? {
+                  ...j,
+                  parent: {
+                    ...j.parent,
+                    sort_order: update.sort_order,
+                    time_slot: update.time_slot,
+                  },
+                }
+              : j
+          })
+          .sort((a, b) => a.parent.sort_order - b.parent.sort_order)
+      })
 
       return { previousItinerary, previousTransport }
     },

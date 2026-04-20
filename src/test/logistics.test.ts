@@ -8,7 +8,7 @@ import {
 } from '@/lib/logistics-utils'
 import type { FlightRow } from '@/types/flights'
 import type { AccommodationRow } from '@/types/accommodations'
-import type { TransportItemRow } from '@/types/transport'
+import type { Journey, TransportItemRow, TransportLegRow } from '@/types/transport'
 
 // ---- Factory helpers ----
 
@@ -57,22 +57,52 @@ function makeAccommodation(overrides?: Partial<AccommodationRow>): Accommodation
   }
 }
 
-function makeTransport(overrides?: Partial<TransportItemRow>): TransportItemRow {
+function makeTransportParent(overrides?: Partial<TransportItemRow>): TransportItemRow {
   return {
     id: 't1',
     day_date: '2026-05-22',
-    type: 'shinkansen',
-    origin: 'Tokyo',
-    destination: 'Hakone',
-    departure_time: '09:00:00',
-    arrival_time: '11:00:00',
-    confirmation: null,
-    notes: null,
     time_slot: 'morning',
     sort_order: 0,
+    title: null,
+    notes: null,
     created_at: '',
     updated_at: '',
     ...overrides,
+  }
+}
+
+function makeLeg(overrides: Partial<TransportLegRow> & { id: string }): TransportLegRow {
+  return {
+    created_at: '',
+    updated_at: '',
+    transport_id: 't1',
+    leg_index: 0,
+    mode: 'shinkansen',
+    origin_name: 'Tokyo',
+    origin_place_id: null,
+    origin_lat: null,
+    origin_lng: null,
+    destination_name: 'Hakone',
+    destination_place_id: null,
+    destination_lat: null,
+    destination_lng: null,
+    departure_time: '09:00:00',
+    arrival_time: '11:00:00',
+    is_booked: false,
+    confirmation: null,
+    notes: null,
+    ...overrides,
+  }
+}
+
+function makeJourney(
+  parentOverrides?: Partial<TransportItemRow>,
+  legOverrides?: Partial<TransportLegRow>
+): Journey {
+  const parent = makeTransportParent(parentOverrides)
+  return {
+    parent,
+    legs: [makeLeg({ id: `${parent.id}-l0`, transport_id: parent.id, ...legOverrides })],
   }
 }
 
@@ -168,7 +198,7 @@ describe('buildLogisticsTimeline', () => {
   })
 
   it('produces one transport entry with correct date and sortTime', () => {
-    const result = buildLogisticsTimeline([], [], [makeTransport()])
+    const result = buildLogisticsTimeline([], [], [makeJourney()])
     expect(result).toHaveLength(1)
     expect(result[0].kind).toBe('transport')
     expect(result[0].date).toBe('2026-05-22')
@@ -177,14 +207,14 @@ describe('buildLogisticsTimeline', () => {
 
   it('sorts entries by date ascending', () => {
     const flight = makeFlight({ departure_at: '2026-05-15T17:35:00Z', dep_airport: 'JFK' })
-    const transport = makeTransport({ day_date: '2026-05-22' })
+    const transport = makeJourney({ day_date: '2026-05-22' })
     const result = buildLogisticsTimeline([flight], [], [transport])
     expect(result[0].date).toBe('2026-05-15')
     expect(result[1].date).toBe('2026-05-22')
   })
 
   it('sorts entries within a date by time, null times last', () => {
-    const transport = makeTransport({ day_date: '2026-05-22', departure_time: '09:00:00' })
+    const transport = makeJourney({ day_date: '2026-05-22' }, { departure_time: '09:00:00' })
     const hotelNoTime = makeAccommodation({
       check_in_date: '2026-05-22',
       check_out_date: '2026-05-30',
@@ -194,6 +224,21 @@ describe('buildLogisticsTimeline', () => {
     const may22 = result.filter((e) => e.date === '2026-05-22')
     expect(may22[0].kind).toBe('transport') // 09:00 sorts first
     expect(may22[1].kind).toBe('hotel_checkin') // null sorts last
+  })
+
+  it('uses earliest leg departure as sortTime for multi-leg journeys', () => {
+    const parent = makeTransportParent({ day_date: '2026-05-27' })
+    const journey: Journey = {
+      parent,
+      legs: [
+        makeLeg({ id: 'l0', leg_index: 0, transport_id: parent.id, departure_time: '12:20:00' }),
+        makeLeg({ id: 'l1', leg_index: 1, transport_id: parent.id, departure_time: '09:12:00' }),
+        makeLeg({ id: 'l2', leg_index: 2, transport_id: parent.id, departure_time: '10:45:00' }),
+      ],
+    }
+    const result = buildLogisticsTimeline([], [], [journey])
+    expect(result[0].kind).toBe('transport')
+    expect(result[0].sortTime).toBe('09:12')
   })
 
   it('multiple accommodations each produce two entries', () => {
@@ -214,7 +259,7 @@ describe('groupEntriesByDate', () => {
   })
 
   it('groups a single entry into one group', () => {
-    const entries = buildLogisticsTimeline([], [], [makeTransport()])
+    const entries = buildLogisticsTimeline([], [], [makeJourney()])
     const groups = groupEntriesByDate(entries)
     expect(groups).toHaveLength(1)
     expect(groups[0].date).toBe('2026-05-22')
@@ -222,8 +267,8 @@ describe('groupEntriesByDate', () => {
   })
 
   it('produces one group per distinct date', () => {
-    const t1 = makeTransport({ id: 't1', day_date: '2026-05-22' })
-    const t2 = makeTransport({ id: 't2', day_date: '2026-05-24' })
+    const t1 = makeJourney({ id: 't1', day_date: '2026-05-22' })
+    const t2 = makeJourney({ id: 't2', day_date: '2026-05-24' })
     const entries = buildLogisticsTimeline([], [], [t1, t2])
     const groups = groupEntriesByDate(entries)
     expect(groups).toHaveLength(2)
@@ -232,11 +277,14 @@ describe('groupEntriesByDate', () => {
   })
 
   it('entries within each group maintain sorted order', () => {
-    const t1 = makeTransport({ id: 't1', day_date: '2026-05-22', departure_time: '14:00:00' })
-    const t2 = makeTransport({ id: 't2', day_date: '2026-05-22', departure_time: '09:00:00' })
+    const t1 = makeJourney({ id: 't1', day_date: '2026-05-22' }, { departure_time: '14:00:00' })
+    const t2 = makeJourney({ id: 't2', day_date: '2026-05-22' }, { departure_time: '09:00:00' })
     const entries = buildLogisticsTimeline([], [], [t1, t2])
     const groups = groupEntriesByDate(entries)
-    expect(groups[0].entries[0].data.id).toBe('t2') // 09:00 first
-    expect(groups[0].entries[1].data.id).toBe('t1') // 14:00 second
+    const g0 = groups[0].entries
+    const id0 = g0[0].kind === 'transport' ? g0[0].data.parent.id : g0[0].data.id
+    const id1 = g0[1].kind === 'transport' ? g0[1].data.parent.id : g0[1].data.id
+    expect(id0).toBe('t2') // 09:00 first
+    expect(id1).toBe('t1') // 14:00 second
   })
 })

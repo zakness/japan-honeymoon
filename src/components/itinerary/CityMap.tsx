@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { Map as GMap, useMap } from '@vis.gl/react-google-maps'
 import { PlaceMarker } from '@/components/map/PlaceMarker'
 import { HotelMarker } from '@/components/map/HotelMarker'
+import { TransportEndpointMarker } from '@/components/map/TransportEndpointMarker'
 import { PlaceDetailCard } from './PlaceDetailCard'
 import { HotelDetailCard } from './HotelDetailCard'
+import { TransportDetailCard } from './TransportDetailCard'
 import { usePlaces } from '@/hooks/usePlaces'
 import { useAccommodations } from '@/hooks/useAccommodations'
 import { useScheduledDatesByPlace } from '@/hooks/useItinerary'
@@ -15,29 +17,63 @@ import {
   type City,
 } from '@/config/trip'
 import { GOOGLE_MAP_ID } from '@/lib/google-maps'
+import { getModeStyle } from '@/config/transport'
 import type { SelectPlaceHandler } from '@/components/layout/AppShell'
 import type { PlaceRow } from '@/types/places'
 import type { AccommodationRow } from '@/types/accommodations'
+import type { Journey } from '@/types/transport'
 
 const ALL = 'all'
 const PAN_DURATION_MS = 500
+/**
+ * Vertical offset (in pixels) applied when panning to a selected target so the
+ * target sits in the lower-center of the viewport rather than dead center —
+ * the top-right floating detail card would otherwise obscure the selection.
+ */
+const PAN_BOTTOM_BIAS_PX = 120
+
+/**
+ * Shift a lat/lng by a pixel offset at the map's current zoom. Used to offset
+ * the pan target so the selection appears lower on screen (leaving the
+ * top-right detail card unobstructed).
+ */
+function offsetLatLngByPixels(
+  map: google.maps.Map,
+  target: google.maps.LatLngLiteral,
+  dxPx: number,
+  dyPx: number
+): google.maps.LatLngLiteral {
+  const projection = map.getProjection()
+  const zoom = map.getZoom()
+  if (!projection || zoom == null) return target
+  const scale = Math.pow(2, zoom)
+  const point = projection.fromLatLngToPoint(target)
+  if (!point) return target
+  const shifted = new google.maps.Point(point.x + dxPx / scale, point.y + dyPx / scale)
+  const latLng = projection.fromPointToLatLng(shifted)
+  return latLng ? { lat: latLng.lat(), lng: latLng.lng() } : target
+}
 
 /**
  * Smooth-pan the map to `target` over a fixed duration (≤ 500ms). Google's
  * built-in `panTo` scales animation length with distance, which feels sluggish
  * for long-distance moves. This helper interpolates via `requestAnimationFrame`
  * so the move always completes within `PAN_DURATION_MS`.
+ *
+ * Target is biased to the lower-center of the viewport (camera centers above
+ * the target) so the top-right detail card doesn't cover it.
  */
 function smoothPanTo(map: google.maps.Map, target: google.maps.LatLngLiteral) {
+  const biased = offsetLatLngByPixels(map, target, 0, -PAN_BOTTOM_BIAS_PX)
   const start = map.getCenter()
   if (!start) {
-    map.moveCamera({ center: target })
+    map.moveCamera({ center: biased })
     return
   }
   const startLat = start.lat()
   const startLng = start.lng()
-  const dLat = target.lat - startLat
-  const dLng = target.lng - startLng
+  const dLat = biased.lat - startLat
+  const dLng = biased.lng - startLng
 
   // Skip animation for trivially small moves
   if (Math.abs(dLat) < 1e-6 && Math.abs(dLng) < 1e-6) return
@@ -61,6 +97,7 @@ interface CityMapContentProps {
   dayDate: string | null
   selectedPlace: PlaceRow | null
   selectedHotel: AccommodationRow | null
+  selectedJourney: Journey | null
   scheduleMap: globalThis.Map<string, string[]> | undefined
   onSelectPlace: SelectPlaceHandler
   onSelectHotel: (hotel: AccommodationRow | null) => void
@@ -71,6 +108,7 @@ function CityMapContent({
   dayDate,
   selectedPlace,
   selectedHotel,
+  selectedJourney,
   scheduleMap,
   onSelectPlace,
   onSelectHotel,
@@ -119,7 +157,93 @@ function CityMapContent({
     }
   }, [map, selectedHotelId, selectedHotelLat, selectedHotelLng])
 
-  const hasSelection = !!selectedPlace || !!selectedHotel
+  const hasSelection = !!selectedPlace || !!selectedHotel || !!selectedJourney
+
+  // Fit bounds over all leg endpoints when a journey is selected.
+  const journeyId = selectedJourney?.parent.id ?? null
+  useEffect(() => {
+    if (!map || !selectedJourney) return
+    const bounds = new google.maps.LatLngBounds()
+    let added = 0
+    for (const leg of selectedJourney.legs) {
+      if (leg.origin_lat != null && leg.origin_lng != null) {
+        bounds.extend({ lat: leg.origin_lat, lng: leg.origin_lng })
+        added++
+      }
+      if (leg.destination_lat != null && leg.destination_lng != null) {
+        bounds.extend({ lat: leg.destination_lat, lng: leg.destination_lng })
+        added++
+      }
+    }
+    if (added === 0) return
+    if (added === 1) {
+      smoothPanTo(map, bounds.getCenter().toJSON())
+      return
+    }
+    // Tight symmetric padding so fitBounds zooms to the actual content
+    // aspect rather than wasting space on whichever axis the viewport has
+    // slack. Then shift the camera up by PAN_BOTTOM_BIAS_PX so the route
+    // sits in the lower portion of the viewport (clear of the top-right
+    // detail card).
+    map.fitBounds(bounds, 40)
+    // `fitBounds` finishes async; wait for idle before biasing the center
+    // so panBy applies on top of the fitted zoom.
+    const listener = map.addListener('idle', () => {
+      google.maps.event.removeListener(listener)
+      map.panBy(0, -PAN_BOTTOM_BIAS_PX)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, journeyId])
+
+  // Render per-leg polylines via the Maps API directly (vis.gl has no
+  // <Polyline> primitive). Cleanup on unmount / journey change via setMap(null).
+  useEffect(() => {
+    if (!map || !selectedJourney) return
+    const polylines: google.maps.Polyline[] = []
+    for (const leg of selectedJourney.legs) {
+      if (
+        leg.origin_lat == null ||
+        leg.origin_lng == null ||
+        leg.destination_lat == null ||
+        leg.destination_lng == null
+      ) {
+        continue
+      }
+      const { color, stroke } = getModeStyle(leg.mode)
+      const isDashed = stroke === 'dashed'
+      const isDotted = stroke === 'dotted'
+      const polyline = new google.maps.Polyline({
+        path: [
+          { lat: leg.origin_lat, lng: leg.origin_lng },
+          { lat: leg.destination_lat, lng: leg.destination_lng },
+        ],
+        geodesic: true,
+        strokeColor: color,
+        strokeOpacity: isDashed || isDotted ? 0 : 0.9,
+        strokeWeight: 4,
+        icons:
+          isDashed || isDotted
+            ? [
+                {
+                  icon: {
+                    path: 'M 0,-1 0,1',
+                    strokeOpacity: 1,
+                    strokeWeight: 4,
+                    scale: isDotted ? 2 : 3,
+                  },
+                  offset: '0',
+                  repeat: isDotted ? '10px' : '18px',
+                },
+              ]
+            : undefined,
+        map,
+      })
+      polylines.push(polyline)
+    }
+    return () => {
+      for (const p of polylines) p.setMap(null)
+    }
+  }, [map, selectedJourney])
 
   function handlePlaceClick(place: PlaceRow) {
     onSelectPlace(place, 'marker')
@@ -153,6 +277,32 @@ function CityMapContent({
           onClick={handleHotelClick}
         />
       ))}
+      {selectedJourney?.legs.map((leg) => (
+        <JourneyEndpoints key={leg.id} leg={leg} />
+      ))}
+    </>
+  )
+}
+
+function JourneyEndpoints({ leg }: { leg: Journey['legs'][number] }) {
+  return (
+    <>
+      {leg.origin_lat != null && leg.origin_lng != null && (
+        <TransportEndpointMarker
+          lat={leg.origin_lat}
+          lng={leg.origin_lng}
+          mode={leg.mode}
+          label={leg.origin_name}
+        />
+      )}
+      {leg.destination_lat != null && leg.destination_lng != null && (
+        <TransportEndpointMarker
+          lat={leg.destination_lat}
+          lng={leg.destination_lng}
+          mode={leg.mode}
+          label={leg.destination_name}
+        />
+      )}
     </>
   )
 }
@@ -170,6 +320,11 @@ interface CityMapProps {
   onSelectHotel: (hotel: AccommodationRow | null) => void
   /** Opens the edit dialog at AppShell level for the currently-selected hotel. */
   onEditHotel: (hotel: AccommodationRow) => void
+  /** Currently-selected journey — drives polylines, endpoint markers, fitBounds. */
+  selectedJourney: Journey | null
+  onSelectJourney: (journey: Journey | null) => void
+  /** Opens the edit dialog at AppShell level for the currently-selected journey. */
+  onEditJourney: (journey: Journey) => void
 }
 
 export function CityMap({
@@ -180,6 +335,9 @@ export function CityMap({
   selectedHotel,
   onSelectHotel,
   onEditHotel,
+  selectedJourney,
+  onSelectJourney,
+  onEditJourney,
 }: CityMapProps) {
   const [selectedDay, setSelectedDay] = useState<string>(ALL)
   const { data: scheduleMap } = useScheduledDatesByPlace()
@@ -198,8 +356,9 @@ export function CityMap({
     prevCityRef.current = city
     onSelectPlace(null)
     onSelectHotel(null)
+    onSelectJourney(null)
     setSelectedDay(ALL)
-  }, [city, onSelectPlace, onSelectHotel])
+  }, [city, onSelectPlace, onSelectHotel, onSelectJourney])
 
   // Filter auto-reset: if a day filter is active and the user selects a place
   // that isn't scheduled on that day, the marker wouldn't render and the card
@@ -225,6 +384,7 @@ export function CityMap({
             setSelectedDay(e.target.value)
             onSelectPlace(null)
             onSelectHotel(null)
+            onSelectJourney(null)
           }}
           className="rounded-md border bg-background px-2 py-1 text-xs shadow-sm focus:outline-none"
         >
@@ -249,6 +409,7 @@ export function CityMap({
         onClick={() => {
           onSelectPlace(null)
           onSelectHotel(null)
+          onSelectJourney(null)
         }}
       >
         <CityMapContent
@@ -256,6 +417,7 @@ export function CityMap({
           dayDate={selectedDay !== ALL ? selectedDay : null}
           selectedPlace={selectedPlace}
           selectedHotel={selectedHotel}
+          selectedJourney={selectedJourney}
           scheduleMap={scheduleMap}
           onSelectPlace={onSelectPlace}
           onSelectHotel={onSelectHotel}
@@ -278,6 +440,13 @@ export function CityMap({
           hotel={selectedHotel}
           onClose={() => onSelectHotel(null)}
           onEdit={() => onEditHotel(selectedHotel)}
+        />
+      )}
+      {selectedJourney && !selectedPlace && !selectedHotel && (
+        <TransportDetailCard
+          journey={selectedJourney}
+          onClose={() => onSelectJourney(null)}
+          onEdit={() => onEditJourney(selectedJourney)}
         />
       )}
     </div>

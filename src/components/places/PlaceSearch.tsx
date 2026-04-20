@@ -17,12 +17,20 @@ interface PlaceSearchProps {
   onPlaceSelected: (data: GooglePlaceData, existingId?: string) => void
   placeholder?: string
   className?: string
+  /**
+   * 'save' (default) — check Supabase for an existing cached place by google_place_id
+   * and forward its id so the caller can link instead of duplicating.
+   * 'lookup' — skip the DB round-trip; caller only needs the Google data (e.g. for
+   * denormalized endpoints on transport legs).
+   */
+  mode?: 'save' | 'lookup'
 }
 
 export function PlaceSearch({
   onPlaceSelected,
   placeholder = 'Search for a place…',
   className,
+  mode = 'save',
 }: PlaceSearchProps) {
   const placesLib = useMapsLibrary('places')
   const { fetchDetails, loading: detailsLoading } = useGooglePlaceDetails()
@@ -37,8 +45,9 @@ export function PlaceSearch({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Check if selected place is already cached in Supabase
-  const { data: existingPlace } = usePlaceByGoogleId(selectedPlaceId)
+  // Check if selected place is already cached in Supabase.
+  // Skipped in 'lookup' mode — callers (e.g. transport legs) just want the Google data.
+  const { data: existingPlace } = usePlaceByGoogleId(mode === 'save' ? selectedPlaceId : null)
 
   // Refresh session token when the library loads
   useEffect(() => {
@@ -118,7 +127,7 @@ export function PlaceSearch({
 
     const details = await fetchDetails(suggestion.placeId)
     if (details) {
-      onPlaceSelected(details, existingPlace?.id)
+      onPlaceSelected(details, mode === 'save' ? existingPlace?.id : undefined)
     }
   }
 

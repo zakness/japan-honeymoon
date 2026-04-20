@@ -3,7 +3,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { TimeSlotGroup } from '@/components/day/TimeSlotGroup'
 import { AddItemDialog } from '@/components/day/AddItemDialog'
 import { useItineraryItems } from '@/hooks/useItinerary'
-import { useTransportItems } from '@/hooks/useTransport'
+import { useJourneysForDay } from '@/hooks/useTransport'
 import { useFlights } from '@/hooks/useFlights'
 import { HotelAnchor } from '@/components/day/HotelAnchor'
 import { useAccommodations, useAccommodationsForDate } from '@/hooks/useAccommodations'
@@ -13,6 +13,7 @@ import { getFlightEventsForDate } from '@/lib/logistics-utils'
 import { TIME_SLOTS, deriveTimeSlot, type TimeSlot } from '@/types/itinerary'
 import type { PlaceRow } from '@/types/places'
 import type { AccommodationRow } from '@/types/accommodations'
+import type { Journey } from '@/types/transport'
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -26,14 +27,21 @@ interface DayColumnProps {
   onSelectPlace?: (place: PlaceRow) => void
   /** Fires when the user clicks a hotel anchor — selects the hotel on the map. */
   onSelectHotel?: (hotel: AccommodationRow) => void
+  /** Fires when the user clicks a transport card's title — selects the journey on the map. */
+  onSelectJourney?: (journey: Journey) => void
 }
 
-export function DayColumn({ dayDate, onSelectPlace, onSelectHotel }: DayColumnProps) {
+export function DayColumn({
+  dayDate,
+  onSelectPlace,
+  onSelectHotel,
+  onSelectJourney,
+}: DayColumnProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogInitialSlot, setDialogInitialSlot] = useState<TimeSlot>('morning')
 
   const { data: itineraryItems = [], isLoading: itineraryLoading } = useItineraryItems(dayDate)
-  const { data: transportItems = [], isLoading: transportLoading } = useTransportItems(dayDate)
+  const { data: transportItems = [], isLoading: transportLoading } = useJourneysForDay(dayDate)
   const { data: flights = [], isLoading: flightsLoading } = useFlights()
   const { morningHotel, eveningHotel } = useAccommodationsForDate(dayDate)
   const { data: allHotels = [] } = useAccommodations()
@@ -103,6 +111,7 @@ export function DayColumn({ dayDate, onSelectPlace, onSelectHotel }: DayColumnPr
                 dayDate={dayDate}
                 flightEvents={flightEventsBySlot[value]}
                 onSelectPlace={onSelectPlace}
+                onSelectJourney={onSelectJourney}
                 onAddClick={(clickedSlot) => {
                   setDialogInitialSlot(clickedSlot)
                   setDialogOpen(true)

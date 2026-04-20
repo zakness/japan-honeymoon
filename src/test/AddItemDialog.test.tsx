@@ -10,10 +10,6 @@ vi.mock('@/hooks/useItinerary', () => ({
   useCreateItineraryItem: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 
-vi.mock('@/hooks/useTransport', () => ({
-  useCreateTransportItem: () => ({ mutateAsync: vi.fn(), isPending: false }),
-}))
-
 function wrapper({ children }: { children: React.ReactNode }) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>

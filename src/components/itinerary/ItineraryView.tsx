@@ -9,10 +9,12 @@ import { getDaysForCity, type City, type TripDay } from '@/config/trip'
 import { useCrossItineraryDnD } from '@/hooks/useCrossItineraryDnD'
 import type { PlaceRow } from '@/types/places'
 import type { AccommodationRow } from '@/types/accommodations'
+import type { Journey } from '@/types/transport'
 import { CityStrip } from './CityStrip'
 import { CityMap } from './CityMap'
 import { PlaceDetailCard } from './PlaceDetailCard'
 import { HotelDetailCard } from './HotelDetailCard'
+import { TransportDetailCard } from './TransportDetailCard'
 import { DayColumn } from './DayColumn'
 import { UnscheduledColumn } from './UnscheduledColumn'
 
@@ -35,6 +37,12 @@ interface ItineraryViewProps {
   onSelectHotel: (hotel: AccommodationRow | null) => void
   /** Opens the edit dialog at AppShell level for a given hotel. */
   onEditHotel: (hotel: AccommodationRow) => void
+  /** Lifted journey selection — owned by AppShell. */
+  selectedJourney: Journey | null
+  /** Journey selection handler — enforces three-way mutual exclusion. */
+  onSelectJourney: (journey: Journey | null) => void
+  /** Opens the transport edit dialog at AppShell level. */
+  onEditJourney: (journey: Journey) => void
 }
 
 /**
@@ -74,6 +82,9 @@ export function ItineraryView({
   selectedHotel,
   onSelectHotel,
   onEditHotel,
+  selectedJourney,
+  onSelectJourney,
+  onEditJourney,
 }: ItineraryViewProps) {
   const [splitPercent, setSplitPercent] = useState(GOLDEN_RATIO_SPLIT)
   const [isResizing, setIsResizing] = useState(false)
@@ -126,6 +137,7 @@ export function ItineraryView({
             dayDate={day.date}
             onSelectPlace={handleSelectFromDayColumn}
             onSelectHotel={onSelectHotel}
+            onSelectJourney={onSelectJourney}
           />
         ))}
       </div>
@@ -181,6 +193,9 @@ export function ItineraryView({
                     selectedHotel={selectedHotel}
                     onSelectHotel={onSelectHotel}
                     onEditHotel={onEditHotel}
+                    selectedJourney={selectedJourney}
+                    onSelectJourney={onSelectJourney}
+                    onEditJourney={onEditJourney}
                   />
                 </div>
               </>
@@ -198,6 +213,9 @@ export function ItineraryView({
                 selectedHotel={selectedHotel}
                 onSelectHotel={onSelectHotel}
                 onEditHotel={onEditHotel}
+                selectedJourney={selectedJourney}
+                onSelectJourney={onSelectJourney}
+                onEditJourney={onEditJourney}
               />
             </div>
 
@@ -239,6 +257,24 @@ export function ItineraryView({
                   />
                 </div>
               </div>
+            ) : selectedJourney ? (
+              /* Journey detail sheet — same shape as place/hotel sheets. */
+              <div
+                className="absolute bottom-0 left-0 right-0 bg-background border-t rounded-t-2xl shadow-2xl flex flex-col"
+                style={{ height: '50vh' }}
+              >
+                <div className="flex items-center justify-center pt-2 pb-1 shrink-0">
+                  <div className="w-8 h-1 rounded-full bg-muted-foreground/30" />
+                </div>
+                <div className="flex-1 overflow-hidden px-1">
+                  <TransportDetailCard
+                    journey={selectedJourney}
+                    onClose={() => onSelectJourney(null)}
+                    onEdit={() => onEditJourney(selectedJourney)}
+                    variant="sheet"
+                  />
+                </div>
+              </div>
             ) : (
               /* Default itinerary sheet */
               <div
@@ -261,7 +297,7 @@ export function ItineraryView({
               {activeDrag.item.kind === 'itinerary' ? (
                 <ItineraryItem item={activeDrag.item.data} dayDate="" />
               ) : (
-                <TransportItem item={activeDrag.item.data} dayDate="" />
+                <TransportItem journey={activeDrag.item.data} dayDate="" />
               )}
             </div>
           )}
