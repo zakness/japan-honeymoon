@@ -293,7 +293,7 @@ export function ItineraryView({
 
         <DragOverlay dropAnimation={null}>
           {activeDrag?.type === 'slot' && (
-            <div className="opacity-90 shadow-lg w-60">
+            <div className="opacity-90 shadow-lg w-64">
               {activeDrag.item.kind === 'itinerary' ? (
                 <ItineraryItem item={activeDrag.item.data} dayDate="" />
               ) : (
@@ -302,7 +302,7 @@ export function ItineraryView({
             </div>
           )}
           {activeDrag?.type === 'place' && (
-            <div className="w-52 opacity-90 shadow-lg">
+            <div className="w-64 opacity-90 shadow-lg">
               <PlaceCard place={activeDrag.place} compact />
             </div>
           )}
