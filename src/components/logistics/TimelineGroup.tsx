@@ -3,6 +3,7 @@ import { HotelEntry } from './HotelEntry'
 import { TransportEntry } from './TransportEntry'
 import type { LogisticsEntry } from '@/lib/logistics-utils'
 import type { AccommodationRow } from '@/types/accommodations'
+import type { Journey } from '@/types/transport'
 import { getHotelColor } from '@/config/trip'
 
 function formatGroupDate(date: string): string {
@@ -18,9 +19,16 @@ interface TimelineGroupProps {
   entries: LogisticsEntry[]
   allHotels: AccommodationRow[]
   onEditHotel?: (hotel: AccommodationRow) => void
+  onEditJourney?: (journey: Journey) => void
 }
 
-export function TimelineGroup({ date, entries, allHotels, onEditHotel }: TimelineGroupProps) {
+export function TimelineGroup({
+  date,
+  entries,
+  allHotels,
+  onEditHotel,
+  onEditJourney,
+}: TimelineGroupProps) {
   return (
     <div>
       <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
@@ -32,8 +40,9 @@ export function TimelineGroup({ date, entries, allHotels, onEditHotel }: Timelin
             entry.kind === 'hotel_checkin' || entry.kind === 'hotel_checkout'
               ? getHotelColor(entry.data, allHotels).primary
               : undefined
+          const entryId = entry.kind === 'transport' ? entry.data.parent.id : entry.data.id
           return (
-            <div key={`${entry.kind}-${entry.data.id}-${i}`} className="relative">
+            <div key={`${entry.kind}-${entryId}-${i}`} className="relative">
               <div
                 className="absolute -left-[21px] top-3.5 w-2.5 h-2.5 rounded-full bg-border ring-2 ring-background"
                 style={dotColor ? { backgroundColor: dotColor } : undefined}
@@ -47,7 +56,9 @@ export function TimelineGroup({ date, entries, allHotels, onEditHotel }: Timelin
                   onEdit={onEditHotel}
                 />
               )}
-              {entry.kind === 'transport' && <TransportEntry item={entry.data} />}
+              {entry.kind === 'transport' && (
+                <TransportEntry journey={entry.data} onEdit={onEditJourney} />
+              )}
             </div>
           )
         })}

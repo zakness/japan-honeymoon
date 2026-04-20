@@ -3,18 +3,20 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { TimelineGroup } from './TimelineGroup'
 import { useFlights } from '@/hooks/useFlights'
 import { useAccommodations } from '@/hooks/useAccommodations'
-import { useAllTransportItems } from '@/hooks/useTransport'
+import { useAllJourneys } from '@/hooks/useTransport'
 import { buildLogisticsTimeline, groupEntriesByDate } from '@/lib/logistics-utils'
 import type { AccommodationRow } from '@/types/accommodations'
+import type { Journey } from '@/types/transport'
 
 interface LogisticsViewProps {
   onEditHotel?: (hotel: AccommodationRow) => void
+  onEditJourney?: (journey: Journey) => void
 }
 
-export function LogisticsView({ onEditHotel }: LogisticsViewProps) {
+export function LogisticsView({ onEditHotel, onEditJourney }: LogisticsViewProps) {
   const { data: flights = [], isLoading: flightsLoading } = useFlights()
   const { data: accommodations = [], isLoading: hotelsLoading } = useAccommodations()
-  const { data: transport = [], isLoading: transportLoading } = useAllTransportItems()
+  const { data: transport = [], isLoading: transportLoading } = useAllJourneys()
 
   const isLoading = flightsLoading || hotelsLoading || transportLoading
 
@@ -43,6 +45,7 @@ export function LogisticsView({ onEditHotel }: LogisticsViewProps) {
             entries={entries}
             allHotels={accommodations}
             onEditHotel={onEditHotel}
+            onEditJourney={onEditJourney}
           />
         ))}
       </div>
