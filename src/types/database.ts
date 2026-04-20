@@ -279,51 +279,110 @@ export type Database = {
       }
       transport_items: {
         Row: {
+          created_at: string
+          day_date: string
+          id: string
+          notes: string | null
+          sort_order: number
+          time_slot: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day_date: string
+          id?: string
+          notes?: string | null
+          sort_order: number
+          time_slot?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day_date?: string
+          id?: string
+          notes?: string | null
+          sort_order?: number
+          time_slot?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      transport_legs: {
+        Row: {
           arrival_time: string | null
           confirmation: string | null
           created_at: string
-          day_date: string
           departure_time: string
-          destination: string
+          destination_lat: number | null
+          destination_lng: number | null
+          destination_name: string
+          destination_place_id: string | null
           id: string
+          is_booked: boolean
+          leg_index: number
+          mode: string
           notes: string | null
-          origin: string
-          sort_order: number
-          time_slot: string
-          type: string
+          origin_lat: number | null
+          origin_lng: number | null
+          origin_name: string
+          origin_place_id: string | null
+          transport_id: string
           updated_at: string
         }
         Insert: {
           arrival_time?: string | null
           confirmation?: string | null
           created_at?: string
-          day_date: string
           departure_time: string
-          destination: string
+          destination_lat?: number | null
+          destination_lng?: number | null
+          destination_name: string
+          destination_place_id?: string | null
           id?: string
+          is_booked?: boolean
+          leg_index: number
+          mode: string
           notes?: string | null
-          origin: string
-          sort_order: number
-          time_slot?: string
-          type: string
+          origin_lat?: number | null
+          origin_lng?: number | null
+          origin_name: string
+          origin_place_id?: string | null
+          transport_id: string
           updated_at?: string
         }
         Update: {
           arrival_time?: string | null
           confirmation?: string | null
           created_at?: string
-          day_date?: string
           departure_time?: string
-          destination?: string
+          destination_lat?: number | null
+          destination_lng?: number | null
+          destination_name?: string
+          destination_place_id?: string | null
           id?: string
+          is_booked?: boolean
+          leg_index?: number
+          mode?: string
           notes?: string | null
-          origin?: string
-          sort_order?: number
-          time_slot?: string
-          type?: string
+          origin_lat?: number | null
+          origin_lng?: number | null
+          origin_name?: string
+          origin_place_id?: string | null
+          transport_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'transport_legs_transport_id_fkey'
+            columns: ['transport_id']
+            isOneToOne: false
+            referencedRelation: 'transport_items'
+            referencedColumns: ['id']
+          },
+        ]
       }
     }
     Views: {

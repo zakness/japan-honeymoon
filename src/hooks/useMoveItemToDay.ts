@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { ITINERARY_KEY } from './useItinerary'
 import { TRANSPORT_KEY } from './useTransport'
 import type { DayReorderItem } from './useItinerary'
-import type { SlotItemKind, TransportItemRow } from '@/types/transport'
+import type { Journey, SlotItemKind } from '@/types/transport'
 import type { ItineraryItemWithPlace, TimeSlot } from '@/types/itinerary'
 
 export interface CrossDayMovePayload {
@@ -117,38 +117,47 @@ export function useMoveItemToDay() {
           )
         }
       } else {
-        const fromCache =
-          queryClient.getQueryData<TransportItemRow[]>([...TRANSPORT_KEY, fromDayDate]) ?? []
-        const movedItem = fromCache.find((i) => i.id === itemId)
+        const fromCache = queryClient.getQueryData<Journey[]>([...TRANSPORT_KEY, fromDayDate]) ?? []
+        const movedItem = fromCache.find((j) => j.parent.id === itemId)
 
         queryClient.setQueryData(
           [...TRANSPORT_KEY, fromDayDate],
           fromCache
-            .filter((i) => i.id !== itemId)
-            .map((i) => {
-              const u = fromSlotUpdates.find((u) => u.id === i.id)
-              return u ? { ...i, sort_order: u.sort_order } : i
+            .filter((j) => j.parent.id !== itemId)
+            .map((j) => {
+              const u = fromSlotUpdates.find((u) => u.id === j.parent.id)
+              return u ? { ...j, parent: { ...j.parent, sort_order: u.sort_order } } : j
             })
-            .sort((a, b) => a.sort_order - b.sort_order)
+            .sort((a, b) => a.parent.sort_order - b.parent.sort_order)
         )
 
         if (movedItem) {
-          const updated = {
+          const updated: Journey = {
             ...movedItem,
-            day_date: toDayDate,
-            time_slot: toSlot,
-            sort_order: movedUpdate.sort_order,
+            parent: {
+              ...movedItem.parent,
+              day_date: toDayDate,
+              time_slot: toSlot,
+              sort_order: movedUpdate.sort_order,
+            },
           }
-          queryClient.setQueryData(
-            [...TRANSPORT_KEY, toDayDate],
-            (old: TransportItemRow[] | undefined) =>
-              [
-                ...(old ?? []).map((i) => {
-                  const u = toSlotUpdates.find((u) => u.id === i.id)
-                  return u ? { ...i, sort_order: u.sort_order, time_slot: u.time_slot } : i
-                }),
-                updated,
-              ].sort((a, b) => a.sort_order - b.sort_order)
+          queryClient.setQueryData([...TRANSPORT_KEY, toDayDate], (old: Journey[] | undefined) =>
+            [
+              ...(old ?? []).map((j) => {
+                const u = toSlotUpdates.find((u) => u.id === j.parent.id)
+                return u
+                  ? {
+                      ...j,
+                      parent: {
+                        ...j.parent,
+                        sort_order: u.sort_order,
+                        time_slot: u.time_slot,
+                      },
+                    }
+                  : j
+              }),
+              updated,
+            ].sort((a, b) => a.parent.sort_order - b.parent.sort_order)
           )
         }
       }
