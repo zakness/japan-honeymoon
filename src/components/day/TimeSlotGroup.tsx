@@ -6,9 +6,10 @@ import { ItineraryItem } from './ItineraryItem'
 import { TransportItem } from './TransportItem'
 import { FlightEventCard } from './FlightEventCard'
 import { type TimeSlot } from '@/types/itinerary'
-import { type SlotItem } from '@/types/transport'
+import { type Journey, type SlotItem } from '@/types/transport'
 import type { PlaceRow } from '@/types/places'
 import type { FlightEvent } from '@/lib/logistics-utils'
+import { slotItemId } from '@/lib/transport-utils'
 import { cn } from '@/lib/utils'
 
 interface TimeSlotGroupProps {
@@ -19,6 +20,8 @@ interface TimeSlotGroupProps {
   flightEvents?: FlightEvent[]
   /** Fires when the user clicks a scheduled place's name — routed up to AppShell. */
   onSelectPlace?: (place: PlaceRow) => void
+  /** Fires when the user clicks a transport card's title — routed up to AppShell. */
+  onSelectJourney?: (journey: Journey) => void
   /** Fires when the user clicks the "+ Add" zone at the bottom of the slot. */
   onAddClick?: (slot: TimeSlot) => void
 }
@@ -30,6 +33,7 @@ export function TimeSlotGroup({
   dayDate,
   flightEvents = [],
   onSelectPlace,
+  onSelectJourney,
   onAddClick,
 }: TimeSlotGroupProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `slot-${dayDate}-${slot}` })
@@ -41,7 +45,7 @@ export function TimeSlotGroup({
         <SlotIcon className="h-3.5 w-3.5" />
         {label}
       </h3>
-      <SortableContext items={items.map((i) => i.data.id)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={items.map(slotItemId)} strategy={verticalListSortingStrategy}>
         <div
           ref={setNodeRef}
           className={cn(
@@ -61,7 +65,12 @@ export function TimeSlotGroup({
                 onSelectPlace={onSelectPlace}
               />
             ) : (
-              <TransportItem key={item.data.id} item={item.data} dayDate={dayDate} />
+              <TransportItem
+                key={item.data.parent.id}
+                journey={item.data}
+                dayDate={dayDate}
+                onSelect={onSelectJourney}
+              />
             )
           )}
           {/*
