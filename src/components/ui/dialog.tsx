@@ -23,6 +23,13 @@ function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
 }
 
+// Dialogs are mounted inside the React tree of whichever component renders
+// them, but base-ui portals their DOM nodes to <body>. React synthetic events
+// still bubble up through the React tree though — so without stopping them
+// here, clicks on the backdrop or popup reach parent onClick handlers (e.g.
+// SortableItemCard's place-select handler when a dialog is mounted under a
+// card). Stopping click + pointerdown on both the backdrop and the popup
+// keeps dialog interactions self-contained.
 function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) {
   return (
     <DialogPrimitive.Backdrop
@@ -31,6 +38,8 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
         'fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
         className
       )}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
       {...props}
     />
   )
@@ -53,6 +62,8 @@ function DialogContent({
           'fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
           className
         )}
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
         {...props}
       >
         {children}
