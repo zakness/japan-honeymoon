@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { TIME_SLOT_ICONS } from '@/lib/time-slot-icons'
 import { Button } from '@/components/ui/button'
+import { DateTimeInput } from '@/components/ui/datetime-input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -258,12 +259,11 @@ export function AddItemDialog({
                   <div className="space-y-2 pt-1 border-t">
                     <div className="space-y-1.5">
                       <Label htmlFor="add-reservation-time">Reservation time (optional)</Label>
-                      <input
+                      <DateTimeInput
                         id="add-reservation-time"
                         type="time"
                         value={reservationTime}
-                        onChange={(e) => setReservationTime(e.target.value)}
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        onValueChange={setReservationTime}
                       />
                     </div>
                     {reservationTime && (

@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { X, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DateTimeInput } from '@/components/ui/datetime-input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
@@ -259,21 +260,21 @@ export function HotelForm({ hotel, onSuccess, onCancel }: HotelFormProps) {
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="check-in-date">Check-in *</Label>
-          <Input
+          <DateTimeInput
             id="check-in-date"
             type="date"
             value={form.checkInDate}
-            onChange={(e) => set('checkInDate', e.target.value)}
+            onValueChange={(v) => set('checkInDate', v)}
             required
           />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="check-out-date">Check-out *</Label>
-          <Input
+          <DateTimeInput
             id="check-out-date"
             type="date"
             value={form.checkOutDate}
-            onChange={(e) => set('checkOutDate', e.target.value)}
+            onValueChange={(v) => set('checkOutDate', v)}
             required
           />
         </div>
@@ -283,20 +284,20 @@ export function HotelForm({ hotel, onSuccess, onCancel }: HotelFormProps) {
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="check-in-time">Check-in time</Label>
-          <Input
+          <DateTimeInput
             id="check-in-time"
             type="time"
             value={form.checkInTime}
-            onChange={(e) => set('checkInTime', e.target.value)}
+            onValueChange={(v) => set('checkInTime', v)}
           />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="check-out-time">Check-out time</Label>
-          <Input
+          <DateTimeInput
             id="check-out-time"
             type="time"
             value={form.checkOutTime}
-            onChange={(e) => set('checkOutTime', e.target.value)}
+            onValueChange={(v) => set('checkOutTime', v)}
           />
         </div>
       </div>
