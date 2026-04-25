@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DateTimeInput } from '@/components/ui/datetime-input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -118,11 +119,11 @@ export function TransportDialog({ journey, open, onOpenChange }: TransportDialog
               <Label className="text-xs" htmlFor="transport-day">
                 Day
               </Label>
-              <Input
+              <DateTimeInput
                 id="transport-day"
                 type="date"
                 value={dayDate}
-                onChange={(e) => setDayDate(e.target.value)}
+                onValueChange={setDayDate}
               />
             </div>
             <div className="space-y-1">

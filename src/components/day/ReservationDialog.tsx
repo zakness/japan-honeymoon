@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { DateTimeInput } from '@/components/ui/datetime-input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -9,6 +10,7 @@ import {
   deriveTimeSlot,
   formatReservationTime,
   type ItineraryItemWithPlace,
+  type TimeSlot,
 } from '@/types/itinerary'
 
 interface ReservationDialogProps {
@@ -17,11 +19,21 @@ interface ReservationDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
+// Pick a sensible default reservation time from the item's slot. Pre-populating
+// is required so Safari's native time picker has a real value — its empty
+// rendering shows a "12:30" placeholder visual while the DOM value stays
+// empty until all HH/MM/AM-PM segments are committed, leaving Save disabled.
+function defaultTimeForSlot(slot: TimeSlot | string): string {
+  if (slot === 'morning') return '09:00'
+  if (slot === 'evening') return '18:00'
+  return '13:00'
+}
+
 export function ReservationDialog({ item, open, onOpenChange }: ReservationDialogProps) {
-  const existingTime = item.reservation_time
-    ? item.reservation_time.slice(0, 5) // "HH:MM:SS" → "HH:MM" for <input type="time">
-    : ''
-  const [time, setTime] = useState(existingTime)
+  const initialTime = item.reservation_time
+    ? item.reservation_time.slice(0, 5)
+    : defaultTimeForSlot(item.time_slot)
+  const [time, setTime] = useState(initialTime)
   const [notes, setNotes] = useState(item.reservation_notes ?? '')
 
   const updateItem = useUpdateItineraryItem()
@@ -29,7 +41,11 @@ export function ReservationDialog({ item, open, onOpenChange }: ReservationDialo
   // Reset local state when dialog opens
   function handleOpenChange(nextOpen: boolean) {
     if (nextOpen) {
-      setTime(item.reservation_time ? item.reservation_time.slice(0, 5) : '')
+      setTime(
+        item.reservation_time
+          ? item.reservation_time.slice(0, 5)
+          : defaultTimeForSlot(item.time_slot)
+      )
       setNotes(item.reservation_notes ?? '')
     }
     onOpenChange(nextOpen)
@@ -78,12 +94,11 @@ export function ReservationDialog({ item, open, onOpenChange }: ReservationDialo
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="reservation-time">Time</Label>
-            <input
+            <DateTimeInput
               id="reservation-time"
               type="time"
               value={time}
-              onChange={(e) => setTime(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              onValueChange={setTime}
               autoFocus
             />
           </div>

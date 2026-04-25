@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DateTimeInput } from '@/components/ui/datetime-input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { PlaceSearch } from '@/components/places/PlaceSearch'
@@ -198,11 +199,11 @@ export function TransportLegEditor({ legs, onChange }: TransportLegEditorProps) 
                 <Label className="text-xs" htmlFor={`leg-${index}-departure`}>
                   Depart
                 </Label>
-                <Input
+                <DateTimeInput
                   id={`leg-${index}-departure`}
                   type="time"
                   value={leg.departure_time}
-                  onChange={(e) => patchLeg(index, { departure_time: e.target.value })}
+                  onValueChange={(v) => patchLeg(index, { departure_time: v })}
                   aria-invalid={departureMissing}
                 />
               </div>
@@ -210,11 +211,11 @@ export function TransportLegEditor({ legs, onChange }: TransportLegEditorProps) 
                 <Label className="text-xs" htmlFor={`leg-${index}-arrival`}>
                   Arrive
                 </Label>
-                <Input
+                <DateTimeInput
                   id={`leg-${index}-arrival`}
                   type="time"
                   value={leg.arrival_time ?? ''}
-                  onChange={(e) => patchLeg(index, { arrival_time: e.target.value || null })}
+                  onValueChange={(v) => patchLeg(index, { arrival_time: v || null })}
                 />
               </div>
             </div>
