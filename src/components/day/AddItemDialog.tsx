@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { Search, X } from 'lucide-react'
 import { TIME_SLOT_ICONS } from '@/lib/time-slot-icons'
 import { Button } from '@/components/ui/button'
 import { DateTimeInput } from '@/components/ui/datetime-input'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -42,6 +44,7 @@ export function AddItemDialog({
   const [transportLegs, setTransportLegs] = useState<LegDraft[]>([])
   const [transportTitle, setTransportTitle] = useState('')
   const [transportNotes, setTransportNotes] = useState('')
+  const [placeFilter, setPlaceFilter] = useState('')
 
   // Reset all form state and sync the time-slot dropdown to `initialSlot`
   // whenever the dialog transitions from closed → open. This gives every open
@@ -76,11 +79,21 @@ export function AddItemDialog({
     ])
     setTransportTitle('')
     setTransportNotes('')
+    setPlaceFilter('')
   }, [open, initialSlot])
 
   const { data: unscheduled = [] } = useUnscheduledPlaces()
   const createItem = useCreateItineraryItem()
   const createJourney = useCreateJourney()
+
+  // Case-insensitive substring filter on place name. Cheap enough to compute
+  // every render, no need for debouncing on a list this size (~30 places per
+  // city). Empty filter returns the full list.
+  const filteredUnscheduled = useMemo(() => {
+    const q = placeFilter.trim().toLowerCase()
+    if (!q) return unscheduled
+    return unscheduled.filter((p) => p.name.toLowerCase().includes(q))
+  }, [unscheduled, placeFilter])
 
   // Earliest leg departure drives the transport tab's time slot.
   const earliestLegDeparture = transportLegs
@@ -240,21 +253,46 @@ export function AddItemDialog({
                 </p>
               ) : (
                 <>
-                  <p className="text-xs text-muted-foreground">
-                    {unscheduled.length} unscheduled place{unscheduled.length !== 1 ? 's' : ''}
-                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-muted-foreground shrink-0">
+                      {filteredUnscheduled.length} of {unscheduled.length} unscheduled
+                    </p>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                    <Input
+                      value={placeFilter}
+                      onChange={(e) => setPlaceFilter(e.target.value)}
+                      placeholder="Filter places…"
+                      className="h-8 pl-7 pr-7 text-xs"
+                    />
+                    {placeFilter && (
+                      <button
+                        type="button"
+                        onClick={() => setPlaceFilter('')}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label="Clear filter"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                   <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                    {unscheduled.map((place) => (
-                      <PlaceCard
-                        key={place.id}
-                        place={place}
-                        compact
-                        selected={selectedPlace?.id === place.id}
-                        onClick={() =>
-                          setSelectedPlace(selectedPlace?.id === place.id ? null : place)
-                        }
-                      />
-                    ))}
+                    {filteredUnscheduled.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-4">No matches</p>
+                    ) : (
+                      filteredUnscheduled.map((place) => (
+                        <PlaceCard
+                          key={place.id}
+                          place={place}
+                          compact
+                          selected={selectedPlace?.id === place.id}
+                          onClick={() =>
+                            setSelectedPlace(selectedPlace?.id === place.id ? null : place)
+                          }
+                        />
+                      ))
+                    )}
                   </div>
                   <div className="space-y-2 pt-1 border-t">
                     <div className="space-y-1.5">
