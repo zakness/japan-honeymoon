@@ -88,6 +88,13 @@ interface UnscheduledColumnProps {
   selectedPlace: PlaceRow | null
   /** Where the current selection originated — used for the auto-scroll skip rule. */
   selectionOrigin: SelectionOrigin | null
+  /**
+   * When true, the column fills its parent's width and disables the
+   * collapse-to-rail affordance (used by the mobile day-tab layout where
+   * Places is its own tab and there's no second column to make room for).
+   * Default false — desktop renders the column at fixed width, sticky-left.
+   */
+  fillWidth?: boolean
 }
 
 export function UnscheduledColumn({
@@ -95,6 +102,7 @@ export function UnscheduledColumn({
   onSelectPlace,
   selectedPlace,
   selectionOrigin,
+  fillWidth = false,
 }: UnscheduledColumnProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [addPlaceOpen, setAddPlaceOpen] = useState(false)
@@ -161,7 +169,7 @@ export function UnscheduledColumn({
     el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [selectedId, selectionOrigin])
 
-  if (collapsed) {
+  if (collapsed && !fillWidth) {
     return (
       <div className="w-10 shrink-0 flex flex-col border-r sticky left-0 z-10 bg-muted/40 h-full">
         <button
@@ -185,7 +193,12 @@ export function UnscheduledColumn({
 
   return (
     <>
-      <div className="w-64 shrink-0 flex flex-col border-r sticky left-0 z-10 bg-muted/40 h-full">
+      <div
+        className={cn(
+          'flex flex-col bg-muted/40 h-full',
+          fillWidth ? 'w-full' : 'w-64 shrink-0 border-r sticky left-0 z-10'
+        )}
+      >
         {/* Header */}
         <div className="px-3 py-2.5 border-b shrink-0 flex items-center justify-between">
           <div className="flex items-center gap-1.5 min-w-0">
@@ -204,13 +217,15 @@ export function UnscheduledColumn({
             >
               <Plus className="h-4 w-4 text-white" />
             </button>
-            <button
-              onClick={() => setCollapsed(true)}
-              className="size-7 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors flex items-center justify-center"
-              title="Collapse"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
+            {!fillWidth && (
+              <button
+                onClick={() => setCollapsed(true)}
+                className="size-7 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors flex items-center justify-center"
+                title="Collapse"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
 
