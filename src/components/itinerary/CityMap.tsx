@@ -34,8 +34,7 @@ const PAN_BOTTOM_BIAS_PX = 120
 
 /**
  * Shift a lat/lng by a pixel offset at the map's current zoom. Used to offset
- * the pan target so the selection appears lower on screen (leaving the
- * top-right detail card unobstructed).
+ * the pan target so the selection appears in the visible (un-obscured) area.
  */
 function offsetLatLngByPixels(
   map: google.maps.Map,
@@ -60,11 +59,16 @@ function offsetLatLngByPixels(
  * for long-distance moves. This helper interpolates via `requestAnimationFrame`
  * so the move always completes within `PAN_DURATION_MS`.
  *
- * Target is biased to the lower-center of the viewport (camera centers above
- * the target) so the top-right detail card doesn't cover it.
+ * Target is biased so the visual obstruction doesn't cover it. The bias sign
+ * depends on which side is obstructed:
+ *  - Mobile (bottomPadPx > 0): sheet covers the BOTTOM, so push target into
+ *    the UPPER half of the map by moving the camera SOUTH (positive dy).
+ *  - Desktop (bottomPadPx == 0): floating detail card covers the TOP-RIGHT,
+ *    so push target into the LOWER half by moving the camera NORTH.
  */
-function smoothPanTo(map: google.maps.Map, target: google.maps.LatLngLiteral) {
-  const biased = offsetLatLngByPixels(map, target, 0, -PAN_BOTTOM_BIAS_PX)
+function smoothPanTo(map: google.maps.Map, target: google.maps.LatLngLiteral, bottomPadPx: number) {
+  const dy = bottomPadPx > 0 ? Math.round(bottomPadPx / 2) : -PAN_BOTTOM_BIAS_PX
+  const biased = offsetLatLngByPixels(map, target, 0, dy)
   const start = map.getCenter()
   if (!start) {
     map.moveCamera({ center: biased })
@@ -101,6 +105,13 @@ interface CityMapContentProps {
   scheduleMap: globalThis.Map<string, string[]> | undefined
   onSelectPlace: SelectPlaceHandler
   onSelectHotel: (hotel: AccommodationRow | null) => void
+  /**
+   * Bottom obstruction (in CSS pixels) caused by an overlapping sheet. The map
+   * uses this to bias initial city centering and journey fit-bounds padding so
+   * pins/routes land in the visible upper portion rather than under the sheet.
+   * 0 on desktop where nothing overlaps the map.
+   */
+  bottomPadPx: number
 }
 
 function CityMapContent({
@@ -112,24 +123,66 @@ function CityMapContent({
   scheduleMap,
   onSelectPlace,
   onSelectHotel,
+  bottomPadPx,
 }: CityMapContentProps) {
   const map = useMap()
   const initializedCityRef = useRef<City | null>(null)
 
-  const { data: places = [] } = usePlaces({
+  const placesQuery = usePlaces({
     city,
     dayDate: dayDate ?? undefined,
   })
-  const { data: allHotels = [] } = useAccommodations()
+  const places = placesQuery.data ?? []
+  const placesFetched = placesQuery.isFetched
+  const accommodationsQuery = useAccommodations()
+  const allHotels = accommodationsQuery.data ?? []
+  const accommodationsFetched = accommodationsQuery.isFetched
   const hotels = allHotels.filter((h) => h.city === city)
 
-  // Pan to city center whenever city changes
+  // Frame the city on initial load (and on each city switch) by fitting the
+  // bounds of all known pins (places + hotels) for that city. This guarantees
+  // the user sees their pins above the bottom sheet regardless of how the
+  // city's geographic center happens to align with where pins actually are.
+  // Falls back to the configured CITY_MAP_CENTER if the city has no pins.
   useEffect(() => {
     if (!map || initializedCityRef.current === city) return
-    const center = CITY_MAP_CENTER[city]
-    map.moveCamera({ center: { lat: center.lat, lng: center.lng }, zoom: center.zoom })
+    if (!placesFetched || !accommodationsFetched) return
+
+    const bounds = new google.maps.LatLngBounds()
+    let count = 0
+    for (const p of places) {
+      if (p.lat != null && p.lng != null) {
+        bounds.extend({ lat: p.lat, lng: p.lng })
+        count++
+      }
+    }
+    for (const h of hotels) {
+      if (h.lat != null && h.lng != null) {
+        bounds.extend({ lat: h.lat, lng: h.lng })
+        count++
+      }
+    }
+
+    if (count === 0) {
+      const center = CITY_MAP_CENTER[city]
+      map.moveCamera({ center: { lat: center.lat, lng: center.lng }, zoom: center.zoom })
+    } else if (count === 1) {
+      // fitBounds on a single point would zoom to street level; pan to it
+      // at the city's configured zoom instead.
+      const center = CITY_MAP_CENTER[city]
+      const only = bounds.getCenter().toJSON()
+      map.moveCamera({ center: only, zoom: center.zoom })
+      if (bottomPadPx > 0) map.panBy(0, bottomPadPx / 2)
+    } else {
+      map.fitBounds(bounds, {
+        top: 60,
+        right: 60,
+        bottom: 60 + bottomPadPx,
+        left: 60,
+      })
+    }
     initializedCityRef.current = city
-  }, [map, city])
+  }, [map, city, places, hotels, placesFetched, accommodationsFetched, bottomPadPx])
 
   // Pan to the selected place when the lifted selection changes. Depending on
   // primitive id/lat/lng instead of the PlaceRow object means this effect only
@@ -141,7 +194,7 @@ function CityMapContent({
   useEffect(() => {
     if (!map || !selectedId) return
     if (selectedLat && selectedLng) {
-      smoothPanTo(map, { lat: selectedLat, lng: selectedLng })
+      smoothPanTo(map, { lat: selectedLat, lng: selectedLng }, bottomPadPx)
     }
   }, [map, selectedId, selectedLat, selectedLng])
 
@@ -153,7 +206,7 @@ function CityMapContent({
   useEffect(() => {
     if (!map || !selectedHotelId) return
     if (selectedHotelLat && selectedHotelLng) {
-      smoothPanTo(map, { lat: selectedHotelLat, lng: selectedHotelLng })
+      smoothPanTo(map, { lat: selectedHotelLat, lng: selectedHotelLng }, bottomPadPx)
     }
   }, [map, selectedHotelId, selectedHotelLat, selectedHotelLng])
 
@@ -177,20 +230,17 @@ function CityMapContent({
     }
     if (added === 0) return
     if (added === 1) {
-      smoothPanTo(map, bounds.getCenter().toJSON())
+      smoothPanTo(map, bounds.getCenter().toJSON(), bottomPadPx)
       return
     }
-    // Tight symmetric padding so fitBounds zooms to the actual content
-    // aspect rather than wasting space on whichever axis the viewport has
-    // slack. Then shift the camera up by PAN_BOTTOM_BIAS_PX so the route
-    // sits in the lower portion of the viewport (clear of the top-right
-    // detail card).
-    map.fitBounds(bounds, 40)
-    // `fitBounds` finishes async; wait for idle before biasing the center
-    // so panBy applies on top of the fitted zoom.
-    const listener = map.addListener('idle', () => {
-      google.maps.event.removeListener(listener)
-      map.panBy(0, -PAN_BOTTOM_BIAS_PX)
+    // Asymmetric padding: the bottom edge accounts for any sheet that
+    // overlaps the map (mobile only), so the fitted route sits entirely in
+    // the visible strip without needing a post-fit panBy hack.
+    map.fitBounds(bounds, {
+      top: 40,
+      right: 40,
+      bottom: 40 + bottomPadPx,
+      left: 40,
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, journeyId])
@@ -247,12 +297,14 @@ function CityMapContent({
 
   function handlePlaceClick(place: PlaceRow) {
     onSelectPlace(place, 'marker')
-    if (map && place.lat && place.lng) smoothPanTo(map, { lat: place.lat, lng: place.lng })
+    if (map && place.lat && place.lng)
+      smoothPanTo(map, { lat: place.lat, lng: place.lng }, bottomPadPx)
   }
 
   function handleHotelClick(hotel: AccommodationRow) {
     onSelectHotel(hotel)
-    if (map && hotel.lat && hotel.lng) smoothPanTo(map, { lat: hotel.lat, lng: hotel.lng })
+    if (map && hotel.lat && hotel.lng)
+      smoothPanTo(map, { lat: hotel.lat, lng: hotel.lng }, bottomPadPx)
   }
 
   return (
@@ -325,6 +377,18 @@ interface CityMapProps {
   onSelectJourney: (journey: Journey | null) => void
   /** Opens the edit dialog at AppShell level for the currently-selected journey. */
   onEditJourney: (journey: Journey) => void
+  /**
+   * CSS pixels of vertical obstruction at the bottom of the map (e.g. mobile
+   * bottom sheet). Used to bias initial centering and journey fit-bounds so
+   * pins/routes appear in the visible strip. Defaults to 0 (desktop).
+   */
+  bottomPadPx?: number
+  /**
+   * Render the floating detail cards (place/hotel/journey) over the map.
+   * Default true. Mobile passes false because the bottom sheet renders the
+   * same content and showing both at once would duplicate the UI.
+   */
+  showFloatingCards?: boolean
 }
 
 export function CityMap({
@@ -338,6 +402,8 @@ export function CityMap({
   selectedJourney,
   onSelectJourney,
   onEditJourney,
+  bottomPadPx = 0,
+  showFloatingCards = true,
 }: CityMapProps) {
   const [selectedDay, setSelectedDay] = useState<string>(ALL)
   const { data: scheduleMap } = useScheduledDatesByPlace()
@@ -421,28 +487,31 @@ export function CityMap({
           scheduleMap={scheduleMap}
           onSelectPlace={onSelectPlace}
           onSelectHotel={onSelectHotel}
+          bottomPadPx={bottomPadPx}
         />
       </GMap>
 
       {/* Floating detail cards rendered outside the `<Map>` element so they're
           normal React-positioned nodes layered over the map surface. Place and
           hotel cards are mutually exclusive (enforced upstream in
-          ItineraryView), so they share the same top-right slot. */}
-      {selectedPlace && (
+          ItineraryView), so they share the same top-right slot. Suppressed on
+          mobile (`showFloatingCards=false`) since the bottom sheet renders the
+          same content. */}
+      {showFloatingCards && selectedPlace && (
         <PlaceDetailCard
           place={selectedPlace}
           onClose={() => onSelectPlace(null)}
           onEdit={() => onEditPlace(selectedPlace)}
         />
       )}
-      {selectedHotel && !selectedPlace && (
+      {showFloatingCards && selectedHotel && !selectedPlace && (
         <HotelDetailCard
           hotel={selectedHotel}
           onClose={() => onSelectHotel(null)}
           onEdit={() => onEditHotel(selectedHotel)}
         />
       )}
-      {selectedJourney && !selectedPlace && !selectedHotel && (
+      {showFloatingCards && selectedJourney && !selectedPlace && !selectedHotel && (
         <TransportDetailCard
           journey={selectedJourney}
           onClose={() => onSelectJourney(null)}
