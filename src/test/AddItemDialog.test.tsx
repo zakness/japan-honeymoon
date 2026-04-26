@@ -119,6 +119,50 @@ describe('AddItemDialog (controlled API)', () => {
     expect(screen.getByText('Torotaku')).toBeInTheDocument()
   })
 
+  it('resets the filter when the dialog closes and reopens', () => {
+    mockUnscheduled = [makePlace('Mokubaza'), makePlace('Torotaku')]
+    const { rerender } = render(
+      <AddItemDialog
+        dayDate="2026-05-15"
+        currentItemCount={0}
+        open={true}
+        onOpenChange={() => {}}
+        initialSlot="morning"
+      />,
+      { wrapper }
+    )
+    // Type a filter that hides everything
+    fireEvent.change(screen.getByPlaceholderText(/filter places/i), {
+      target: { value: 'xyzzy' },
+    })
+    expect(screen.getByText(/no matches/i)).toBeInTheDocument()
+
+    // Close the dialog
+    rerender(
+      <AddItemDialog
+        dayDate="2026-05-15"
+        currentItemCount={0}
+        open={false}
+        onOpenChange={() => {}}
+        initialSlot="morning"
+      />
+    )
+    // Reopen — the open-transition effect should clear the filter and the
+    // full list should render again
+    rerender(
+      <AddItemDialog
+        dayDate="2026-05-15"
+        currentItemCount={0}
+        open={true}
+        onOpenChange={() => {}}
+        initialSlot="morning"
+      />
+    )
+    expect((screen.getByPlaceholderText(/filter places/i) as HTMLInputElement).value).toBe('')
+    expect(screen.getByText('Mokubaza')).toBeInTheDocument()
+    expect(screen.getByText('Torotaku')).toBeInTheDocument()
+  })
+
   it('shows "No matches" when the filter excludes everything', () => {
     mockUnscheduled = [makePlace('Mokubaza'), makePlace('Torotaku')]
     render(
