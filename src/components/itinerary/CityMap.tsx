@@ -54,21 +54,26 @@ function offsetLatLngByPixels(
 }
 
 /**
+ * Pixel offset to apply to a pan target so the visual obstruction doesn't
+ * cover it.
+ *  - Mobile (bottomPadPx > 0): sheet covers the BOTTOM, so push the target
+ *    into the UPPER half by moving the camera SOUTH (positive dy).
+ *  - Desktop (bottomPadPx === 0): floating detail card covers the TOP-RIGHT,
+ *    so push the target into the LOWER half by moving the camera NORTH.
+ */
+function panBiasFor(bottomPadPx: number): number {
+  return bottomPadPx > 0 ? Math.round(bottomPadPx / 2) : -PAN_BOTTOM_BIAS_PX
+}
+
+/**
  * Smooth-pan the map to `target` over a fixed duration (≤ 500ms). Google's
  * built-in `panTo` scales animation length with distance, which feels sluggish
  * for long-distance moves. This helper interpolates via `requestAnimationFrame`
- * so the move always completes within `PAN_DURATION_MS`.
- *
- * Target is biased so the visual obstruction doesn't cover it. The bias sign
- * depends on which side is obstructed:
- *  - Mobile (bottomPadPx > 0): sheet covers the BOTTOM, so push target into
- *    the UPPER half of the map by moving the camera SOUTH (positive dy).
- *  - Desktop (bottomPadPx == 0): floating detail card covers the TOP-RIGHT,
- *    so push target into the LOWER half by moving the camera NORTH.
+ * so the move always completes within `PAN_DURATION_MS`. `dyPx` is the
+ * vertical offset to bias the camera by (use `panBiasFor(bottomPadPx)`).
  */
-function smoothPanTo(map: google.maps.Map, target: google.maps.LatLngLiteral, bottomPadPx: number) {
-  const dy = bottomPadPx > 0 ? Math.round(bottomPadPx / 2) : -PAN_BOTTOM_BIAS_PX
-  const biased = offsetLatLngByPixels(map, target, 0, dy)
+function smoothPanTo(map: google.maps.Map, target: google.maps.LatLngLiteral, dyPx: number) {
+  const biased = offsetLatLngByPixels(map, target, 0, dyPx)
   const start = map.getCenter()
   if (!start) {
     map.moveCamera({ center: biased })
@@ -182,7 +187,12 @@ function CityMapContent({
       })
     }
     initializedCityRef.current = city
-  }, [map, city, places, hotels, placesFetched, accommodationsFetched, bottomPadPx])
+    // `places`/`hotels` are derived arrays whose identity changes on every
+    // TanStack refetch; depend on lengths instead so the effect only re-runs
+    // when pin counts actually change. The ref guard skips re-initialisation
+    // anyway once a city has been framed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, city, places.length, hotels.length, placesFetched, accommodationsFetched, bottomPadPx])
 
   // Pan to the selected place when the lifted selection changes. Depending on
   // primitive id/lat/lng instead of the PlaceRow object means this effect only
@@ -194,7 +204,7 @@ function CityMapContent({
   useEffect(() => {
     if (!map || !selectedId) return
     if (selectedLat && selectedLng) {
-      smoothPanTo(map, { lat: selectedLat, lng: selectedLng }, bottomPadPx)
+      smoothPanTo(map, { lat: selectedLat, lng: selectedLng }, panBiasFor(bottomPadPx))
     }
   }, [map, selectedId, selectedLat, selectedLng])
 
@@ -206,7 +216,7 @@ function CityMapContent({
   useEffect(() => {
     if (!map || !selectedHotelId) return
     if (selectedHotelLat && selectedHotelLng) {
-      smoothPanTo(map, { lat: selectedHotelLat, lng: selectedHotelLng }, bottomPadPx)
+      smoothPanTo(map, { lat: selectedHotelLat, lng: selectedHotelLng }, panBiasFor(bottomPadPx))
     }
   }, [map, selectedHotelId, selectedHotelLat, selectedHotelLng])
 
@@ -230,7 +240,7 @@ function CityMapContent({
     }
     if (added === 0) return
     if (added === 1) {
-      smoothPanTo(map, bounds.getCenter().toJSON(), bottomPadPx)
+      smoothPanTo(map, bounds.getCenter().toJSON(), panBiasFor(bottomPadPx))
       return
     }
     // Asymmetric padding: the bottom edge accounts for any sheet that
@@ -243,7 +253,7 @@ function CityMapContent({
       left: 40,
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, journeyId])
+  }, [map, journeyId, bottomPadPx])
 
   // Render per-leg polylines via the Maps API directly (vis.gl has no
   // <Polyline> primitive). Cleanup on unmount / journey change via setMap(null).
@@ -298,13 +308,13 @@ function CityMapContent({
   function handlePlaceClick(place: PlaceRow) {
     onSelectPlace(place, 'marker')
     if (map && place.lat && place.lng)
-      smoothPanTo(map, { lat: place.lat, lng: place.lng }, bottomPadPx)
+      smoothPanTo(map, { lat: place.lat, lng: place.lng }, panBiasFor(bottomPadPx))
   }
 
   function handleHotelClick(hotel: AccommodationRow) {
     onSelectHotel(hotel)
     if (map && hotel.lat && hotel.lng)
-      smoothPanTo(map, { lat: hotel.lat, lng: hotel.lng }, bottomPadPx)
+      smoothPanTo(map, { lat: hotel.lat, lng: hotel.lng }, panBiasFor(bottomPadPx))
   }
 
   return (

@@ -88,9 +88,17 @@ type SheetSnap = 'collapsed' | 'expanded'
  * obstruction in CSS pixels (the unit Google Maps' panBy / fitBounds padding
  * expects). Updates on resize / orientation change.
  */
+/** Local-time YYYY-MM-DD ("today" in the user's wall-clock, not UTC). */
+function localDateString(d: Date = new Date()): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 function pickDefaultDayTab(city: City): DayTabValue {
   const days = getDaysForCity(city)
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDateString()
   if (days.some((d) => d.date === today)) return today
   return days[0]?.date ?? PLACES_TAB
 }
@@ -128,43 +136,57 @@ function BottomSheet({ collapsedPx, expandedPx, snap, onSnapChange, children }: 
   const [dragHeight, setDragHeight] = useState<number | null>(null)
   const startY = useRef<number | null>(null)
   const startHeight = useRef<number>(targetHeight)
+  // Snap heights snapshotted at pointerdown so a viewport resize mid-drag
+  // (e.g. orientation change) doesn't cause a discontinuity in the clamp.
+  const dragCollapsedPx = useRef<number>(collapsedPx)
+  const dragExpandedPx = useRef<number>(expandedPx)
+  const activePointerId = useRef<number | null>(null)
+
+  function safeRelease(e: React.PointerEvent<HTMLDivElement>) {
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    } catch {
+      // capture may already be released by the browser; ignore
+    }
+  }
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if (e.pointerType === 'mouse' && e.button !== 0) return
+    if (activePointerId.current !== null) return // ignore secondary pointers
+    activePointerId.current = e.pointerId
     startY.current = e.clientY
     startHeight.current = targetHeight
+    dragCollapsedPx.current = collapsedPx
+    dragExpandedPx.current = expandedPx
     setDragHeight(targetHeight)
     e.currentTarget.setPointerCapture(e.pointerId)
   }
 
   function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (startY.current === null) return
+    if (startY.current === null || e.pointerId !== activePointerId.current) return
     const dy = e.clientY - startY.current
     // Drag down (dy > 0) shrinks the sheet; drag up grows it.
     let next = startHeight.current - dy
     // Soft clamp with a small overshoot region for tactile feel.
-    const min = collapsedPx * 0.85
-    const max = expandedPx * 1.05
+    const min = dragCollapsedPx.current * 0.85
+    const max = dragExpandedPx.current * 1.05
     if (next < min) next = min - (min - next) * 0.5
     if (next > max) next = max - (next - max) * 0.5
     setDragHeight(next)
   }
 
   function handlePointerUp(e: React.PointerEvent<HTMLDivElement>) {
-    if (startY.current === null || dragHeight === null) {
+    if (e.pointerId !== activePointerId.current) return
+    try {
+      if (startY.current !== null && dragHeight !== null) {
+        const midpoint = (dragCollapsedPx.current + dragExpandedPx.current) / 2
+        onSnapChange(dragHeight > midpoint ? 'expanded' : 'collapsed')
+      }
+    } finally {
       startY.current = null
       setDragHeight(null)
-      return
-    }
-    const final = dragHeight
-    startY.current = null
-    setDragHeight(null)
-    const midpoint = (collapsedPx + expandedPx) / 2
-    onSnapChange(final > midpoint ? 'expanded' : 'collapsed')
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId)
-    } catch {
-      // capture may already be released by the browser; ignore
+      activePointerId.current = null
+      safeRelease(e)
     }
   }
 
@@ -220,15 +242,21 @@ function DayColumnSwiper({
   const startX = useRef<number | null>(null)
   const startY = useRef<number | null>(null)
   const locked = useRef(false)
+  // Only one finger drives the swipe at a time; secondary touches are ignored
+  // so multi-touch can't wedge the gesture in a half-locked state.
+  const activePointerId = useRef<number | null>(null)
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if (e.pointerType === 'mouse' && e.button !== 0) return
+    if (activePointerId.current !== null) return
+    activePointerId.current = e.pointerId
     startX.current = e.clientX
     startY.current = e.clientY
     locked.current = false
   }
 
   function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.pointerId !== activePointerId.current) return
     if (startX.current === null || startY.current === null) return
     const dx = e.clientX - startX.current
     const dy = e.clientY - startY.current
@@ -237,6 +265,7 @@ function DayColumnSwiper({
         // User is scrolling vertically — bail out of the gesture entirely.
         startX.current = null
         startY.current = null
+        activePointerId.current = null
         return
       }
       if (Math.abs(dx) < SWIPE_AXIS_LOCK_PX) return
@@ -250,17 +279,25 @@ function DayColumnSwiper({
   }
 
   function handlePointerUp(e: React.PointerEvent<HTMLDivElement>) {
-    if (startX.current === null) {
+    if (e.pointerId !== activePointerId.current) return
+    try {
+      if (startX.current !== null) {
+        const dx = e.clientX - startX.current
+        if (dx > SWIPE_COMMIT_THRESHOLD_PX && hasPrev) onSwipePrev()
+        else if (dx < -SWIPE_COMMIT_THRESHOLD_PX && hasNext) onSwipeNext()
+      }
+    } finally {
+      startX.current = null
+      startY.current = null
+      locked.current = false
+      activePointerId.current = null
       setDragX(0)
-      return
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      } catch {
+        // capture may not have been claimed (gesture didn't lock); ignore
+      }
     }
-    const dx = e.clientX - startX.current
-    startX.current = null
-    startY.current = null
-    locked.current = false
-    if (dx > SWIPE_COMMIT_THRESHOLD_PX && hasPrev) onSwipePrev()
-    else if (dx < -SWIPE_COMMIT_THRESHOLD_PX && hasNext) onSwipeNext()
-    setDragX(0)
   }
 
   return (
@@ -343,7 +380,7 @@ export function ItineraryView({
   const showingDetailSheet = !!selectedPlace || !!selectedHotel || !!selectedJourney
   const mapBottomPadPx = isDesktop ? 0 : showingDetailSheet ? detailSheetPx : mainSheetPx
 
-  const cityDays: TripDay[] = getDaysForCity(city)
+  const cityDays: TripDay[] = useMemo(() => getDaysForCity(city), [city])
   const { sensors, activeDrag, handleDragStart, handleDragEnd } = useCrossItineraryDnD(cityDays)
 
   // Mobile day-tab selection. Defaults to today if it falls within the city's
