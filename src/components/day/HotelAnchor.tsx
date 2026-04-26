@@ -7,14 +7,19 @@ interface HotelAnchorProps {
   slot: 'morning' | 'evening'
   colors: CityColor
   onSelect?: (hotel: AccommodationRow) => void
+  /**
+   * When true, drops the rounded corners so the banner can sit flush against
+   * a parent's rounded edges (used by the mobile day-card layout where the
+   * banner bleeds to the card edges).
+   */
+  bleed?: boolean
 }
 
-export function HotelAnchor({ hotel, slot, colors, onSelect }: HotelAnchorProps) {
+export function HotelAnchor({ hotel, slot, colors, onSelect, bleed = false }: HotelAnchorProps) {
   const Icon = slot === 'morning' ? Hotel : BedDouble
   const title = slot === 'morning' ? `Waking up at ${hotel.name}` : `Sleeping at ${hotel.name}`
 
-  const className =
-    'flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium select-none w-full text-left'
+  const className = `flex items-center gap-2 ${bleed ? '' : 'rounded-md'} px-3 py-2 text-xs font-medium select-none w-full text-left`
 
   if (onSelect) {
     return (
