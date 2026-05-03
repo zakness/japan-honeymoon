@@ -156,7 +156,7 @@ describe('DetailPanel', () => {
         { wrapper }
       )
       expect(screen.getAllByText(/Tokyo → Odawara/).length).toBeGreaterThan(0)
-      expect(screen.getByLabelText('booked')).toBeInTheDocument()
+      expect(screen.getByText('● Booked')).toBeInTheDocument()
     })
   })
 
