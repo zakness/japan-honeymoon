@@ -224,15 +224,19 @@ function CityMapContent({
     const el = containerRef.current
     if (!el) return
     let raf = 0
+    // Snap (no smoothPanTo animation) so the marker tracks a divider drag
+    // 1:1. The 500ms ease in smoothPanTo is too sluggish for an interactive
+    // resize and ends up fighting the pointer. Initial selection-change pans
+    // still animate via the dedicated effects above.
     const observer = new ResizeObserver(() => {
       if (raf) cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => {
         if (selectedJourney) {
           fitJourney(map, selectedJourney)
         } else if (selectedPlace?.lat != null && selectedPlace?.lng != null) {
-          smoothPanTo(map, { lat: selectedPlace.lat, lng: selectedPlace.lng })
+          map.moveCamera({ center: { lat: selectedPlace.lat, lng: selectedPlace.lng } })
         } else if (selectedHotel?.lat != null && selectedHotel?.lng != null) {
-          smoothPanTo(map, { lat: selectedHotel.lat, lng: selectedHotel.lng })
+          map.moveCamera({ center: { lat: selectedHotel.lat, lng: selectedHotel.lng } })
         }
       })
     })

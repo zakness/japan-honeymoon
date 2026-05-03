@@ -70,9 +70,18 @@ function useIsDesktop() {
 // smaller (≈38.2%). 100 / φ ≈ 61.8034.
 const GOLDEN_RATIO_SPLIT = 61.8034
 
-/** Desktop detail panel fixed height (px), pushes the map up when a selection is active. */
-const DESKTOP_DETAIL_PANEL_PX = 340
-/** Height transition duration for the desktop detail panel. */
+/**
+ * Default vertical split inside the desktop map column when a selection is
+ * active: map gets the smaller share (top), detail panel the larger share
+ * (bottom). Mirrors the mobile 40/60 split. Persisted in component state and
+ * adjustable via a horizontal resize divider; rebased to this default on a
+ * fresh selection.
+ */
+const DETAIL_SPLIT_DEFAULT_PCT = 40
+/** Hard min/max for the map share so neither pane can become unusable. */
+const DETAIL_SPLIT_MIN_PCT = 20
+const DETAIL_SPLIT_MAX_PCT = 80
+/** Height transition duration for the desktop detail panel open/close. */
 const DETAIL_PANEL_TRANSITION_MS = 180
 
 /** Local-time YYYY-MM-DD ("today" in the user's wall-clock, not UTC). */
@@ -244,6 +253,13 @@ export function ItineraryView({
   const splitContainerRef = useRef<HTMLDivElement>(null)
   const isDesktop = useIsDesktop()
 
+  // Vertical split inside the desktop map column when a detail is open.
+  // Map gets `mapDetailSplitPct`% on top, detail panel gets the rest. Only
+  // applied while a selection is active; collapses to map-only otherwise.
+  const [mapDetailSplitPct, setMapDetailSplitPct] = useState<number>(DETAIL_SPLIT_DEFAULT_PCT)
+  const [isResizingDetail, setIsResizingDetail] = useState(false)
+  const mapColumnRef = useRef<HTMLDivElement>(null)
+
   // Discriminated selection for the shared DetailPanel. Null when nothing is
   // selected — the panel collapses on desktop, falls back to the itinerary
   // content on mobile.
@@ -306,6 +322,23 @@ export function ItineraryView({
 
   function handleDividerPointerUp() {
     setIsResizing(false)
+  }
+
+  function handleDetailDividerPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    e.preventDefault()
+    setIsResizingDetail(true)
+    ;(e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId)
+  }
+
+  function handleDetailDividerPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!isResizingDetail || !mapColumnRef.current) return
+    const rect = mapColumnRef.current.getBoundingClientRect()
+    const pct = ((e.clientY - rect.top) / rect.height) * 100
+    setMapDetailSplitPct(Math.min(DETAIL_SPLIT_MAX_PCT, Math.max(DETAIL_SPLIT_MIN_PCT, pct)))
+  }
+
+  function handleDetailDividerPointerUp() {
+    setIsResizingDetail(false)
   }
 
   // Day-column clicks route through the unified handler with `'day-column'`
@@ -403,16 +436,28 @@ export function ItineraryView({
 
                 {/* Map + detail panel column.
                     The detail panel sits below the map as a sibling — never
-                    overlays it. Map shrinks vertically when a selection is
-                    active; CityMap's ResizeObserver re-pans the active
-                    selection after the height transition settles. */}
+                    overlays it. When a selection is active, the column splits
+                    vertically (default 40% map / 60% detail) with a draggable
+                    horizontal divider. CityMap's ResizeObserver keeps the
+                    active selection centered through the open/close
+                    transition AND through user drags. The transition is
+                    disabled mid-drag so the detail follows the cursor 1:1. */}
                 <div
+                  ref={mapColumnRef}
                   className={cn(
                     'flex-1 flex flex-col overflow-hidden',
-                    isResizing && 'pointer-events-none'
+                    (isResizing || isResizingDetail) && 'pointer-events-none'
                   )}
                 >
-                  <div className="flex-1 overflow-hidden min-h-0">
+                  <div
+                    className="overflow-hidden min-h-0"
+                    style={{
+                      height: detailSelection ? `${mapDetailSplitPct}%` : '100%',
+                      transition: isResizingDetail
+                        ? 'none'
+                        : `height ${DETAIL_PANEL_TRANSITION_MS}ms ease-out`,
+                    }}
+                  >
                     <CityMap
                       city={city}
                       selectedPlace={selectedPlace}
@@ -423,11 +468,30 @@ export function ItineraryView({
                       onSelectJourney={onSelectJourney}
                     />
                   </div>
+                  {detailSelection && (
+                    <div
+                      className="h-3 -my-1 shrink-0 cursor-row-resize relative z-10 flex items-center justify-center group/detail-divider pointer-events-auto"
+                      onPointerDown={handleDetailDividerPointerDown}
+                      onPointerMove={handleDetailDividerPointerMove}
+                      onPointerUp={handleDetailDividerPointerUp}
+                    >
+                      <div
+                        className={cn(
+                          'h-1 w-full transition-colors',
+                          isResizingDetail
+                            ? 'bg-primary/40'
+                            : 'group-hover/detail-divider:bg-primary/20'
+                        )}
+                      />
+                    </div>
+                  )}
                   <div
                     className="overflow-hidden border-t bg-background"
                     style={{
-                      height: detailSelection ? DESKTOP_DETAIL_PANEL_PX : 0,
-                      transition: `height ${DETAIL_PANEL_TRANSITION_MS}ms ease-out`,
+                      height: detailSelection ? `${100 - mapDetailSplitPct}%` : 0,
+                      transition: isResizingDetail
+                        ? 'none'
+                        : `height ${DETAIL_PANEL_TRANSITION_MS}ms ease-out`,
                     }}
                   >
                     {detailSelection && (
