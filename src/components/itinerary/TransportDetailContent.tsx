@@ -110,7 +110,7 @@ export function TransportDetailContent({ journey }: TransportDetailContentProps)
       </div>
 
       {parent.notes && (
-        <div className="text-xs whitespace-pre-wrap text-muted-foreground">{parent.notes}</div>
+        <div className="rounded-md bg-muted p-3 text-sm whitespace-pre-wrap">{parent.notes}</div>
       )}
     </div>
   )

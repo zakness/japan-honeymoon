@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
   ExternalLink,
+  Globe,
   Phone,
   MapPin,
   Star,
@@ -34,6 +35,7 @@ import { PlaceForm } from './PlaceForm'
 import { useDeletePlace } from '@/hooks/usePlaces'
 import { useCreateItineraryItem, usePlaceSchedule } from '@/hooks/useItinerary'
 import { PLACE_CATEGORIES, type PlaceRow, type PlacePriority } from '@/types/places'
+import { googleMapsUrl } from '@/lib/maps-url'
 import {
   CITY_LABELS,
   TRIP_DAYS,
@@ -188,7 +190,7 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
                 aria-label="Open website"
                 title={place.website}
               >
-                <ExternalLink className="h-4 w-4" />
+                <Globe className="h-4 w-4" />
               </a>
             )}
             {place.phone && (
@@ -282,6 +284,28 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
             >
               <Copy className="h-3.5 w-3.5" />
             </button>
+            {(() => {
+              const mapsUrl = googleMapsUrl({
+                google_place_id: place.google_place_id,
+                lat: place.lat,
+                lng: place.lng,
+                address: place.address,
+              })
+              if (!mapsUrl) return null
+              return (
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="Open in Google Maps"
+                  title="Open in Google Maps"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              )
+            })()}
           </div>
         )}
 

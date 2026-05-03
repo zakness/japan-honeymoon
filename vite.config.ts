@@ -7,6 +7,11 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 5175,
+    fs: {
+      // Allow serving files from ancestor directories so worktrees can
+      // resolve packages from the main repo's node_modules.
+      allow: ['..', '../..', '../../..', '../../../..'],
+    },
   },
   resolve: {
     alias: {
