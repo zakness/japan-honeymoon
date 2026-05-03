@@ -114,8 +114,8 @@ interface PlaceDetailContentProps {
 }
 
 /**
- * Read-only view of a place. Renders inside either the floating `PlaceDetailCard`
- * (on the map) or a modal sheet — it doesn't own its own viewport positioning.
+ * Read-only view of a place. Renders inside the shared `DetailPanel` (sibling
+ * to the map) or a modal sheet — it doesn't own its own viewport positioning.
  * Edit is delegated upward via `onEdit`; delete + add-to-day are handled inline
  * because their affordances (AlertDialog, Popover) are scoped to the action.
  */
