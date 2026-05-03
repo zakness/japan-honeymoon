@@ -404,10 +404,8 @@ export function ItineraryView({
                 {/* Map + detail panel column.
                     The detail panel sits below the map as a sibling — never
                     overlays it. Map shrinks vertically when a selection is
-                    active; height transition is gated on `detailSelection`.
-                    Phase 5 will add a ResizeObserver-driven re-pan; for now
-                    CityMap's existing selection-change pan handles the new
-                    target, just before the height transition completes. */}
+                    active; CityMap's ResizeObserver re-pans the active
+                    selection after the height transition settles. */}
                 <div
                   className={cn(
                     'flex-1 flex flex-col overflow-hidden',
@@ -419,15 +417,10 @@ export function ItineraryView({
                       city={city}
                       selectedPlace={selectedPlace}
                       onSelectPlace={onSelectPlace}
-                      onEditPlace={onEditPlace}
                       selectedHotel={selectedHotel}
                       onSelectHotel={onSelectHotel}
-                      onEditHotel={onEditHotel}
                       selectedJourney={selectedJourney}
                       onSelectJourney={onSelectJourney}
-                      onEditJourney={onEditJourney}
-                      bottomPadPx={0}
-                      showFloatingCards={false}
                     />
                   </div>
                   <div
@@ -462,15 +455,10 @@ export function ItineraryView({
                 city={city}
                 selectedPlace={selectedPlace}
                 onSelectPlace={onSelectPlace}
-                onEditPlace={onEditPlace}
                 selectedHotel={selectedHotel}
                 onSelectHotel={onSelectHotel}
-                onEditHotel={onEditHotel}
                 selectedJourney={selectedJourney}
                 onSelectJourney={onSelectJourney}
-                onEditJourney={onEditJourney}
-                bottomPadPx={0}
-                showFloatingCards={false}
               />
             </div>
             <div className="flex-1 min-h-0 relative bg-background border-t">
