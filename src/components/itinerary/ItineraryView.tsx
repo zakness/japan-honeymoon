@@ -12,9 +12,6 @@ import type { AccommodationRow } from '@/types/accommodations'
 import type { Journey } from '@/types/transport'
 import { CityStrip } from './CityStrip'
 import { CityMap } from './CityMap'
-import { PlaceDetailCard } from './PlaceDetailCard'
-import { HotelDetailCard } from './HotelDetailCard'
-import { TransportDetailCard } from './TransportDetailCard'
 import { DetailPanel, type DetailSelection } from './DetailPanel'
 import { DayColumn } from './DayColumn'
 import { UnscheduledColumn } from './UnscheduledColumn'
@@ -73,26 +70,11 @@ function useIsDesktop() {
 // smaller (≈38.2%). 100 / φ ≈ 61.8034.
 const GOLDEN_RATIO_SPLIT = 61.8034
 
-/**
- * Default itinerary sheet snap heights as a fraction of viewport height.
- * Collapsed shows the day strip + ~one time slot above the map; expanded
- * approaches fullscreen for focused planning.
- */
-const SHEET_SNAP_COLLAPSED_VH = 0.32
-const SHEET_SNAP_EXPANDED_VH = 0.85
-/** Detail sheet height — golden ratio so the sheet gets the larger share (~62%). */
-const DETAIL_SHEET_VH = 1 / 1.618 // ≈ 0.618
 /** Desktop detail panel fixed height (px), pushes the map up when a selection is active. */
 const DESKTOP_DETAIL_PANEL_PX = 340
 /** Height transition duration for the desktop detail panel. */
 const DETAIL_PANEL_TRANSITION_MS = 180
-type SheetSnap = 'collapsed' | 'expanded'
 
-/**
- * Tracks the current viewport height so we can express the mobile sheet
- * obstruction in CSS pixels (the unit Google Maps' panBy / fitBounds padding
- * expects). Updates on resize / orientation change.
- */
 /** Local-time YYYY-MM-DD ("today" in the user's wall-clock, not UTC). */
 function localDateString(d: Date = new Date()): string {
   const y = d.getFullYear()
@@ -119,107 +101,6 @@ function getAdjacentDay(date: string, direction: 1 | -1): TripDay | null {
 const SWIPE_COMMIT_THRESHOLD_PX = 70
 /** Minimum dx before we lock in the swipe gesture and prevent vertical scroll fights. */
 const SWIPE_AXIS_LOCK_PX = 8
-
-interface BottomSheetProps {
-  collapsedPx: number
-  expandedPx: number
-  snap: SheetSnap
-  onSnapChange: (snap: SheetSnap) => void
-  children: React.ReactNode
-}
-
-/**
- * Draggable bottom sheet with two snap points. The grabber at the top of the
- * sheet is the drag surface — pointer events on it follow the finger while
- * the rest of the sheet content scrolls/interacts normally. On release, the
- * sheet snaps to whichever point is closer (or, on a fast flick, in the
- * direction of travel). Hand-rolled to avoid pulling in framer-motion just
- * for one gesture.
- */
-function BottomSheet({ collapsedPx, expandedPx, snap, onSnapChange, children }: BottomSheetProps) {
-  const targetHeight = snap === 'collapsed' ? collapsedPx : expandedPx
-  const [dragHeight, setDragHeight] = useState<number | null>(null)
-  const startY = useRef<number | null>(null)
-  const startHeight = useRef<number>(targetHeight)
-  // Snap heights snapshotted at pointerdown so a viewport resize mid-drag
-  // (e.g. orientation change) doesn't cause a discontinuity in the clamp.
-  const dragCollapsedPx = useRef<number>(collapsedPx)
-  const dragExpandedPx = useRef<number>(expandedPx)
-  const activePointerId = useRef<number | null>(null)
-
-  function safeRelease(e: React.PointerEvent<HTMLDivElement>) {
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId)
-    } catch {
-      // capture may already be released by the browser; ignore
-    }
-  }
-
-  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (e.pointerType === 'mouse' && e.button !== 0) return
-    if (activePointerId.current !== null) return // ignore secondary pointers
-    activePointerId.current = e.pointerId
-    startY.current = e.clientY
-    startHeight.current = targetHeight
-    dragCollapsedPx.current = collapsedPx
-    dragExpandedPx.current = expandedPx
-    setDragHeight(targetHeight)
-    e.currentTarget.setPointerCapture(e.pointerId)
-  }
-
-  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (startY.current === null || e.pointerId !== activePointerId.current) return
-    const dy = e.clientY - startY.current
-    // Drag down (dy > 0) shrinks the sheet; drag up grows it.
-    let next = startHeight.current - dy
-    // Soft clamp with a small overshoot region for tactile feel.
-    const min = dragCollapsedPx.current * 0.85
-    const max = dragExpandedPx.current * 1.05
-    if (next < min) next = min - (min - next) * 0.5
-    if (next > max) next = max - (next - max) * 0.5
-    setDragHeight(next)
-  }
-
-  function handlePointerUp(e: React.PointerEvent<HTMLDivElement>) {
-    if (e.pointerId !== activePointerId.current) return
-    try {
-      if (startY.current !== null && dragHeight !== null) {
-        const midpoint = (dragCollapsedPx.current + dragExpandedPx.current) / 2
-        onSnapChange(dragHeight > midpoint ? 'expanded' : 'collapsed')
-      }
-    } finally {
-      startY.current = null
-      setDragHeight(null)
-      activePointerId.current = null
-      safeRelease(e)
-    }
-  }
-
-  const visibleHeight = dragHeight ?? targetHeight
-
-  return (
-    <div
-      className="absolute bottom-0 left-0 right-0 bg-background border-t rounded-t-2xl shadow-2xl flex flex-col"
-      style={{
-        height: visibleHeight,
-        // Animate snap-back; instant follow during drag.
-        transition: dragHeight === null ? 'height 240ms cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none',
-      }}
-    >
-      <div
-        className="flex items-center justify-center pt-2 pb-1 shrink-0 cursor-grab active:cursor-grabbing"
-        style={{ touchAction: 'none' }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-      >
-        <div className="w-8 h-1 rounded-full bg-muted-foreground/30" />
-      </div>
-      {children}
-    </div>
-  )
-}
 
 interface DayColumnSwiperProps {
   hasPrev: boolean
@@ -343,18 +224,6 @@ function DayColumnSwiper({
   )
 }
 
-function useViewportHeight() {
-  const [height, setHeight] = useState(() =>
-    typeof window === 'undefined' ? 0 : window.innerHeight
-  )
-  useEffect(() => {
-    const handler = () => setHeight(window.innerHeight)
-    window.addEventListener('resize', handler)
-    return () => window.removeEventListener('resize', handler)
-  }, [])
-  return height
-}
-
 export function ItineraryView({
   city,
   onNavigate,
@@ -374,16 +243,6 @@ export function ItineraryView({
   const [isResizing, setIsResizing] = useState(false)
   const splitContainerRef = useRef<HTMLDivElement>(null)
   const isDesktop = useIsDesktop()
-  const viewportHeight = useViewportHeight()
-  const [sheetSnap, setSheetSnap] = useState<SheetSnap>('collapsed')
-  const sheetCollapsedPx = Math.round(viewportHeight * SHEET_SNAP_COLLAPSED_VH)
-  const sheetExpandedPx = Math.round(viewportHeight * SHEET_SNAP_EXPANDED_VH)
-  const mainSheetPx = sheetSnap === 'collapsed' ? sheetCollapsedPx : sheetExpandedPx
-  const detailSheetPx = Math.round(viewportHeight * DETAIL_SHEET_VH)
-  // Map's bottom obstruction: detail sheets (50vh) take precedence when one
-  // is open; otherwise the main sheet's current snap height. Desktop = 0.
-  const showingDetailSheet = !!selectedPlace || !!selectedHotel || !!selectedJourney
-  const mapBottomPadPx = isDesktop ? 0 : showingDetailSheet ? detailSheetPx : mainSheetPx
 
   // Discriminated selection for the shared DetailPanel. Null when nothing is
   // selected — the panel collapses on desktop, falls back to the itinerary
@@ -567,7 +426,7 @@ export function ItineraryView({
                       selectedJourney={selectedJourney}
                       onSelectJourney={onSelectJourney}
                       onEditJourney={onEditJourney}
-                      bottomPadPx={mapBottomPadPx}
+                      bottomPadPx={0}
                       showFloatingCards={false}
                     />
                   </div>
@@ -592,8 +451,13 @@ export function ItineraryView({
           </div>
         ) : (
           /* ── Mobile layout ──────────────────────────────────────────────── */
-          <div className="flex-1 relative overflow-hidden">
-            <div className="absolute inset-0">
+          /* Fixed 40/60 vertical split. Map on top (40vh), bottom region
+             (60vh) holds the itinerary content by default and swaps to the
+             shared DetailPanel when something is selected. The itinerary
+             content stays mounted (just hidden) so scroll position survives
+             a select+close cycle. No draggable sheet. */
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="h-[40vh] shrink-0">
               <CityMap
                 city={city}
                 selectedPlace={selectedPlace}
@@ -605,70 +469,19 @@ export function ItineraryView({
                 selectedJourney={selectedJourney}
                 onSelectJourney={onSelectJourney}
                 onEditJourney={onEditJourney}
-                bottomPadPx={mapBottomPadPx}
+                bottomPadPx={0}
                 showFloatingCards={false}
               />
             </div>
-
-            {selectedPlace ? (
-              /* Place detail sheet — replaces the day-columns sheet while a
-                 place is selected. The itinerary sheet collapses to an 80px
-                 peek handle underneath so the user can tap it to dismiss. */
+            <div className="flex-1 min-h-0 relative bg-background border-t">
+              {/* Itinerary content stays mounted to preserve scroll/state;
+                  visibility toggles when a detail is open. */}
               <div
-                className="absolute bottom-0 left-0 right-0 bg-background border-t rounded-t-2xl shadow-2xl flex flex-col overflow-hidden"
-                style={{ height: detailSheetPx }}
-              >
-                <div className="flex-1 overflow-hidden">
-                  <PlaceDetailCard
-                    place={selectedPlace}
-                    onClose={() => onSelectPlace(null)}
-                    onEdit={() => onEditPlace(selectedPlace)}
-                    variant="sheet"
-                  />
-                </div>
-              </div>
-            ) : selectedHotel ? (
-              /* Hotel detail sheet — same shape as the place sheet. */
-              <div
-                className="absolute bottom-0 left-0 right-0 bg-background border-t rounded-t-2xl shadow-2xl flex flex-col overflow-hidden"
-                style={{ height: detailSheetPx }}
-              >
-                <div className="flex-1 overflow-hidden">
-                  <HotelDetailCard
-                    hotel={selectedHotel}
-                    onClose={() => onSelectHotel(null)}
-                    onEdit={() => onEditHotel(selectedHotel)}
-                    variant="sheet"
-                  />
-                </div>
-              </div>
-            ) : selectedJourney ? (
-              /* Journey detail sheet — same shape as place/hotel sheets. */
-              <div
-                className="absolute bottom-0 left-0 right-0 bg-background border-t rounded-t-2xl shadow-2xl flex flex-col overflow-hidden"
-                style={{ height: detailSheetPx }}
-              >
-                <div className="flex-1 overflow-hidden">
-                  <TransportDetailCard
-                    journey={selectedJourney}
-                    onClose={() => onSelectJourney(null)}
-                    onEdit={() => onEditJourney(selectedJourney)}
-                    variant="sheet"
-                  />
-                </div>
-              </div>
-            ) : (
-              /* Default itinerary sheet — mobile uses single-column day-tab
-                 navigation instead of horizontally scrolling all days. The
-                 backlog (`Places`) is a peer tab; only one column is mounted
-                 at a time, which incidentally makes cross-day DnD impossible
-                 on mobile (within-day reorders still work). The sheet itself
-                 is draggable between collapsed/expanded snap points. */
-              <BottomSheet
-                collapsedPx={sheetCollapsedPx}
-                expandedPx={sheetExpandedPx}
-                snap={sheetSnap}
-                onSnapChange={setSheetSnap}
+                className={cn(
+                  'absolute inset-0 flex flex-col',
+                  detailSelection && 'invisible pointer-events-none'
+                )}
+                aria-hidden={detailSelection ? 'true' : undefined}
               >
                 <CityStrip selectedCity={city} onSelectCity={handleSelectCity} />
                 <DayStrip city={city} selected={mobileTab} onSelect={setMobileTab} />
@@ -699,8 +512,17 @@ export function ItineraryView({
                     />
                   </DayColumnSwiper>
                 )}
-              </BottomSheet>
-            )}
+              </div>
+              {detailSelection && (
+                <div className="absolute inset-0">
+                  <DetailPanel
+                    selection={detailSelection}
+                    onClose={handleCloseDetail}
+                    onEdit={handleEditDetail}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         )}
 
