@@ -202,8 +202,6 @@ function CityMapContent({
     }
   }, [map, selectedHotelId, selectedHotelLat, selectedHotelLng])
 
-  const hasSelection = !!selectedPlace || !!selectedHotel || !!selectedJourney
-
   // Fit bounds over all leg endpoints when a journey is selected.
   const journeyId = selectedJourney?.parent.id ?? null
   useEffect(() => {
@@ -314,7 +312,6 @@ function CityMapContent({
           key={place.id}
           place={place}
           selected={selectedPlace?.id === place.id}
-          dimmed={hasSelection && selectedPlace?.id !== place.id}
           scheduledDayCount={scheduleMap?.get(place.id)?.length ?? 0}
           onClick={handlePlaceClick}
         />
@@ -325,7 +322,6 @@ function CityMapContent({
           hotel={hotel}
           allHotels={allHotels}
           selected={selectedHotel?.id === hotel.id}
-          dimmed={hasSelection && selectedHotel?.id !== hotel.id}
           onClick={handleHotelClick}
         />
       ))}
