@@ -9,18 +9,21 @@ interface TransportDetailContentProps {
   journey: Journey
 }
 
+function legBadgeClass(bookingStatus: string) {
+  if (bookingStatus === 'booked') return 'bg-green-100 text-green-800'
+  if (bookingStatus === 'not_needed') return 'bg-muted text-muted-foreground'
+  return 'bg-red-50 text-red-700'
+}
+
+function legBadgeLabel(bookingStatus: string) {
+  if (bookingStatus === 'booked') return '● Booked'
+  if (bookingStatus === 'not_needed') return '– No booking'
+  return '○ Not booked'
+}
+
 export function TransportDetailContent({ journey }: TransportDetailContentProps) {
   const { parent, legs } = journey
   const display = deriveJourneyDisplay(journey)
-
-  const chipClass =
-    display.totalCount === 0
-      ? 'bg-muted text-muted-foreground'
-      : display.bookedCount === display.totalCount
-        ? 'bg-green-100 text-green-800'
-        : display.bookedCount > 0
-          ? 'bg-amber-100 text-amber-800'
-          : 'bg-muted text-muted-foreground'
 
   const date = new Date(parent.day_date + 'T00:00:00')
   const dateLabel = date.toLocaleDateString(undefined, {
@@ -39,16 +42,6 @@ export function TransportDetailContent({ journey }: TransportDetailContentProps)
         </div>
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <span>{dateLabel}</span>
-          {display.totalCount > 0 && (
-            <span
-              className={cn(
-                'rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none',
-                chipClass
-              )}
-            >
-              {display.bookedCount}/{display.totalCount} booked
-            </span>
-          )}
         </div>
       </div>
 
@@ -75,16 +68,16 @@ export function TransportDetailContent({ journey }: TransportDetailContentProps)
                     <span
                       className={cn(
                         'shrink-0 rounded px-1 py-0.5 text-[9px] font-medium leading-none',
-                        leg.is_booked ? 'bg-green-100 text-green-800' : 'bg-red-50 text-red-700'
+                        legBadgeClass(leg.booking_status)
                       )}
                     >
-                      {leg.is_booked ? 'Booked' : 'Not booked'}
+                      {legBadgeLabel(leg.booking_status)}
                     </span>
                   </div>
                   <div className="mt-0.5 text-[11px] text-muted-foreground truncate">
                     {formatReservationTime(leg.departure_time)}
                     {leg.arrival_time && ` → ${formatReservationTime(leg.arrival_time)}`}
-                    {leg.is_booked && leg.confirmation && (
+                    {leg.booking_status === 'booked' && leg.confirmation && (
                       <>
                         {' · '}
                         <span className="font-mono">{leg.confirmation}</span>

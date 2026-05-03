@@ -14,6 +14,14 @@ export type TransportLegUpdate = Database['public']['Tables']['transport_legs'][
 // Narrowed union type — DB stores as `string`
 export type TransportMode = 'shinkansen' | 'local_train' | 'ferry' | 'bus' | 'taxi' | 'subway'
 
+export type BookingStatus = 'booked' | 'not_booked' | 'not_needed'
+
+const NOT_NEEDED_MODES: TransportMode[] = ['subway', 'taxi', 'local_train']
+
+export function defaultBookingStatusForMode(mode: TransportMode): BookingStatus {
+  return NOT_NEEDED_MODES.includes(mode) ? 'not_needed' : 'not_booked'
+}
+
 // Backwards-compat alias during transition; prefer TransportMode going forward
 export type TransportType = TransportMode
 

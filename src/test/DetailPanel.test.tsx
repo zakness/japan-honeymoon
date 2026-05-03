@@ -96,7 +96,7 @@ const JOURNEY: Journey = {
       destination_lng: 139.1551,
       departure_time: '09:00',
       arrival_time: '09:35',
-      is_booked: true,
+      booking_status: 'booked',
       confirmation: 'XYZ-9',
       notes: null,
       created_at: '2026-01-01T00:00:00Z',
@@ -156,7 +156,7 @@ describe('DetailPanel', () => {
         { wrapper }
       )
       expect(screen.getAllByText(/Tokyo → Odawara/).length).toBeGreaterThan(0)
-      expect(screen.getByText(/1\/1 booked/)).toBeInTheDocument()
+      expect(screen.getByLabelText('booked')).toBeInTheDocument()
     })
   })
 

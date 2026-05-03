@@ -31,7 +31,7 @@ function makeLeg(overrides: Partial<TransportLegRow> & { id: string }): Transpor
     destination_lng: null,
     departure_time: '09:00:00',
     arrival_time: '11:00:00',
-    is_booked: false,
+    booking_status: 'not_booked',
     confirmation: null,
     notes: null,
     ...overrides,
@@ -81,8 +81,8 @@ describe('TransportItem', () => {
   it('renders a solid (non-dashed) border when every leg is booked', () => {
     const journey = makeJourney({
       legs: [
-        makeLeg({ id: 'l1', is_booked: true }),
-        makeLeg({ id: 'l2', leg_index: 1, is_booked: true }),
+        makeLeg({ id: 'l1', booking_status: 'booked' }),
+        makeLeg({ id: 'l2', leg_index: 1, booking_status: 'booked' }),
       ],
     })
     renderItem(journey)
@@ -93,8 +93,8 @@ describe('TransportItem', () => {
   it('renders a dashed border when at least one leg is unbooked', () => {
     const journey = makeJourney({
       legs: [
-        makeLeg({ id: 'l1', is_booked: true }),
-        makeLeg({ id: 'l2', leg_index: 1, is_booked: false }),
+        makeLeg({ id: 'l1', booking_status: 'booked' }),
+        makeLeg({ id: 'l2', leg_index: 1, booking_status: 'not_booked' }),
       ],
     })
     renderItem(journey)
@@ -112,7 +112,7 @@ describe('TransportItem', () => {
   it('shows parent.title when set, even with origin and destination present', () => {
     const journey = makeJourney({
       title: 'Train to Kyoto via Nagoya',
-      legs: [makeLeg({ id: 'l1', is_booked: true })],
+      legs: [makeLeg({ id: 'l1', booking_status: 'booked' })],
     })
     renderItem(journey)
     expect(screen.getByText('Train to Kyoto via Nagoya')).toBeTruthy()

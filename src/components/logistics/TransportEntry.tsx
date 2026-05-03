@@ -3,6 +3,7 @@ import { formatReservationTime } from '@/types/itinerary'
 import { TRANSPORT_MODES, type Journey, type TransportMode } from '@/types/transport'
 import { getModeStyle } from '@/config/transport'
 import { deriveJourneyDisplay } from '@/lib/transport-utils'
+import { BookingDots } from '@/components/shared/BookingDots'
 import { cn } from '@/lib/utils'
 
 interface TransportEntryProps {
@@ -10,17 +11,21 @@ interface TransportEntryProps {
   onEdit?: (journey: Journey) => void
 }
 
+function legBadgeClass(bookingStatus: string) {
+  if (bookingStatus === 'booked') return 'bg-green-100 text-green-800'
+  if (bookingStatus === 'not_needed') return 'bg-muted text-muted-foreground'
+  return 'bg-red-50 text-red-700'
+}
+
+function legBadgeLabel(bookingStatus: string) {
+  if (bookingStatus === 'booked') return 'Booked'
+  if (bookingStatus === 'not_needed') return 'No booking'
+  return 'Not booked'
+}
+
 export function TransportEntry({ journey, onEdit }: TransportEntryProps) {
   const display = deriveJourneyDisplay(journey)
   const { legs, parent } = journey
-
-  const allBooked = display.totalCount > 0 && display.bookedCount === display.totalCount
-  const noneBooked = display.totalCount > 0 && display.bookedCount === 0
-  const chipClass = allBooked
-    ? 'bg-green-100 text-green-800'
-    : noneBooked
-      ? 'bg-red-50 text-red-700'
-      : 'bg-amber-100 text-amber-800'
 
   const title =
     display.originName && display.destinationName
@@ -39,17 +44,8 @@ export function TransportEntry({ journey, onEdit }: TransportEntryProps) {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          {display.totalCount > 0 && (
-            <span
-              className={cn(
-                'rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none',
-                chipClass
-              )}
-            >
-              {display.bookedCount}/{display.totalCount} booked
-            </span>
-          )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <BookingDots legs={legs} />
           {onEdit && (
             <button
               type="button"
@@ -81,16 +77,16 @@ export function TransportEntry({ journey, onEdit }: TransportEntryProps) {
                     <span
                       className={cn(
                         'shrink-0 rounded px-1 py-0.5 text-[9px] font-medium leading-none',
-                        leg.is_booked ? 'bg-green-100 text-green-800' : 'bg-red-50 text-red-700'
+                        legBadgeClass(leg.booking_status)
                       )}
                     >
-                      {leg.is_booked ? 'Booked' : 'Not booked'}
+                      {legBadgeLabel(leg.booking_status)}
                     </span>
                   </div>
                   <div className="mt-0.5 text-[11px] text-muted-foreground truncate">
                     {formatReservationTime(leg.departure_time)}
                     {leg.arrival_time && ` → ${formatReservationTime(leg.arrival_time)}`}
-                    {leg.is_booked && leg.confirmation && (
+                    {leg.booking_status === 'booked' && leg.confirmation && (
                       <>
                         {' · '}
                         <span className="font-mono">{leg.confirmation}</span>

@@ -41,7 +41,7 @@ function makeLeg(overrides: Partial<TransportLegRow> & { id: string }): Transpor
     destination_lng: null,
     departure_time: '09:00:00',
     arrival_time: null,
-    is_booked: false,
+    booking_status: 'not_booked',
     confirmation: null,
     notes: null,
     ...overrides,
@@ -169,7 +169,6 @@ describe('deriveJourneyDisplay', () => {
     const d = deriveJourneyDisplay(journey)
     expect(d.originName).toBe('Kyoto')
     expect(d.destinationName).toBe('Naoshima')
-    expect(d.totalCount).toBe(3)
   })
 
   it('computes earliest departure and latest arrival across legs', () => {
@@ -188,21 +187,36 @@ describe('deriveJourneyDisplay', () => {
     expect(d.latestArrival).toBe('12:35:00')
   })
 
-  it('reports booked count across mixed-status legs', () => {
+  it('isDecided is false when any leg is not_booked', () => {
     const journey = makeJourney({
       id: 't1',
       sort_order: 0,
       time_slot: 'morning',
       legs: [
-        makeLeg({ id: 'l0', is_booked: true }),
-        makeLeg({ id: 'l1', is_booked: false }),
-        makeLeg({ id: 'l2', is_booked: false }),
-        makeLeg({ id: 'l3', is_booked: false }),
+        makeLeg({ id: 'l0', booking_status: 'booked' }),
+        makeLeg({ id: 'l1', booking_status: 'not_booked' }),
+        makeLeg({ id: 'l2', booking_status: 'not_needed' }),
       ],
     })
-    const d = deriveJourneyDisplay(journey)
-    expect(d.bookedCount).toBe(1)
-    expect(d.totalCount).toBe(4)
+    expect(deriveJourneyDisplay(journey).isDecided).toBe(false)
+  })
+
+  it('isDecided is true when all legs are booked or not_needed', () => {
+    const journey = makeJourney({
+      id: 't1',
+      sort_order: 0,
+      time_slot: 'morning',
+      legs: [
+        makeLeg({ id: 'l0', booking_status: 'booked' }),
+        makeLeg({ id: 'l1', booking_status: 'not_needed' }),
+      ],
+    })
+    expect(deriveJourneyDisplay(journey).isDecided).toBe(true)
+  })
+
+  it('isDecided is false when there are no legs', () => {
+    const journey = makeJourney({ id: 't1', sort_order: 0, time_slot: 'morning', legs: [] })
+    expect(deriveJourneyDisplay(journey).isDecided).toBe(false)
   })
 
   it('prefers parent title over derived title when set', () => {

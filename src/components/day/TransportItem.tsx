@@ -7,7 +7,7 @@ import { useDeleteTransportItem, useUpdateJourney } from '@/hooks/useTransport'
 import { getCityColor, getPrimaryCityForDate } from '@/config/trip'
 import { getModeStyle } from '@/config/transport'
 import { deriveJourneyDisplay } from '@/lib/transport-utils'
-import { cn } from '@/lib/utils'
+import { BookingDots } from '@/components/shared/BookingDots'
 import { TransportDialog } from './TransportDialog'
 import {
   SortableItemCard,
@@ -53,19 +53,6 @@ export function TransportItem({ journey, dayDate, onSelect }: TransportItemProps
     }
   }
 
-  // Aggregate booking status → chip color.
-  // full booked → green, partial → amber, none → neutral.
-  const chipClass =
-    display.totalCount === 0
-      ? 'bg-muted text-muted-foreground'
-      : display.bookedCount === display.totalCount
-        ? 'bg-green-100 text-green-800'
-        : display.bookedCount > 0
-          ? 'bg-amber-100 text-amber-800'
-          : 'bg-muted text-muted-foreground'
-
-  const allBooked = display.totalCount > 0 && display.bookedCount === display.totalCount
-
   const actions = (
     <>
       <TimeSlotMenu timeSlot={timeSlot}>
@@ -83,10 +70,10 @@ export function TransportItem({ journey, dayDate, onSelect }: TransportItemProps
       data={{ dayDate, kind: 'transport' as const, timeSlot: parent.time_slot }}
       actions={actions}
       accentColor={accentColor}
-      variant={allBooked ? 'decided' : 'speculative'}
+      variant={display.isDecided ? 'decided' : 'speculative'}
       onCardClick={onSelect ? () => onSelect(journey) : undefined}
     >
-      {/* Row 1 — origin → destination, with time range on the right */}
+      {/* Row 1 — origin → destination, with booking dots on the right */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <span className="block w-full text-left text-sm font-medium leading-tight truncate">
@@ -99,26 +86,10 @@ export function TransportItem({ journey, dayDate, onSelect }: TransportItemProps
             </div>
           )}
         </div>
-        {display.totalCount > 0 && (
-          <span
-            className={cn(
-              'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none',
-              chipClass
-            )}
-            title={
-              display.bookedCount === display.totalCount
-                ? 'All legs booked'
-                : display.bookedCount === 0
-                  ? 'No legs booked'
-                  : `${display.bookedCount} of ${display.totalCount} booked`
-            }
-          >
-            {display.bookedCount}/{display.totalCount}
-          </span>
-        )}
+        <BookingDots legs={legs} className="shrink-0 mt-0.5" />
       </div>
 
-      {/* Row 2 — mode icon strip. Dimmed if the leg isn't booked. */}
+      {/* Row 2 — mode icon strip */}
       {legs.length > 0 && (
         <div className="mt-1.5 flex items-center gap-1">
           {legs.map((leg) => {
@@ -130,9 +101,9 @@ export function TransportItem({ journey, dayDate, onSelect }: TransportItemProps
               <Icon
                 key={leg.id}
                 size={14}
-                className={cn('shrink-0', !leg.is_booked && 'opacity-40')}
+                className="shrink-0"
                 color={color}
-                aria-label={`${mode?.label ?? leg.mode}${leg.is_booked ? ' (booked)' : ' (not booked)'}`}
+                aria-label={mode?.label ?? leg.mode}
               />
             )
           })}
