@@ -15,6 +15,7 @@ import { CityMap } from './CityMap'
 import { PlaceDetailCard } from './PlaceDetailCard'
 import { HotelDetailCard } from './HotelDetailCard'
 import { TransportDetailCard } from './TransportDetailCard'
+import { DetailPanel, type DetailSelection } from './DetailPanel'
 import { DayColumn } from './DayColumn'
 import { UnscheduledColumn } from './UnscheduledColumn'
 import { DayStrip, PLACES_TAB, type DayTabValue } from './DayStrip'
@@ -81,6 +82,10 @@ const SHEET_SNAP_COLLAPSED_VH = 0.32
 const SHEET_SNAP_EXPANDED_VH = 0.85
 /** Detail sheet height — golden ratio so the sheet gets the larger share (~62%). */
 const DETAIL_SHEET_VH = 1 / 1.618 // ≈ 0.618
+/** Desktop detail panel fixed height (px), pushes the map up when a selection is active. */
+const DESKTOP_DETAIL_PANEL_PX = 340
+/** Height transition duration for the desktop detail panel. */
+const DETAIL_PANEL_TRANSITION_MS = 180
 type SheetSnap = 'collapsed' | 'expanded'
 
 /**
@@ -380,6 +385,29 @@ export function ItineraryView({
   const showingDetailSheet = !!selectedPlace || !!selectedHotel || !!selectedJourney
   const mapBottomPadPx = isDesktop ? 0 : showingDetailSheet ? detailSheetPx : mainSheetPx
 
+  // Discriminated selection for the shared DetailPanel. Null when nothing is
+  // selected — the panel collapses on desktop, falls back to the itinerary
+  // content on mobile.
+  const detailSelection: DetailSelection | null = selectedPlace
+    ? { kind: 'place', place: selectedPlace }
+    : selectedHotel
+      ? { kind: 'hotel', hotel: selectedHotel }
+      : selectedJourney
+        ? { kind: 'journey', journey: selectedJourney }
+        : null
+
+  const handleCloseDetail = useCallback(() => {
+    if (selectedPlace) onSelectPlace(null)
+    else if (selectedHotel) onSelectHotel(null)
+    else if (selectedJourney) onSelectJourney(null)
+  }, [selectedPlace, selectedHotel, selectedJourney, onSelectPlace, onSelectHotel, onSelectJourney])
+
+  const handleEditDetail = useCallback(() => {
+    if (selectedPlace) onEditPlace(selectedPlace)
+    else if (selectedHotel) onEditHotel(selectedHotel)
+    else if (selectedJourney) onEditJourney(selectedJourney)
+  }, [selectedPlace, selectedHotel, selectedJourney, onEditPlace, onEditHotel, onEditJourney])
+
   const cityDays: TripDay[] = useMemo(() => getDaysForCity(city), [city])
   const { sensors, activeDrag, handleDragStart, handleDragEnd } = useCrossItineraryDnD(cityDays)
 
@@ -514,21 +542,50 @@ export function ItineraryView({
                   />
                 </div>
 
-                {/* Map panel */}
-                <div className={cn('flex-1 overflow-hidden', isResizing && 'pointer-events-none')}>
-                  <CityMap
-                    city={city}
-                    selectedPlace={selectedPlace}
-                    onSelectPlace={onSelectPlace}
-                    onEditPlace={onEditPlace}
-                    selectedHotel={selectedHotel}
-                    onSelectHotel={onSelectHotel}
-                    onEditHotel={onEditHotel}
-                    selectedJourney={selectedJourney}
-                    onSelectJourney={onSelectJourney}
-                    onEditJourney={onEditJourney}
-                    bottomPadPx={mapBottomPadPx}
-                  />
+                {/* Map + detail panel column.
+                    The detail panel sits below the map as a sibling — never
+                    overlays it. Map shrinks vertically when a selection is
+                    active; height transition is gated on `detailSelection`.
+                    Phase 5 will add a ResizeObserver-driven re-pan; for now
+                    CityMap's existing selection-change pan handles the new
+                    target, just before the height transition completes. */}
+                <div
+                  className={cn(
+                    'flex-1 flex flex-col overflow-hidden',
+                    isResizing && 'pointer-events-none'
+                  )}
+                >
+                  <div className="flex-1 overflow-hidden min-h-0">
+                    <CityMap
+                      city={city}
+                      selectedPlace={selectedPlace}
+                      onSelectPlace={onSelectPlace}
+                      onEditPlace={onEditPlace}
+                      selectedHotel={selectedHotel}
+                      onSelectHotel={onSelectHotel}
+                      onEditHotel={onEditHotel}
+                      selectedJourney={selectedJourney}
+                      onSelectJourney={onSelectJourney}
+                      onEditJourney={onEditJourney}
+                      bottomPadPx={mapBottomPadPx}
+                      showFloatingCards={false}
+                    />
+                  </div>
+                  <div
+                    className="overflow-hidden border-t bg-background"
+                    style={{
+                      height: detailSelection ? DESKTOP_DETAIL_PANEL_PX : 0,
+                      transition: `height ${DETAIL_PANEL_TRANSITION_MS}ms ease-out`,
+                    }}
+                  >
+                    {detailSelection && (
+                      <DetailPanel
+                        selection={detailSelection}
+                        onClose={handleCloseDetail}
+                        onEdit={handleEditDetail}
+                      />
+                    )}
+                  </div>
                 </div>
               </>
             )}
