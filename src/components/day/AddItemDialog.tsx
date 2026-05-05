@@ -72,7 +72,7 @@ export function AddItemDialog({
         destination_lng: null,
         departure_time: '',
         arrival_time: null,
-        is_booked: false,
+        booking_status: 'not_booked',
         confirmation: null,
         notes: null,
       },

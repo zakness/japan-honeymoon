@@ -5,7 +5,7 @@ import { DateTimeInput } from '@/components/ui/datetime-input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { PlaceSearch } from '@/components/places/PlaceSearch'
-import { TRANSPORT_MODES, type TransportMode } from '@/types/transport'
+import { TRANSPORT_MODES, type TransportMode, defaultBookingStatusForMode } from '@/types/transport'
 import type { LegDraft } from '@/hooks/useTransport'
 import type { GooglePlaceData } from '@/types/places'
 import { cn } from '@/lib/utils'
@@ -16,8 +16,9 @@ interface TransportLegEditorProps {
 }
 
 function emptyLeg(previous?: LegDraft): LegDraft {
+  const mode = (previous?.mode ?? 'shinkansen') as TransportMode
   return {
-    mode: previous?.mode ?? 'shinkansen',
+    mode,
     origin_name: previous?.destination_name ?? '',
     origin_place_id: previous?.destination_place_id ?? null,
     origin_lat: previous?.destination_lat ?? null,
@@ -28,7 +29,7 @@ function emptyLeg(previous?: LegDraft): LegDraft {
     destination_lng: null,
     departure_time: previous?.arrival_time ?? '',
     arrival_time: null,
-    is_booked: false,
+    booking_status: defaultBookingStatusForMode(mode),
     confirmation: null,
     notes: null,
   }
@@ -147,7 +148,15 @@ export function TransportLegEditor({ legs, onChange }: TransportLegEditorProps) 
                       aria-checked={active}
                       aria-label={m.label}
                       title={m.label}
-                      onClick={() => patchLeg(index, { mode: m.value })}
+                      onClick={() => {
+                        const patch: Partial<LegDraft> = { mode: m.value }
+                        if (leg.booking_status === 'not_booked') {
+                          patch.booking_status = defaultBookingStatusForMode(
+                            m.value as TransportMode
+                          )
+                        }
+                        patchLeg(index, patch)
+                      }}
                       className={cn(
                         'inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center rounded-md text-foreground/60 transition-all hover:text-foreground focus-visible:outline-1 focus-visible:outline-ring',
                         active && 'bg-background text-foreground shadow-sm'
@@ -220,17 +229,43 @@ export function TransportLegEditor({ legs, onChange }: TransportLegEditorProps) 
               </div>
             </div>
 
-            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-input accent-foreground"
-                checked={leg.is_booked ?? false}
-                onChange={(e) => patchLeg(index, { is_booked: e.target.checked })}
-              />
-              <span>Booked</span>
-            </label>
+            <div className="space-y-1">
+              <Label className="text-xs">Booking</Label>
+              <div
+                role="radiogroup"
+                aria-label="Booking status"
+                className="inline-flex w-full h-9 items-center rounded-lg bg-muted p-[3px] text-muted-foreground"
+              >
+                {(
+                  [
+                    { value: 'not_booked', label: 'Not booked' },
+                    { value: 'not_needed', label: 'No booking needed' },
+                    { value: 'booked', label: 'Booked' },
+                  ] as const
+                ).map((opt) => {
+                  const active = (leg.booking_status ?? 'not_booked') === opt.value
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => patchLeg(index, { booking_status: opt.value })}
+                      className={cn(
+                        'inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center rounded-md text-xs transition-all focus-visible:outline-1 focus-visible:outline-ring',
+                        active
+                          ? 'bg-background text-foreground shadow-sm font-medium'
+                          : 'text-foreground/60 hover:text-foreground'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
-            {leg.is_booked && (
+            {(leg.booking_status ?? 'not_booked') === 'booked' && (
               <div className="space-y-1">
                 <Label className="text-xs" htmlFor={`leg-${index}-confirmation`}>
                   Confirmation (optional)

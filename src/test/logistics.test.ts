@@ -88,7 +88,7 @@ function makeLeg(overrides: Partial<TransportLegRow> & { id: string }): Transpor
     destination_lng: null,
     departure_time: '09:00:00',
     arrival_time: '11:00:00',
-    is_booked: false,
+    booking_status: 'not_booked',
     confirmation: null,
     notes: null,
     ...overrides,

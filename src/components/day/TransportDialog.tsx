@@ -33,7 +33,7 @@ function legsFromJourney(journey: Journey): LegDraft[] {
     destination_lng: l.destination_lng,
     departure_time: l.departure_time,
     arrival_time: l.arrival_time,
-    is_booked: l.is_booked,
+    booking_status: l.booking_status,
     confirmation: l.confirmation,
     notes: l.notes,
   }))

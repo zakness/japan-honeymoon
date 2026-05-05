@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   Hotel as HotelIcon,
   ExternalLink,
+  Globe,
   Phone,
   MapPin,
   Star,
@@ -18,6 +19,7 @@ import { Lightbox } from '@/components/shared/Lightbox'
 import { useLightbox } from '@/hooks/useLightbox'
 import { useAccommodations } from '@/hooks/useAccommodations'
 import { CITY_LABELS, getHotelColor, type City } from '@/config/trip'
+import { googleMapsUrl } from '@/lib/maps-url'
 import type { AccommodationRow } from '@/types/accommodations'
 
 function nightsBetween(checkIn: string, checkOut: string): number {
@@ -96,7 +98,7 @@ export function HotelDetailContent({ hotel, onEdit }: HotelDetailContentProps) {
                 aria-label="Open website"
                 title={hotel.website}
               >
-                <ExternalLink className="h-4 w-4" />
+                <Globe className="h-4 w-4" />
               </a>
             )}
             {hotel.booking_url && (
@@ -219,6 +221,28 @@ export function HotelDetailContent({ hotel, onEdit }: HotelDetailContentProps) {
             >
               <Copy className="h-3.5 w-3.5" />
             </button>
+            {(() => {
+              const mapsUrl = googleMapsUrl({
+                google_place_id: hotel.google_place_id,
+                lat: hotel.lat,
+                lng: hotel.lng,
+                address: hotel.address,
+              })
+              if (!mapsUrl) return null
+              return (
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="Open in Google Maps"
+                  title="Open in Google Maps"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              )
+            })()}
           </div>
         )}
 

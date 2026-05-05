@@ -321,7 +321,7 @@ export type Database = {
           destination_name: string
           destination_place_id: string | null
           id: string
-          is_booked: boolean
+          booking_status: string
           leg_index: number
           mode: string
           notes: string | null
@@ -342,7 +342,7 @@ export type Database = {
           destination_name: string
           destination_place_id?: string | null
           id?: string
-          is_booked?: boolean
+          booking_status?: string
           leg_index: number
           mode: string
           notes?: string | null
@@ -363,7 +363,7 @@ export type Database = {
           destination_name?: string
           destination_place_id?: string | null
           id?: string
-          is_booked?: boolean
+          booking_status?: string
           leg_index?: number
           mode?: string
           notes?: string | null

@@ -48,8 +48,7 @@ export type JourneyDisplay = {
   destinationName: string
   earliestDeparture: string | null
   latestArrival: string | null
-  bookedCount: number
-  totalCount: number
+  isDecided: boolean
   modes: TransportMode[]
 }
 
@@ -69,7 +68,9 @@ export function deriveJourneyDisplay(journey: Journey): JourneyDisplay {
     departures.length > 0 ? departures.reduce((a, b) => (a < b ? a : b)) : null
   const latestArrival = arrivals.length > 0 ? arrivals.reduce((a, b) => (a > b ? a : b)) : null
 
-  const bookedCount = legs.filter((l) => l.is_booked).length
+  const isDecided =
+    legs.length > 0 &&
+    legs.every((l) => l.booking_status === 'booked' || l.booking_status === 'not_needed')
   const modes = legs.map((l) => l.mode as TransportMode)
 
   const derivedTitle =
@@ -81,8 +82,7 @@ export function deriveJourneyDisplay(journey: Journey): JourneyDisplay {
     destinationName,
     earliestDeparture,
     latestArrival,
-    bookedCount,
-    totalCount: legs.length,
+    isDecided,
     modes,
   }
 }
