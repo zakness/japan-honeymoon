@@ -443,7 +443,7 @@ export function CityMap({
         defaultZoom={center.zoom}
         gestureHandling="greedy"
         disableDefaultUI={false}
-        mapTypeControlOptions={{ style: 2, position: 3 }}
+        mapTypeControl={false}
         fullscreenControlOptions={{ position: 3 }}
         className="h-full w-full"
         onClick={() => {

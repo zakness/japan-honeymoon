@@ -328,13 +328,13 @@ export function ItineraryView({
           </div>
         ) : (
           /* ── Mobile layout ──────────────────────────────────────────────── */
-          /* Fixed 40/60 vertical split. Map on top (40vh), bottom region
-             (60vh) holds the itinerary content by default and swaps to the
+          /* Fixed 30/70 vertical split. Map on top (30dvh), bottom region
+             (70dvh) holds the itinerary content by default and swaps to the
              shared DetailPanel when something is selected. The itinerary
              content stays mounted (just hidden) so scroll position survives
              a select+close cycle. No draggable sheet. */
           <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="h-[40dvh] shrink-0">
+            <div className="h-[30dvh] shrink-0">
               <CityMap
                 city={city}
                 selectedPlace={selectedPlace}
