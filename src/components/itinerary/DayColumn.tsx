@@ -103,103 +103,59 @@ export function DayColumn({
         </div>
       )}
 
-      {/* Body. On mobile (`fillWidth`), hotel banners sit flush to the card
-          edges and the time-slots area is its own scroll container with white
-          padding. On desktop, the original single scroll body with hotels
-          inline is preserved. */}
-      {fillWidth ? (
-        <>
-          {!isLoading && morningHotel && (
-            <HotelAnchor
-              hotel={morningHotel}
-              slot="morning"
-              colors={getHotelColor(morningHotel, allHotels)}
-              onSelect={onSelectHotel}
-              bleed
-            />
-          )}
-          <div className="flex-1 overflow-y-auto bg-background px-2 py-3 space-y-4 min-h-0">
-            {isLoading ? (
-              <>
-                <Skeleton className="h-10 rounded-lg" />
-                <Skeleton className="h-10 rounded-lg" />
-                <Skeleton className="h-10 rounded-lg" />
-              </>
-            ) : (
-              TIME_SLOTS.map(({ value, label }) => (
-                <TimeSlotGroup
-                  key={value}
-                  slot={value}
-                  label={label}
-                  items={grouped[value]}
-                  dayDate={dayDate}
-                  flightEvents={flightEventsBySlot[value]}
-                  onSelectPlace={onSelectPlace}
-                  onSelectJourney={onSelectJourney}
-                  onAddClick={(clickedSlot) => {
-                    setDialogInitialSlot(clickedSlot)
-                    setDialogOpen(true)
-                  }}
-                />
-              ))
+      {/* Body. Hotels render inline at the top/bottom of the scroll body on
+          both viewports, scrolling out of view rather than pinning — this
+          frees up vertical space on mobile, where the day region is the most
+          contested real estate. */}
+      <div
+        className={cn(
+          'flex-1 overflow-y-auto px-2 py-3 space-y-4 min-h-0',
+          fillWidth && 'bg-background'
+        )}
+      >
+        {isLoading ? (
+          <>
+            <Skeleton className="h-10 rounded-lg" />
+            <Skeleton className="h-10 rounded-lg" />
+            <Skeleton className="h-10 rounded-lg" />
+          </>
+        ) : (
+          <>
+            {morningHotel && (
+              <HotelAnchor
+                hotel={morningHotel}
+                slot="morning"
+                colors={getHotelColor(morningHotel, allHotels)}
+                onSelect={onSelectHotel}
+              />
             )}
-          </div>
-          {!isLoading && eveningHotel && (
-            <HotelAnchor
-              hotel={eveningHotel}
-              slot="evening"
-              colors={getHotelColor(eveningHotel, allHotels)}
-              onSelect={onSelectHotel}
-              bleed
-            />
-          )}
-        </>
-      ) : (
-        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4 min-h-0">
-          {isLoading ? (
-            <>
-              <Skeleton className="h-10 rounded-lg" />
-              <Skeleton className="h-10 rounded-lg" />
-              <Skeleton className="h-10 rounded-lg" />
-            </>
-          ) : (
-            <>
-              {morningHotel && (
-                <HotelAnchor
-                  hotel={morningHotel}
-                  slot="morning"
-                  colors={getHotelColor(morningHotel, allHotels)}
-                  onSelect={onSelectHotel}
-                />
-              )}
-              {TIME_SLOTS.map(({ value, label }) => (
-                <TimeSlotGroup
-                  key={value}
-                  slot={value}
-                  label={label}
-                  items={grouped[value]}
-                  dayDate={dayDate}
-                  flightEvents={flightEventsBySlot[value]}
-                  onSelectPlace={onSelectPlace}
-                  onSelectJourney={onSelectJourney}
-                  onAddClick={(clickedSlot) => {
-                    setDialogInitialSlot(clickedSlot)
-                    setDialogOpen(true)
-                  }}
-                />
-              ))}
-              {eveningHotel && (
-                <HotelAnchor
-                  hotel={eveningHotel}
-                  slot="evening"
-                  colors={getHotelColor(eveningHotel, allHotels)}
-                  onSelect={onSelectHotel}
-                />
-              )}
-            </>
-          )}
-        </div>
-      )}
+            {TIME_SLOTS.map(({ value, label }) => (
+              <TimeSlotGroup
+                key={value}
+                slot={value}
+                label={label}
+                items={grouped[value]}
+                dayDate={dayDate}
+                flightEvents={flightEventsBySlot[value]}
+                onSelectPlace={onSelectPlace}
+                onSelectJourney={onSelectJourney}
+                onAddClick={(clickedSlot) => {
+                  setDialogInitialSlot(clickedSlot)
+                  setDialogOpen(true)
+                }}
+              />
+            ))}
+            {eveningHotel && (
+              <HotelAnchor
+                hotel={eveningHotel}
+                slot="evening"
+                colors={getHotelColor(eveningHotel, allHotels)}
+                onSelect={onSelectHotel}
+              />
+            )}
+          </>
+        )}
+      </div>
 
       <AddItemDialog
         dayDate={dayDate}
