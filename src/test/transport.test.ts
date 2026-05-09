@@ -105,48 +105,48 @@ describe('TRANSPORT_MODES', () => {
 
 describe('mergeSlotItems', () => {
   it('places items into the correct time slot', () => {
-    const itinerary = [makeItineraryItem({ id: 'i1', sort_order: 0, time_slot: 'morning' })]
-    const journeys = [makeJourney({ id: 't1', sort_order: 1, time_slot: 'evening' })]
+    const itinerary = [makeItineraryItem({ id: 'i1', sort_order: 0, time_slot: 'breakfast' })]
+    const journeys = [makeJourney({ id: 't1', sort_order: 1, time_slot: 'dinner' })]
     const result = mergeSlotItems(itinerary, journeys)
-    expect(result.morning).toHaveLength(1)
-    expect(result.morning[0].kind).toBe('itinerary')
-    expect(result.evening).toHaveLength(1)
-    expect(result.evening[0].kind).toBe('transport')
-    expect(result.afternoon).toHaveLength(0)
+    expect(result.breakfast).toHaveLength(1)
+    expect(result.breakfast[0].kind).toBe('itinerary')
+    expect(result.dinner).toHaveLength(1)
+    expect(result.dinner[0].kind).toBe('transport')
+    expect(result.lunch).toHaveLength(0)
   })
 
   it('interleaves items within a slot sorted by sort_order', () => {
     const itinerary = [
-      makeItineraryItem({ id: 'i1', sort_order: 2, time_slot: 'morning' }),
-      makeItineraryItem({ id: 'i2', sort_order: 0, time_slot: 'morning' }),
+      makeItineraryItem({ id: 'i1', sort_order: 2, time_slot: 'breakfast' }),
+      makeItineraryItem({ id: 'i2', sort_order: 0, time_slot: 'breakfast' }),
     ]
-    const journeys = [makeJourney({ id: 't1', sort_order: 1, time_slot: 'morning' })]
+    const journeys = [makeJourney({ id: 't1', sort_order: 1, time_slot: 'breakfast' })]
     const result = mergeSlotItems(itinerary, journeys)
-    expect(result.morning.map(slotItemId)).toEqual(['i2', 't1', 'i1'])
+    expect(result.breakfast.map(slotItemId)).toEqual(['i2', 't1', 'i1'])
   })
 
   it('returns empty slots when no items provided', () => {
     const result = mergeSlotItems([], [])
-    expect(result.morning).toHaveLength(0)
-    expect(result.afternoon).toHaveLength(0)
-    expect(result.evening).toHaveLength(0)
+    expect(result.breakfast).toHaveLength(0)
+    expect(result.lunch).toHaveLength(0)
+    expect(result.dinner).toHaveLength(0)
   })
 
   it('handles transport-only and itinerary-only days', () => {
     const journeys = [
-      makeJourney({ id: 't1', sort_order: 0, time_slot: 'morning' }),
-      makeJourney({ id: 't2', sort_order: 1, time_slot: 'morning' }),
+      makeJourney({ id: 't1', sort_order: 0, time_slot: 'breakfast' }),
+      makeJourney({ id: 't2', sort_order: 1, time_slot: 'breakfast' }),
     ]
     const result = mergeSlotItems([], journeys)
-    expect(result.morning).toHaveLength(2)
-    expect(result.morning.every((i) => i.kind === 'transport')).toBe(true)
+    expect(result.breakfast).toHaveLength(2)
+    expect(result.breakfast.every((i) => i.kind === 'transport')).toBe(true)
   })
 
   it('preserves kind discriminant for each item', () => {
-    const itinerary = [makeItineraryItem({ id: 'i1', sort_order: 0, time_slot: 'afternoon' })]
-    const journeys = [makeJourney({ id: 't1', sort_order: 1, time_slot: 'afternoon' })]
+    const itinerary = [makeItineraryItem({ id: 'i1', sort_order: 0, time_slot: 'lunch' })]
+    const journeys = [makeJourney({ id: 't1', sort_order: 1, time_slot: 'lunch' })]
     const result = mergeSlotItems(itinerary, journeys)
-    const kinds = result.afternoon.map((i) => i.kind)
+    const kinds = result.lunch.map((i) => i.kind)
     expect(kinds).toContain('itinerary')
     expect(kinds).toContain('transport')
   })
@@ -159,7 +159,7 @@ describe('deriveJourneyDisplay', () => {
     const journey = makeJourney({
       id: 't1',
       sort_order: 0,
-      time_slot: 'morning',
+      time_slot: 'breakfast',
       legs: [
         makeLeg({ id: 'l0', leg_index: 0, origin_name: 'Kyoto', destination_name: 'Okayama' }),
         makeLeg({ id: 'l1', leg_index: 1, origin_name: 'Okayama', destination_name: 'Uno' }),
@@ -175,7 +175,7 @@ describe('deriveJourneyDisplay', () => {
     const journey = makeJourney({
       id: 't1',
       sort_order: 0,
-      time_slot: 'morning',
+      time_slot: 'breakfast',
       legs: [
         makeLeg({ id: 'l0', leg_index: 0, departure_time: '09:12:00', arrival_time: '10:19:00' }),
         makeLeg({ id: 'l1', leg_index: 1, departure_time: '10:45:00', arrival_time: '11:30:00' }),
@@ -191,7 +191,7 @@ describe('deriveJourneyDisplay', () => {
     const journey = makeJourney({
       id: 't1',
       sort_order: 0,
-      time_slot: 'morning',
+      time_slot: 'breakfast',
       legs: [
         makeLeg({ id: 'l0', booking_status: 'booked' }),
         makeLeg({ id: 'l1', booking_status: 'not_booked' }),
@@ -205,7 +205,7 @@ describe('deriveJourneyDisplay', () => {
     const journey = makeJourney({
       id: 't1',
       sort_order: 0,
-      time_slot: 'morning',
+      time_slot: 'breakfast',
       legs: [
         makeLeg({ id: 'l0', booking_status: 'booked' }),
         makeLeg({ id: 'l1', booking_status: 'not_needed' }),
@@ -215,12 +215,12 @@ describe('deriveJourneyDisplay', () => {
   })
 
   it('isDecided is false when there are no legs', () => {
-    const journey = makeJourney({ id: 't1', sort_order: 0, time_slot: 'morning', legs: [] })
+    const journey = makeJourney({ id: 't1', sort_order: 0, time_slot: 'breakfast', legs: [] })
     expect(deriveJourneyDisplay(journey).isDecided).toBe(false)
   })
 
   it('prefers parent title over derived title when set', () => {
-    const journey = makeJourney({ id: 't1', sort_order: 0, time_slot: 'morning' })
+    const journey = makeJourney({ id: 't1', sort_order: 0, time_slot: 'breakfast' })
     journey.parent.title = 'Custom title'
     expect(deriveJourneyDisplay(journey).title).toBe('Custom title')
   })
@@ -229,7 +229,7 @@ describe('deriveJourneyDisplay', () => {
     const journey = makeJourney({
       id: 't1',
       sort_order: 0,
-      time_slot: 'morning',
+      time_slot: 'breakfast',
       legs: [makeLeg({ id: 'l0', origin_name: '', destination_name: '' })],
     })
     expect(deriveJourneyDisplay(journey).title).toBe('Transport')
@@ -239,7 +239,7 @@ describe('deriveJourneyDisplay', () => {
     const journey = makeJourney({
       id: 't1',
       sort_order: 0,
-      time_slot: 'morning',
+      time_slot: 'breakfast',
       legs: [makeLeg({ id: 'l0', arrival_time: null })],
     })
     expect(deriveJourneyDisplay(journey).latestArrival).toBeNull()

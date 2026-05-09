@@ -61,7 +61,7 @@ function makeTransportParent(overrides?: Partial<TransportItemRow>): TransportIt
   return {
     id: 't1',
     day_date: '2026-05-22',
-    time_slot: 'morning',
+    time_slot: 'breakfast',
     sort_order: 0,
     title: null,
     notes: null,

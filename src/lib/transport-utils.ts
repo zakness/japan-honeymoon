@@ -1,4 +1,4 @@
-import type { ItineraryItemWithPlace, TimeSlot } from '@/types/itinerary'
+import { TIME_SLOTS, type ItineraryItemWithPlace, type TimeSlot } from '@/types/itinerary'
 import type { Journey, SlotItem, TransportMode } from '@/types/transport'
 
 // ---- SlotItem accessors ----
@@ -23,18 +23,18 @@ export function mergeSlotItems(
   itineraryItems: ItineraryItemWithPlace[],
   journeys: Journey[]
 ): Record<TimeSlot, SlotItem[]> {
-  const grouped: Record<TimeSlot, SlotItem[]> = {
-    morning: [],
-    afternoon: [],
-    evening: [],
-  }
+  const grouped = TIME_SLOTS.reduce(
+    (acc, { value }) => {
+      acc[value] = []
+      return acc
+    },
+    {} as Record<TimeSlot, SlotItem[]>
+  )
   for (const item of itineraryItems) {
-    const slot = (item.time_slot as TimeSlot) || 'morning'
-    grouped[slot].push({ kind: 'itinerary', data: item })
+    grouped[item.time_slot as TimeSlot].push({ kind: 'itinerary', data: item })
   }
   for (const journey of journeys) {
-    const slot = (journey.parent.time_slot as TimeSlot) || 'morning'
-    grouped[slot].push({ kind: 'transport', data: journey })
+    grouped[journey.parent.time_slot as TimeSlot].push({ kind: 'transport', data: journey })
   }
   for (const slot of Object.keys(grouped) as TimeSlot[]) {
     grouped[slot].sort((a, b) => slotItemSortOrder(a) - slotItemSortOrder(b))

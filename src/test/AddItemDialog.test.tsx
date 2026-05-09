@@ -57,7 +57,7 @@ describe('AddItemDialog (controlled API)', () => {
         currentItemCount={0}
         open={false}
         onOpenChange={() => {}}
-        initialSlot="morning"
+        initialSlot="breakfast"
       />,
       { wrapper }
     )
@@ -71,7 +71,7 @@ describe('AddItemDialog (controlled API)', () => {
         currentItemCount={0}
         open={true}
         onOpenChange={() => {}}
-        initialSlot="afternoon"
+        initialSlot="lunch"
       />,
       { wrapper }
     )
@@ -94,7 +94,7 @@ describe('AddItemDialog (controlled API)', () => {
         currentItemCount={0}
         open={true}
         onOpenChange={() => {}}
-        initialSlot="morning"
+        initialSlot="breakfast"
       />,
       { wrapper }
     )
@@ -127,7 +127,7 @@ describe('AddItemDialog (controlled API)', () => {
         currentItemCount={0}
         open={true}
         onOpenChange={() => {}}
-        initialSlot="morning"
+        initialSlot="breakfast"
       />,
       { wrapper }
     )
@@ -144,7 +144,7 @@ describe('AddItemDialog (controlled API)', () => {
         currentItemCount={0}
         open={false}
         onOpenChange={() => {}}
-        initialSlot="morning"
+        initialSlot="breakfast"
       />
     )
     // Reopen — the open-transition effect should clear the filter and the
@@ -155,7 +155,7 @@ describe('AddItemDialog (controlled API)', () => {
         currentItemCount={0}
         open={true}
         onOpenChange={() => {}}
-        initialSlot="morning"
+        initialSlot="breakfast"
       />
     )
     expect((screen.getByPlaceholderText(/filter places/i) as HTMLInputElement).value).toBe('')
@@ -171,7 +171,7 @@ describe('AddItemDialog (controlled API)', () => {
         currentItemCount={0}
         open={true}
         onOpenChange={() => {}}
-        initialSlot="morning"
+        initialSlot="breakfast"
       />,
       { wrapper }
     )
@@ -181,8 +181,16 @@ describe('AddItemDialog (controlled API)', () => {
     expect(screen.getByText(/no matches/i)).toBeInTheDocument()
   })
 
-  it('renders without crashing across all three initialSlot values', () => {
-    for (const slot of ['morning', 'afternoon', 'evening'] as const) {
+  it('renders without crashing across all seven initialSlot values', () => {
+    for (const slot of [
+      'wake-up',
+      'breakfast',
+      'morning',
+      'lunch',
+      'afternoon',
+      'dinner',
+      'evening',
+    ] as const) {
       const { unmount } = render(
         <AddItemDialog
           dayDate="2026-05-15"

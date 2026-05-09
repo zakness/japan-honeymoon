@@ -4,14 +4,18 @@ import type { CityColor } from '@/config/trip'
 
 interface HotelAnchorProps {
   hotel: AccommodationRow
-  slot: 'morning' | 'evening'
+  /** Where in the day column the anchor sits — `start` for the wake-up slot
+   *  at the top, `end` for the sleeping slot at the bottom. Drives icon and
+   *  copy only; intentionally decoupled from the time-slot taxonomy so the
+   *  hotel anchors aren't tied to specific meal/gap slots. */
+  position: 'start' | 'end'
   colors: CityColor
   onSelect?: (hotel: AccommodationRow) => void
 }
 
-export function HotelAnchor({ hotel, slot, colors, onSelect }: HotelAnchorProps) {
-  const Icon = slot === 'morning' ? Hotel : BedDouble
-  const title = slot === 'morning' ? `Waking up at ${hotel.name}` : `Sleeping at ${hotel.name}`
+export function HotelAnchor({ hotel, position, colors, onSelect }: HotelAnchorProps) {
+  const Icon = position === 'start' ? Hotel : BedDouble
+  const title = position === 'start' ? `Waking up at ${hotel.name}` : `Sleeping at ${hotel.name}`
 
   const className =
     'flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium select-none w-full text-left'

@@ -5,13 +5,34 @@ export type ItineraryItemRow = Database['public']['Tables']['itinerary_items']['
 export type ItineraryItemInsert = Database['public']['Tables']['itinerary_items']['Insert']
 export type ItineraryItemUpdate = Database['public']['Tables']['itinerary_items']['Update']
 
-// Narrowed union type — DB stores as `string`
-export type TimeSlot = 'morning' | 'afternoon' | 'evening'
+// Narrowed union type — DB stores as `string`. The 7-slot taxonomy alternates
+// meal anchors (`breakfast`/`lunch`/`dinner`) with the gaps between them.
+export type TimeSlot =
+  | 'wake-up'
+  | 'breakfast'
+  | 'morning'
+  | 'lunch'
+  | 'afternoon'
+  | 'dinner'
+  | 'evening'
 
-export const TIME_SLOTS: { value: TimeSlot; label: string }[] = [
-  { value: 'morning', label: 'Morning' },
-  { value: 'afternoon', label: 'Afternoon' },
-  { value: 'evening', label: 'Evening' },
+export type TimeSlotKind = 'meal' | 'gap'
+
+// Order in this array IS chronological order — used for rendering days
+// top-to-bottom and for grouping flight events by slot.
+export const TIME_SLOTS: {
+  value: TimeSlot
+  label: string
+  shortLabel: string
+  kind: TimeSlotKind
+}[] = [
+  { value: 'wake-up', label: 'Wake up', shortLabel: 'Wake up', kind: 'gap' },
+  { value: 'breakfast', label: 'Breakfast', shortLabel: 'Breakfast', kind: 'meal' },
+  { value: 'morning', label: 'Morning', shortLabel: 'Morning', kind: 'gap' },
+  { value: 'lunch', label: 'Lunch', shortLabel: 'Lunch', kind: 'meal' },
+  { value: 'afternoon', label: 'Afternoon', shortLabel: 'Afternoon', kind: 'gap' },
+  { value: 'dinner', label: 'Dinner', shortLabel: 'Dinner', kind: 'meal' },
+  { value: 'evening', label: 'Evening', shortLabel: 'Evening', kind: 'gap' },
 ]
 
 export interface ItineraryItemWithPlace extends ItineraryItemRow {
@@ -19,9 +40,14 @@ export interface ItineraryItemWithPlace extends ItineraryItemRow {
 }
 
 export function deriveTimeSlot(reservationTime: string): TimeSlot {
-  const hours = parseInt(reservationTime.split(':')[0], 10)
-  if (hours < 12) return 'morning'
-  if (hours < 17) return 'afternoon'
+  const [h, m] = reservationTime.split(':').map(Number)
+  const minutes = (h ?? 0) * 60 + (m ?? 0)
+  if (minutes < 8 * 60) return 'wake-up'
+  if (minutes < 10 * 60) return 'breakfast'
+  if (minutes < 11 * 60 + 30) return 'morning'
+  if (minutes < 14 * 60) return 'lunch'
+  if (minutes < 17 * 60) return 'afternoon'
+  if (minutes < 20 * 60 + 30) return 'dinner'
   return 'evening'
 }
 
@@ -34,8 +60,9 @@ export function formatReservationTime(time: string): string {
 
 /** Parse a droppable slot ID of the form `slot-{YYYY-MM-DD}-{slot}` */
 export function parseSlotDropId(id: string): { dayDate: string; slot: TimeSlot } | null {
-  const m = id.match(/^slot-(\d{4}-\d{2}-\d{2})-(\w+)$/)
-  return m ? { dayDate: m[1], slot: m[2] as TimeSlot } : null
+  const m = id.match(/^slot-(\d{4}-\d{2}-\d{2})-(.+)$/)
+  if (!m) return null
+  return { dayDate: m[1], slot: m[2] as TimeSlot }
 }
 
 /**

@@ -204,46 +204,51 @@ export function AddItemDialog({
 
         <div className="space-y-4">
           <Tabs value={tab} onValueChange={(v) => setTab(v as 'place' | 'note' | 'transport')}>
-            <div className="flex items-center gap-2">
-              <TabsList className="flex-1">
-                <TabsTrigger value="place" className="flex-1">
-                  Place
-                </TabsTrigger>
-                <TabsTrigger value="transport" className="flex-1">
-                  Transport
-                </TabsTrigger>
-                <TabsTrigger value="note" className="flex-1">
-                  Note
-                </TabsTrigger>
-              </TabsList>
-              <div
-                role="radiogroup"
-                aria-label="Time of day"
-                className="inline-flex h-8 shrink-0 items-center rounded-lg bg-muted p-[3px] text-muted-foreground"
-              >
-                {TIME_SLOTS.map(({ value, label }) => {
-                  const Icon = TIME_SLOT_ICONS[value]
-                  const active = effectiveTimeSlot === value
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      aria-label={label}
-                      title={timeSlotLocked ? `${label} (locked by reservation time)` : label}
-                      disabled={timeSlotLocked}
-                      onClick={() => setTimeSlot(value)}
-                      className={cn(
-                        'inline-flex h-[calc(100%-1px)] items-center justify-center rounded-md px-2 text-foreground/60 transition-all hover:text-foreground focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50',
-                        active && 'bg-background text-foreground shadow-sm'
-                      )}
-                    >
-                      <Icon className="size-4" />
-                    </button>
-                  )
-                })}
-              </div>
+            <TabsList className="w-full">
+              <TabsTrigger value="place" className="flex-1">
+                Place
+              </TabsTrigger>
+              <TabsTrigger value="transport" className="flex-1">
+                Transport
+              </TabsTrigger>
+              <TabsTrigger value="note" className="flex-1">
+                Note
+              </TabsTrigger>
+            </TabsList>
+            {/* Slot picker — its own full-width row beneath the Tabs. The 7
+                slot taxonomy doesn't fit the inline-with-Tabs layout the
+                3-slot version used; a dedicated row gives each cell breathing
+                room and room for an abbreviated label. Cells are tab-agnostic
+                (reservation time can lock the slot for the place/transport
+                tabs, but the picker itself is shared across all three). */}
+            <div
+              role="radiogroup"
+              aria-label="Time of day"
+              className="mt-2 grid grid-cols-7 gap-0.5 rounded-lg bg-muted p-[3px] text-muted-foreground"
+            >
+              {TIME_SLOTS.map(({ value, label, shortLabel }) => {
+                const Icon = TIME_SLOT_ICONS[value]
+                const active = effectiveTimeSlot === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    aria-label={label}
+                    title={timeSlotLocked ? `${label} (locked by reservation time)` : label}
+                    disabled={timeSlotLocked}
+                    onClick={() => setTimeSlot(value)}
+                    className={cn(
+                      'inline-flex h-9 min-w-0 flex-col items-center justify-center gap-0.5 rounded-md px-1 text-[10px] font-medium text-foreground/60 transition-all hover:text-foreground focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50',
+                      active && 'bg-background text-foreground shadow-sm'
+                    )}
+                  >
+                    <Icon className="size-3.5" />
+                    <span className="truncate w-full text-center leading-none">{shortLabel}</span>
+                  </button>
+                )
+              })}
             </div>
 
             <TabsContent value="place" className="space-y-3 mt-3">

@@ -50,7 +50,7 @@ function makeJourney(overrides: {
       created_at: '',
       updated_at: '',
       day_date: '2026-05-20',
-      time_slot: 'morning',
+      time_slot: 'breakfast',
       sort_order: 0,
       title: overrides.title ?? null,
       notes: null,
