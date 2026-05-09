@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { Trash2 } from 'lucide-react'
 import { DndContext } from '@dnd-kit/core'
 import { SortableContext } from '@dnd-kit/sortable'
-import { SortableItemCard } from '@/components/day/SortableItemCard'
+import { SortableItemCard, type CardAction } from '@/components/day/SortableItemCard'
 
 function renderCard(ui: React.ReactElement) {
   return render(
@@ -36,20 +37,17 @@ describe('SortableItemCard', () => {
   it('tray button onClick fires without triggering onCardClick', () => {
     const onCardClick = vi.fn()
     const onAction = vi.fn()
+    const actions: CardAction[] = [
+      { icon: Trash2, label: 'tray', onClick: onAction, variant: 'destructive' },
+    ]
     renderCard(
-      <SortableItemCard
-        id="card-1"
-        data={{}}
-        onCardClick={onCardClick}
-        actions={
-          <button type="button" onClick={onAction}>
-            tray
-          </button>
-        }
-      >
+      <SortableItemCard id="card-1" data={{}} onCardClick={onCardClick} actions={actions}>
         <div>body</div>
       </SortableItemCard>
     )
+    // Both desktop hover-tray and mobile swipe-panel render a button labeled
+    // 'tray'; the test environment renders desktop (matchMedia defaults to
+    // matching the desktop breakpoint via the jsdom shim).
     fireEvent.click(screen.getByRole('button', { name: 'tray' }))
     expect(onAction).toHaveBeenCalledTimes(1)
     expect(onCardClick).not.toHaveBeenCalled()

@@ -1,20 +1,15 @@
 import { useState } from 'react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
-import { type TimeSlot, formatReservationTime } from '@/types/itinerary'
+import { formatReservationTime } from '@/types/itinerary'
 import { TRANSPORT_MODES, type Journey, type TransportMode } from '@/types/transport'
-import { useDeleteTransportItem, useUpdateJourney } from '@/hooks/useTransport'
+import { useDeleteTransportItem } from '@/hooks/useTransport'
 import { getCityColor, getPrimaryCityForDate } from '@/config/trip'
 import { getModeStyle } from '@/config/transport'
 import { deriveJourneyDisplay } from '@/lib/transport-utils'
 import { BookingDots } from '@/components/shared/BookingDots'
 import { TransportDialog } from './TransportDialog'
-import {
-  SortableItemCard,
-  TimeSlotMenu,
-  TimeSlotMenuItems,
-  DeleteItemButton,
-} from './SortableItemCard'
+import { SortableItemCard, type CardAction } from './SortableItemCard'
 
 interface TransportItemProps {
   journey: Journey
@@ -24,12 +19,10 @@ interface TransportItemProps {
 
 export function TransportItem({ journey, dayDate, onSelect }: TransportItemProps) {
   const deleteItem = useDeleteTransportItem()
-  const updateJourney = useUpdateJourney()
   const [dialogOpen, setDialogOpen] = useState(false)
 
   const { parent, legs } = journey
   const display = deriveJourneyDisplay(journey)
-  const timeSlot = parent.time_slot as TimeSlot
   const city = getPrimaryCityForDate(parent.day_date)
   const accentColor = city ? getCityColor(city).primary : undefined
 
@@ -41,28 +34,10 @@ export function TransportItem({ journey, dayDate, onSelect }: TransportItemProps
     }
   }
 
-  async function handleTimeSlotChange(slot: TimeSlot) {
-    try {
-      await updateJourney.mutateAsync({
-        id: parent.id,
-        parentPatch: { time_slot: slot },
-        legs: [],
-      })
-    } catch {
-      toast.error('Failed to update time slot')
-    }
-  }
-
-  const actions = (
-    <>
-      <TimeSlotMenu timeSlot={timeSlot}>
-        <DropdownMenuItem onClick={() => setDialogOpen(true)}>Edit transport</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <TimeSlotMenuItems current={timeSlot} onChange={handleTimeSlotChange} />
-      </TimeSlotMenu>
-      <DeleteItemButton onDelete={handleDelete} label="Remove transport" />
-    </>
-  )
+  const actions: CardAction[] = [
+    { icon: Pencil, label: 'Edit', onClick: () => setDialogOpen(true) },
+    { icon: Trash2, label: 'Delete', onClick: handleDelete, variant: 'destructive' },
+  ]
 
   return (
     <SortableItemCard

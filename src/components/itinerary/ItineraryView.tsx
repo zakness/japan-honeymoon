@@ -5,8 +5,9 @@ import { TransportItem } from '@/components/day/TransportItem'
 import { PlaceCard } from '@/components/places/PlaceCard'
 import { cn } from '@/lib/utils'
 import type { NavState, SelectionOrigin, SelectPlaceHandler } from '@/components/layout/AppShell'
-import { getDaysForCity, TRIP_DAYS, type City, type TripDay } from '@/config/trip'
+import { getDaysForCity, type City, type TripDay } from '@/config/trip'
 import { useCrossItineraryDnD } from '@/hooks/useCrossItineraryDnD'
+import { useIsDesktop } from '@/hooks/useIsDesktop'
 import type { PlaceRow } from '@/types/places'
 import type { AccommodationRow } from '@/types/accommodations'
 import type { Journey } from '@/types/transport'
@@ -44,28 +45,6 @@ interface ItineraryViewProps {
   onEditJourney: (journey: Journey) => void
 }
 
-/**
- * Tracks whether the viewport matches the `sm` breakpoint. Used to render the
- * desktop layout OR the mobile layout — never both. Rendering both branches
- * duplicates every `useDraggable`/`useSortable` hook in the tree, which causes
- * the second registration to overwrite the first in dnd-kit's `draggableNodes`
- * Map. When the "winning" instance lives in the hidden (`display: none`)
- * branch, dnd-kit measures a 0×0 rect for the active node and the DragOverlay
- * is positioned at (0, 0).
- */
-function useIsDesktop() {
-  const [isDesktop, setIsDesktop] = useState(() =>
-    typeof window === 'undefined' ? true : window.matchMedia('(min-width: 640px)').matches
-  )
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 640px)')
-    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches)
-    mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
-  }, [])
-  return isDesktop
-}
-
 // Golden ratio split — itinerary takes the larger share (≈61.8%), map the
 // smaller (≈38.2%). 100 / φ ≈ 61.8034.
 const GOLDEN_RATIO_SPLIT = 61.8034
@@ -97,140 +76,6 @@ function pickDefaultDayTab(city: City): DayTabValue {
   const today = localDateString()
   if (days.some((d) => d.date === today)) return today
   return days[0]?.date ?? PLACES_TAB
-}
-
-/** Trip-wide neighbour lookup (crosses city boundaries). */
-function getAdjacentDay(date: string, direction: 1 | -1): TripDay | null {
-  const idx = TRIP_DAYS.findIndex((d) => d.date === date)
-  if (idx === -1) return null
-  return TRIP_DAYS[idx + direction] ?? null
-}
-
-/** Minimum horizontal travel (px) before a swipe commits to the next day. */
-const SWIPE_COMMIT_THRESHOLD_PX = 70
-/** Minimum dx before we lock in the swipe gesture and prevent vertical scroll fights. */
-const SWIPE_AXIS_LOCK_PX = 8
-
-interface DayColumnSwiperProps {
-  hasPrev: boolean
-  hasNext: boolean
-  onSwipePrev: () => void
-  onSwipeNext: () => void
-  children: React.ReactNode
-}
-
-/**
- * Touch-swipe wrapper for the mobile day column. Tracks horizontal pointer
- * travel and either commits (snap to prev/next day) or rubber-bands back on
- * release. `touch-action: pan-y` lets vertical scroll inside the column work
- * normally; we only steal the gesture once horizontal motion exceeds the
- * axis-lock threshold. Floating chevrons indicate when there's a neighbour.
- */
-function DayColumnSwiper({
-  hasPrev,
-  hasNext,
-  onSwipePrev,
-  onSwipeNext,
-  children,
-}: DayColumnSwiperProps) {
-  const [dragX, setDragX] = useState(0)
-  const startX = useRef<number | null>(null)
-  const startY = useRef<number | null>(null)
-  const locked = useRef(false)
-  // Only one finger drives the swipe at a time; secondary touches are ignored
-  // so multi-touch can't wedge the gesture in a half-locked state.
-  const activePointerId = useRef<number | null>(null)
-
-  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (e.pointerType === 'mouse' && e.button !== 0) return
-    if (activePointerId.current !== null) return
-    activePointerId.current = e.pointerId
-    startX.current = e.clientX
-    startY.current = e.clientY
-    locked.current = false
-  }
-
-  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (e.pointerId !== activePointerId.current) return
-    if (startX.current === null || startY.current === null) return
-    const dx = e.clientX - startX.current
-    const dy = e.clientY - startY.current
-    if (!locked.current) {
-      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > SWIPE_AXIS_LOCK_PX) {
-        // User is scrolling vertically — bail out of the gesture entirely.
-        startX.current = null
-        startY.current = null
-        activePointerId.current = null
-        return
-      }
-      if (Math.abs(dx) < SWIPE_AXIS_LOCK_PX) return
-      locked.current = true
-      e.currentTarget.setPointerCapture(e.pointerId)
-    }
-    // Apply rubber-band resistance when swiping into a non-existent neighbour.
-    if (dx > 0 && !hasPrev) setDragX(dx * 0.25)
-    else if (dx < 0 && !hasNext) setDragX(dx * 0.25)
-    else setDragX(dx)
-  }
-
-  function handlePointerUp(e: React.PointerEvent<HTMLDivElement>) {
-    if (e.pointerId !== activePointerId.current) return
-    try {
-      if (startX.current !== null) {
-        const dx = e.clientX - startX.current
-        if (dx > SWIPE_COMMIT_THRESHOLD_PX && hasPrev) onSwipePrev()
-        else if (dx < -SWIPE_COMMIT_THRESHOLD_PX && hasNext) onSwipeNext()
-      }
-    } finally {
-      startX.current = null
-      startY.current = null
-      locked.current = false
-      activePointerId.current = null
-      setDragX(0)
-      try {
-        e.currentTarget.releasePointerCapture(e.pointerId)
-      } catch {
-        // capture may not have been claimed (gesture didn't lock); ignore
-      }
-    }
-  }
-
-  return (
-    <div className="relative flex-1 overflow-hidden min-h-0 bg-muted/40 pb-2">
-      {/* Peek stubs — narrow vertical slabs at the container edges, styled
-          like the side of an off-screen card. Corner radius matches the
-          centered card's `rounded-xl` so they read as the same kind of card.
-          Top:0 / bottom-2 align them with the card's vertical bounds (the
-          card sits flush to the top of this container). */}
-      {hasPrev && (
-        <div
-          className="pointer-events-none absolute left-0 top-0 bottom-2 w-2 rounded-r-xl border-y border-r bg-background shadow-sm z-10"
-          aria-hidden="true"
-        />
-      )}
-      {hasNext && (
-        <div
-          className="pointer-events-none absolute right-0 top-0 bottom-2 w-2 rounded-l-xl border-y border-l bg-background shadow-sm z-10"
-          aria-hidden="true"
-        />
-      )}
-      <div
-        className="h-full px-3"
-        style={{
-          transform: `translateX(${dragX}px)`,
-          // Animate snap-back when dragX returns to 0; instant follow during drag.
-          transition: dragX === 0 ? 'transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none',
-          touchAction: 'pan-y',
-        }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-      >
-        {children}
-      </div>
-    </div>
-  )
 }
 
 export function ItineraryView({
@@ -346,31 +191,6 @@ export function ItineraryView({
   const handleSelectFromDayColumn = useCallback(
     (place: PlaceRow) => onSelectPlace(place, 'day-column'),
     [onSelectPlace]
-  )
-
-  // Trip-wide neighbours of the current day-tab (null when on Places, or at
-  // the trip edges). Drives swipe gestures and edge-chevron visibility.
-  const prevDay = useMemo(
-    () => (mobileTab === PLACES_TAB ? null : getAdjacentDay(mobileTab, -1)),
-    [mobileTab]
-  )
-  const nextDay = useMemo(
-    () => (mobileTab === PLACES_TAB ? null : getAdjacentDay(mobileTab, 1)),
-    [mobileTab]
-  )
-
-  // Navigate to a specific trip day. If the day belongs to a city other than
-  // the current one (e.g. swiping past a transit boundary), also fire
-  // onNavigate so the URL + map context follow.
-  const goToDay = useCallback(
-    (day: TripDay) => {
-      setMobileTab(day.date)
-      if (!day.cities.includes(city)) {
-        const targetCity = day.cities[day.cities.length - 1]
-        onNavigate({ view: 'itinerary', city: targetCity })
-      }
-    },
-    [city, onNavigate]
   )
 
   const itineraryPanel = (
@@ -514,7 +334,7 @@ export function ItineraryView({
              content stays mounted (just hidden) so scroll position survives
              a select+close cycle. No draggable sheet. */
           <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="h-[40vh] shrink-0">
+            <div className="h-[40dvh] shrink-0">
               <CityMap
                 city={city}
                 selectedPlace={selectedPlace}
@@ -548,12 +368,7 @@ export function ItineraryView({
                     />
                   </div>
                 ) : (
-                  <DayColumnSwiper
-                    hasPrev={!!prevDay}
-                    hasNext={!!nextDay}
-                    onSwipePrev={() => prevDay && goToDay(prevDay)}
-                    onSwipeNext={() => nextDay && goToDay(nextDay)}
-                  >
+                  <div className="relative flex-1 overflow-hidden min-h-0 bg-muted/40 px-3 pb-2">
                     <DayColumn
                       key={mobileTab}
                       dayDate={mobileTab}
@@ -562,7 +377,7 @@ export function ItineraryView({
                       onSelectJourney={onSelectJourney}
                       fillWidth
                     />
-                  </DayColumnSwiper>
+                  </div>
                 )}
               </div>
               {detailSelection && (

@@ -2,6 +2,8 @@ import { cn } from '@/lib/utils'
 import type { CityColor } from '@/config/trip'
 import type { CategoryIcon } from '@/types/places'
 
+type CardBannerOrientation = 'top' | 'side'
+
 interface CardBannerProps {
   /** Primary photo URL. When absent, the banner shows a tinted fallback. */
   photoUrl?: string
@@ -9,19 +11,34 @@ interface CardBannerProps {
   colors?: CityColor
   /** Icon centered in the fallback block. */
   icon: CategoryIcon
-  /** Extra classes — primarily for height (default `h-20` ≈ 80px). */
+  /**
+   * Visual layout. `top` is the full-width header used by desktop cards and
+   * the backlog. `side` is an 88px square used by the mobile day-column row
+   * layout, where the banner sits to the left of the content.
+   */
+  orientation?: CardBannerOrientation
+  /** Extra classes — primarily to override default sizing. */
   className?: string
 }
 
 /**
- * Full-width cropped-image header used by place cards, hotel cards, and
- * day-column cards to give every card a consistent visual anchor. When no
- * photo is available, a tinted block with the icon stands in.
+ * Cropped-image card anchor used by place cards, hotel cards, and day-column
+ * cards. `orientation='top'` (default) renders a full-width header; `'side'`
+ * renders an 88×88 square for the mobile list-row layout. When no photo is
+ * available, a tinted block with the icon stands in.
  */
-export function CardBanner({ photoUrl, colors, icon: Icon, className }: CardBannerProps) {
+export function CardBanner({
+  photoUrl,
+  colors,
+  icon: Icon,
+  orientation = 'top',
+  className,
+}: CardBannerProps) {
+  const sizingClass = orientation === 'side' ? 'h-[88px] w-[88px] shrink-0' : 'w-full h-20'
+
   if (photoUrl) {
     return (
-      <div className={cn('w-full overflow-hidden bg-muted', className ?? 'h-20')}>
+      <div className={cn('overflow-hidden bg-muted', sizingClass, className)}>
         <img src={photoUrl} alt="" className="h-full w-full object-cover" />
       </div>
     )
@@ -30,9 +47,10 @@ export function CardBanner({ photoUrl, colors, icon: Icon, className }: CardBann
   return (
     <div
       className={cn(
-        'flex w-full items-center justify-center',
-        className ?? 'h-20',
-        !colors && 'bg-muted'
+        'flex items-center justify-center',
+        sizingClass,
+        !colors && 'bg-muted',
+        className
       )}
       style={colors ? { backgroundColor: colors.tint } : undefined}
     >

@@ -17,6 +17,7 @@ import {
 } from './useItinerary'
 import { TRANSPORT_KEY } from './useTransport'
 import { useMoveItemToDay } from './useMoveItemToDay'
+import { useIsDesktop } from './useIsDesktop'
 import { mergeSlotItems, slotItemId, slotItemTimeSlot } from '@/lib/transport-utils'
 import { parseSlotDropId, type TimeSlot } from '@/types/itinerary'
 import type { Journey, SlotItem, SlotItemKind } from '@/types/transport'
@@ -34,10 +35,17 @@ export function useCrossItineraryDnD(cityDays: TripDay[]) {
   const moveToDay = useMoveItemToDay()
   const createItem = useCreateItineraryItem()
 
-  const sensors = useSensors(
+  // Gate DnD on desktop only. On mobile, touch scrolling on cards otherwise
+  // gets stolen by drag activation; passing no sensors disables DnD entirely
+  // (cards' spread `{...listeners}` become no-ops). See useIsDesktop for the
+  // 640px breakpoint rationale.
+  const isDesktop = useIsDesktop()
+  const desktopSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
   )
+  const mobileSensors = useSensors()
+  const sensors = isDesktop ? desktopSensors : mobileSensors
 
   function getItemsForDay(dayDate: string): SlotItem[] {
     const itinerary =
