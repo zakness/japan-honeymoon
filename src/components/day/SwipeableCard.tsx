@@ -54,9 +54,11 @@ export function SwipeableCard({
   foregroundClassName = 'bg-card',
   onForegroundClick,
 }: SwipeableCardProps) {
-  const idRef = useRef<symbol>(Symbol())
+  // Lazy init — `Symbol()` would otherwise allocate a throwaway value on every
+  // render even though useRef only retains the first one.
+  const idRef = useRef<symbol | null>(null)
+  if (idRef.current === null) idRef.current = Symbol()
   const containerRef = useRef<HTMLDivElement>(null)
-  const foregroundRef = useRef<HTMLDivElement>(null)
 
   // `offset` is the current translateX of the foreground (positive = slid
   // left, revealing the panel from the right). When at rest: 0 if closed,
@@ -88,6 +90,11 @@ export function SwipeableCard({
       openListeners.delete(listener)
     }
   }, [])
+
+  // After a real swipe, the synthetic `click` that follows pointerup must not
+  // be treated as either an open-card dismiss OR a closed-card forward. We set
+  // this on lock and read it once in the click handler.
+  const justSwipedRef = useRef(false)
 
   // Outside-tap dismissal while open.
   useEffect(() => {
@@ -142,11 +149,15 @@ export function SwipeableCard({
       if (Math.abs(dx) < SWIPE_AXIS_LOCK_PX) return
       locked.current = true
       setIsAnimating(false)
+      // Re-anchor startX to the current position so the lock frame produces
+      // dx=0 (no perceptible jump from 0 → SWIPE_AXIS_LOCK_PX).
+      startX.current = e.clientX
       try {
         e.currentTarget.setPointerCapture(e.pointerId)
       } catch {
         // ignore — pointer might already be released
       }
+      return
     }
     // dx negative = swipe left; offset grows. dx positive = swipe right; offset shrinks.
     const next = Math.max(0, Math.min(containerWidthRef.current, startOffsetRef.current - dx))
@@ -157,22 +168,34 @@ export function SwipeableCard({
     if (e.pointerId !== activePointerId.current) return
     activePointerId.current = null
     if (locked.current) {
+      const isCancel = e.type === 'pointercancel'
       const width = containerWidthRef.current
-      const threshold = width * COMMIT_THRESHOLD_RATIO
       const wasOpen = startOffsetRef.current > 0
-      // Commit if past the threshold from the starting state.
       let nextOffset: number
-      if (!wasOpen && offset > threshold) {
-        nextOffset = width
-      } else if (wasOpen && offset < width - threshold) {
-        nextOffset = 0
-      } else {
+      if (isCancel) {
+        // Cancellations snap back to the starting state — never commit.
         nextOffset = wasOpen ? width : 0
+      } else {
+        // Real pointerup: commit if past the threshold from the starting state.
+        justSwipedRef.current = true
+        const threshold = width * COMMIT_THRESHOLD_RATIO
+        if (!wasOpen && offset > threshold) {
+          nextOffset = width
+        } else if (wasOpen && offset < width - threshold) {
+          nextOffset = 0
+        } else {
+          nextOffset = wasOpen ? width : 0
+        }
       }
       setIsAnimating(true)
       setOffset(nextOffset)
-      if (nextOffset > 0) {
+      if (!isCancel && nextOffset > 0) {
         announceOpen(idRef.current)
+      }
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      } catch {
+        // ignore — implicit release may have already happened
       }
     }
     startX.current = null
@@ -213,9 +236,11 @@ export function SwipeableCard({
         })}
       </div>
 
-      {/* Foreground — slides left on swipe to reveal panel */}
+      {/* Foreground — slides left on swipe to reveal panel.
+          We use `onClickCapture` so children with their own `stopPropagation`
+          (e.g. the reservation pill) can't swallow the dismiss while the panel
+          is open — the close fires before the descendant handler runs. */}
       <div
-        ref={foregroundRef}
         className={cn('relative', foregroundClassName)}
         style={{
           transform: `translateX(-${offset}px)`,
@@ -226,18 +251,29 @@ export function SwipeableCard({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        onClick={(e) => {
-          // Tap to dismiss when open; otherwise forward to the card's own
-          // click handler. After a real swipe the locked ref stays true until
-          // this same gesture's pointerup; by the time `click` fires we're
-          // back to false.
+        onClickCapture={(e) => {
+          if (justSwipedRef.current) {
+            // The click that immediately follows a swipe-commit pointerup
+            // is the trailing tap-release of that same gesture; eat it so it
+            // doesn't toggle the panel back closed (or fire the card body
+            // forward when closing via right-swipe).
+            justSwipedRef.current = false
+            e.preventDefault()
+            e.stopPropagation()
+            return
+          }
           if (isOpen) {
             e.preventDefault()
             e.stopPropagation()
             close()
             return
           }
-          onForegroundClick?.()
+        }}
+        onClick={() => {
+          // Closed-card body tap forwards to the card's own click handler.
+          // Open-card and just-swiped cases were already short-circuited in
+          // the capture phase above.
+          if (!isOpen) onForegroundClick?.()
         }}
       >
         {children}

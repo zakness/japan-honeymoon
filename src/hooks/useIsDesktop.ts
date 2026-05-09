@@ -18,6 +18,9 @@ export function useIsDesktop() {
   )
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 640px)')
+    // Re-read once on attach in case the value flipped between the initial
+    // useState read and effect-attach (e.g. orientation change during mount).
+    setIsDesktop(mq.matches)
     const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches)
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
