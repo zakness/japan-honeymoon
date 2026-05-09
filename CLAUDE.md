@@ -99,3 +99,17 @@ Required env vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_GOOGLE_M
 ## Testing
 
 Tests live in `src/test/`. The Vitest environment is `jsdom` with a `scrollIntoView` shim (`src/test/setup.ts`). Path alias `@/` → `src/` is available in tests via `vitest.config.ts`.
+
+---
+
+## Database migrations
+
+Schema changes are applied via the Supabase MCP server, but **every applied migration must also be checked in** as a `supabase/migrations/NNN_short_name.sql` file using the next sequential number. The repo files act as a from-scratch rebuild script, parallel to the timestamped history Supabase tracks on the remote.
+
+When making a schema change:
+
+1. Apply the change via MCP (`apply_migration` or DDL through `execute_sql`).
+2. In the same change-set, write a sequentially-numbered file under `supabase/migrations/` containing the canonical net-effect SQL.
+3. If the change was applied iteratively over several MCP calls, consolidate into one net-effect file rather than replicating intermediate states.
+
+Verify nothing has drifted by listing the remote with `mcp__supabase__list_migrations` and comparing against the repo's `supabase/migrations/` directory.
