@@ -1,22 +1,22 @@
 import type { ReactNode } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Clock, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { TIME_SLOTS, type TimeSlot } from '@/types/itinerary'
-import { TIME_SLOT_ICONS } from '@/lib/time-slot-icons'
+import { useIsDesktop } from '@/hooks/useIsDesktop'
+import { cn } from '@/lib/utils'
+import { SwipeableCard, type CardAction } from './SwipeableCard'
+
+export type { CardAction } from './SwipeableCard'
 
 interface SortableItemCardProps {
   id: string
   data: Record<string, unknown>
   children: ReactNode
-  actions?: ReactNode
+  /**
+   * Card-level actions. Rendered as a hover-reveal icon tray on desktop and
+   * as a swipe-to-reveal panel on mobile (`SwipeableCard`).
+   */
+  actions?: CardAction[]
   /**
    * Visual variant. `speculative` renders a dashed, faded card to distinguish
    * "maybe" items from locked-in plans. Defaults to `decided`.
@@ -28,24 +28,30 @@ interface SortableItemCardProps {
    */
   accentColor?: string
   /**
-   * Optional full-width header (typically a `CardBanner`). When provided,
-   * it renders edge-to-edge at the top of the card, above the content row.
+   * Optional banner. With `bannerOrientation='top'` (default) it renders as a
+   * full-width header above the content row. With `'side'` it sits to the
+   * left of the content as an 88px square.
    */
   banner?: ReactNode
+  /** Where to place the banner. `top` is desktop; `side` is mobile list-row. */
+  bannerOrientation?: 'top' | 'side'
   /**
    * When provided, the content region becomes clickable and this fires on click.
-   * The action tray sits outside the click region, so tray buttons don't need
-   * to stopPropagation.
+   * On mobile the foreground swallows the click while the swipe panel is open
+   * (used to dismiss the panel) so we route this through the swipeable wrapper
+   * instead of an inline click target.
    */
   onCardClick?: () => void
 }
 
 /**
- * Shared shell for draggable itinerary/transport cards: sortable wrapper
- * (whole card is the drag source), optional content-region click handler, and
- * a top-right action tray that only reserves layout space when hovered (via
- * absolute positioning). The action tray sits outside the click region, so
- * tray buttons don't need to stopPropagation.
+ * Shared shell for draggable itinerary/transport cards.
+ *
+ * Desktop: sortable wrapper with whole-card drag, hover-reveal icon tray in
+ * the top-right corner, click-to-select on the content region.
+ *
+ * Mobile: drag is disabled (sensors gated in `useCrossItineraryDnD`); actions
+ * are reached via `SwipeableCard`'s left-swipe reveal panel; tap selects.
  */
 export function SortableItemCard({
   id,
@@ -55,12 +61,14 @@ export function SortableItemCard({
   variant = 'decided',
   accentColor,
   banner,
+  bannerOrientation = 'top',
   onCardClick,
 }: SortableItemCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     data,
   })
+  const isDesktop = useIsDesktop()
 
   const baseStyle: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -79,21 +87,29 @@ export function SortableItemCard({
         }
       : baseStyle
 
-  const variantClasses =
-    variant === 'speculative'
-      ? 'border-dashed border-muted-foreground/40 bg-transparent'
-      : accentColor
-        ? 'bg-card'
-        : 'bg-card shadow-sm'
+  // On mobile the foreground must be opaque so the swipe action panel
+  // underneath is hidden at rest. Speculative gets bg-card on mobile (the
+  // dashed border still distinguishes it) and stays bg-transparent on desktop.
+  const variantBorderClass =
+    variant === 'speculative' ? 'border-dashed border-muted-foreground/40' : ''
+  const desktopBgClass =
+    variant === 'speculative' ? 'bg-transparent' : accentColor ? 'bg-card' : 'bg-card shadow-sm'
+  const mobileFgBgClass = accentColor || variant === 'speculative' ? 'bg-card' : 'bg-card shadow-sm'
 
-  const clickable = (
-    <>
-      {banner}
-      <div className="flex items-start gap-2">
+  const inner =
+    bannerOrientation === 'side' && banner ? (
+      <div className="flex items-stretch">
+        {banner}
         <div className="flex-1 min-w-0 p-2.5">{children}</div>
       </div>
-    </>
-  )
+    ) : (
+      <>
+        {banner}
+        <div className="flex items-start gap-2">
+          <div className="flex-1 min-w-0 p-2.5">{children}</div>
+        </div>
+      </>
+    )
 
   return (
     <div
@@ -101,109 +117,67 @@ export function SortableItemCard({
       style={style}
       {...attributes}
       {...listeners}
-      className={`relative rounded-lg border group overflow-hidden cursor-grab active:cursor-grabbing touch-none ${variantClasses}`}
-    >
-      {onCardClick ? (
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={onCardClick}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              onCardClick()
-            }
-          }}
-        >
-          {clickable}
-        </div>
-      ) : (
-        clickable
+      className={cn(
+        'relative rounded-lg border group overflow-hidden',
+        'sm:cursor-grab sm:active:cursor-grabbing sm:touch-none',
+        variantBorderClass,
+        isDesktop && desktopBgClass
       )}
+    >
+      {isDesktop ? (
+        <>
+          {onCardClick ? (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={onCardClick}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onCardClick()
+                }
+              }}
+            >
+              {inner}
+            </div>
+          ) : (
+            inner
+          )}
 
-      {actions && (
-        <div className="absolute top-2 right-2 flex items-center gap-0.5 rounded-md bg-card/95 opacity-0 group-hover:opacity-100 transition-opacity">
-          {actions}
-        </div>
+          {actions && actions.length > 0 && (
+            <div className="absolute top-2 right-2 flex items-center gap-0.5 rounded-md bg-card/95 opacity-0 group-hover:opacity-100 transition-opacity">
+              {actions.map((action, idx) => {
+                const Icon = action.icon
+                const destructive = action.variant === 'destructive'
+                return (
+                  <Button
+                    key={idx}
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      'h-6 w-6 p-0 text-muted-foreground',
+                      destructive && 'hover:text-destructive'
+                    )}
+                    onClick={action.onClick}
+                    aria-label={action.label}
+                    title={action.label}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                  </Button>
+                )
+              })}
+            </div>
+          )}
+        </>
+      ) : (
+        <SwipeableCard
+          actions={actions ?? []}
+          foregroundClassName={mobileFgBgClass}
+          onForegroundClick={onCardClick}
+        >
+          {inner}
+        </SwipeableCard>
       )}
     </div>
-  )
-}
-
-interface TimeSlotMenuProps {
-  timeSlot: TimeSlot
-  children: ReactNode
-}
-
-/**
- * Compact Clock-icon dropdown trigger. Renders the base-ui Trigger AS the
- * Button (via `render`) to avoid nested <button><button> markup. Consumers
- * supply the menu body as children.
- */
-export function TimeSlotMenu({ timeSlot, children }: TimeSlotMenuProps) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0 text-muted-foreground"
-            type="button"
-            aria-label={`Time slot: ${timeSlot}`}
-          />
-        }
-      >
-        <Clock className="h-3.5 w-3.5" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-40">
-        {children}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-interface TimeSlotMenuItemsProps {
-  current: TimeSlot
-  onChange: (slot: TimeSlot) => void
-}
-
-/** Renders the standard TIME_SLOTS as DropdownMenuItems with the current slot bolded. */
-export function TimeSlotMenuItems({ current, onChange }: TimeSlotMenuItemsProps) {
-  return (
-    <>
-      {TIME_SLOTS.map((slot) => {
-        const Icon = TIME_SLOT_ICONS[slot.value]
-        return (
-          <DropdownMenuItem
-            key={slot.value}
-            onClick={() => onChange(slot.value)}
-            className={current === slot.value ? 'font-medium' : ''}
-          >
-            <Icon className="h-3.5 w-3.5" />
-            {slot.label}
-          </DropdownMenuItem>
-        )
-      })}
-    </>
-  )
-}
-
-interface DeleteItemButtonProps {
-  onDelete: () => void
-  label?: string
-}
-
-export function DeleteItemButton({ onDelete, label = 'Delete item' }: DeleteItemButtonProps) {
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-      onClick={onDelete}
-      aria-label={label}
-    >
-      <Trash2 className="h-3.5 w-3.5" />
-    </Button>
   )
 }

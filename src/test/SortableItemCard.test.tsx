@@ -1,8 +1,10 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { Trash2 } from 'lucide-react'
 import { DndContext } from '@dnd-kit/core'
 import { SortableContext } from '@dnd-kit/sortable'
-import { SortableItemCard } from '@/components/day/SortableItemCard'
+import { SortableItemCard, type CardAction } from '@/components/day/SortableItemCard'
+import { setTestViewportWidth, resetTestViewport } from './setup'
 
 function renderCard(ui: React.ReactElement) {
   return render(
@@ -36,20 +38,17 @@ describe('SortableItemCard', () => {
   it('tray button onClick fires without triggering onCardClick', () => {
     const onCardClick = vi.fn()
     const onAction = vi.fn()
+    const actions: CardAction[] = [
+      { icon: Trash2, label: 'tray', onClick: onAction, variant: 'destructive' },
+    ]
     renderCard(
-      <SortableItemCard
-        id="card-1"
-        data={{}}
-        onCardClick={onCardClick}
-        actions={
-          <button type="button" onClick={onAction}>
-            tray
-          </button>
-        }
-      >
+      <SortableItemCard id="card-1" data={{}} onCardClick={onCardClick} actions={actions}>
         <div>body</div>
       </SortableItemCard>
     )
+    // Both desktop hover-tray and mobile swipe-panel render a button labeled
+    // 'tray'; the test environment renders desktop (matchMedia defaults to
+    // matching the desktop breakpoint via the jsdom shim).
     fireEvent.click(screen.getByRole('button', { name: 'tray' }))
     expect(onAction).toHaveBeenCalledTimes(1)
     expect(onCardClick).not.toHaveBeenCalled()
@@ -68,5 +67,46 @@ describe('SortableItemCard', () => {
     // The only matching ancestor should be the outer sortable div itself —
     // confirm by checking it carries dnd-kit's sortable aria attribute.
     expect(innerClickable?.getAttribute('aria-roledescription')).toBe('sortable')
+  })
+
+  describe('mobile branch', () => {
+    afterEach(() => {
+      resetTestViewport()
+      cleanup()
+    })
+
+    it('renders the SwipeableCard wrapper and forwards a body tap as onCardClick', () => {
+      setTestViewportWidth(375)
+      const onCardClick = vi.fn()
+      renderCard(
+        <SortableItemCard id="card-1" data={{}} onCardClick={onCardClick}>
+          <div data-testid="body">click target</div>
+        </SortableItemCard>
+      )
+      // Mobile branch keeps actions accessible (tabindex toggles via swipe).
+      // A tap on the body forwards to the swipeable's onForegroundClick.
+      fireEvent.click(screen.getByTestId('body'))
+      expect(onCardClick).toHaveBeenCalledTimes(1)
+    })
+
+    it('exposes mobile action buttons (rendered with tabIndex=-1 at rest)', () => {
+      setTestViewportWidth(375)
+      const onAction = vi.fn()
+      const actions: CardAction[] = [
+        { icon: Trash2, label: 'Delete', onClick: onAction, variant: 'destructive' },
+      ]
+      renderCard(
+        <SortableItemCard id="card-1" data={{}} actions={actions}>
+          <div>body</div>
+        </SortableItemCard>
+      )
+      const btn = screen.getByRole('button', { name: 'Delete' })
+      expect(btn.getAttribute('tabindex')).toBe('-1')
+      // Clicking still fires (e.g. via accessibility tooling that bypasses
+      // visual disclosure) — ensures the action wiring isn't accidentally
+      // gated on the open state.
+      fireEvent.click(btn)
+      expect(onAction).toHaveBeenCalledTimes(1)
+    })
   })
 })

@@ -1,20 +1,15 @@
 import { useState } from 'react'
-import { StickyNote, Clock, Lock, Unlock, Pencil } from 'lucide-react'
+import { StickyNote, Clock, Lock, Unlock, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { PLACE_CATEGORIES, type PlaceRow } from '@/types/places'
-import {
-  type TimeSlot,
-  type ItineraryItemWithPlace,
-  formatReservationTime,
-} from '@/types/itinerary'
+import { type ItineraryItemWithPlace, formatReservationTime } from '@/types/itinerary'
 import { getCityColor, getPrimaryCityForDate } from '@/config/trip'
 import { useDeleteItineraryItem, useUpdateItineraryItem } from '@/hooks/useItinerary'
+import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { ReservationDialog } from './ReservationDialog'
 import { TextNoteDialog } from './TextNoteDialog'
 import { CardBanner } from '@/components/shared/CardBanner'
-import { SortableItemCard, TimeSlotMenu, DeleteItemButton } from './SortableItemCard'
+import { SortableItemCard, type CardAction } from './SortableItemCard'
 
 interface ItineraryItemProps {
   item: ItineraryItemWithPlace
@@ -30,6 +25,7 @@ interface ItineraryItemProps {
 export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemProps) {
   const deleteItem = useDeleteItineraryItem()
   const updateItem = useUpdateItineraryItem()
+  const isDesktop = useIsDesktop()
   const [reservationOpen, setReservationOpen] = useState(false)
   const [textNoteOpen, setTextNoteOpen] = useState(false)
 
@@ -52,7 +48,6 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
   const isPlace = item.place !== null
   const place = item.place
   const category = place ? PLACE_CATEGORIES.find((c) => c.value === place.category) : null
-  const timeSlot = item.time_slot as TimeSlot
   const city = getPrimaryCityForDate(item.day_date)
   const accentColor = city ? getCityColor(city).primary : undefined
 
@@ -61,9 +56,12 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
   const bannerColors = city ? getCityColor(city) : undefined
 
   // Place-backed items always get a banner (photo or city-tinted fallback) for
-  // visual consistency with the backlog. Text-notes only get a banner when
-  // they actually have images — a bare note shouldn't be forced into a tinted
-  // block with no signal.
+  // visual consistency with the backlog — on mobile this becomes a side photo,
+  // on desktop a top banner. Text-notes only get a banner when they actually
+  // have images; we don't force a placeholder on either viewport because notes
+  // benefit more from a wider content area than from a left anchor.
+  const orientation = isDesktop ? 'top' : 'side'
+  const desktopBannerClass = 'h-16'
   let banner: React.ReactNode = undefined
   if (isPlace) {
     banner = (
@@ -71,7 +69,8 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
         photoUrl={placePhotos[0]}
         colors={bannerColors}
         icon={category?.icon ?? StickyNote}
-        className="h-16"
+        orientation={orientation}
+        className={isDesktop ? desktopBannerClass : undefined}
       />
     )
   } else if (noteImages.length > 0) {
@@ -80,61 +79,37 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
         photoUrl={noteImages[0]}
         colors={bannerColors}
         icon={StickyNote}
-        className="h-16"
+        orientation={orientation}
+        className={isDesktop ? desktopBannerClass : undefined}
       />
     )
   }
 
-  const actions = (
-    <>
-      {!isPlace && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0 text-muted-foreground"
-          onClick={() => setTextNoteOpen(true)}
-          aria-label="Edit note"
-          title="Edit note"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
-      )}
-      <TimeSlotMenu timeSlot={timeSlot}>
-        {item.reservation_time ? (
-          <DropdownMenuItem onClick={() => setReservationOpen(true)}>
-            <Clock className="h-3.5 w-3.5 mr-1.5" />
-            Edit reservation
-          </DropdownMenuItem>
-        ) : (
-          <>
-            {isPlace && (
-              <>
-                <DropdownMenuItem onClick={() => setReservationOpen(true)}>
-                  <Clock className="h-3.5 w-3.5 mr-1.5" />
-                  Set reservation
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )}
-            <DropdownMenuItem onClick={handleToggleDecided}>
-              {item.is_decided ? (
-                <>
-                  <Unlock className="h-3.5 w-3.5 mr-1.5" />
-                  Mark speculative
-                </>
-              ) : (
-                <>
-                  <Lock className="h-3.5 w-3.5 mr-1.5" />
-                  Lock in
-                </>
-              )}
-            </DropdownMenuItem>
-          </>
-        )}
-      </TimeSlotMenu>
-      <DeleteItemButton onDelete={handleDelete} label="Remove item" />
-    </>
-  )
+  // Action panel buttons. Reservation actions only apply to places (text-notes
+  // can't have reservations). Lock/Speculative applies to both. Delete is
+  // always last and styled destructive.
+  const actions: CardAction[] = []
+  if (!isPlace) {
+    actions.push({ icon: Pencil, label: 'Edit', onClick: () => setTextNoteOpen(true) })
+  }
+  if (isPlace) {
+    actions.push({
+      icon: Clock,
+      label: item.reservation_time ? 'Reservation' : 'Reserve',
+      onClick: () => setReservationOpen(true),
+    })
+  }
+  actions.push({
+    icon: item.is_decided ? Unlock : Lock,
+    label: item.is_decided ? 'Speculative' : 'Lock in',
+    onClick: handleToggleDecided,
+  })
+  actions.push({
+    icon: Trash2,
+    label: 'Delete',
+    onClick: handleDelete,
+    variant: 'destructive',
+  })
 
   return (
     <SortableItemCard
@@ -144,13 +119,16 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
       variant={item.is_decided ? 'decided' : 'speculative'}
       accentColor={accentColor}
       banner={banner}
+      bannerOrientation={orientation}
       onCardClick={isPlace && place ? () => onSelectPlace?.(place) : undefined}
     >
       {isPlace && place ? (
         <div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 min-w-0">
             {category && <category.icon size={14} className="shrink-0 text-muted-foreground" />}
-            <span className="text-sm font-medium text-left leading-tight">{place.name}</span>
+            <span className="text-sm font-medium text-left leading-tight truncate min-w-0">
+              {place.name}
+            </span>
           </div>
           {item.reservation_time && (
             <button
@@ -174,9 +152,9 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
         </div>
       ) : (
         <div>
-          <div className="flex items-start gap-1.5">
+          <div className="flex items-start gap-1.5 min-w-0">
             <StickyNote className="h-3.5 w-3.5 mt-0.5 text-muted-foreground flex-shrink-0" />
-            <p className="text-sm text-left leading-tight line-clamp-3">
+            <p className="text-sm text-left leading-tight min-w-0 line-clamp-3">
               {item.text_note || <span className="text-muted-foreground italic">Empty note</span>}
             </p>
           </div>
