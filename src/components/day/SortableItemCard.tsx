@@ -132,6 +132,13 @@ export function SortableItemCard({
               tabIndex={0}
               onClick={onCardClick}
               onKeyDown={(e) => {
+                // Only fire when the wrapper itself has focus, not when a
+                // descendant input/textarea/etc. is being typed into. Without
+                // this guard, dialogs rendered as children (TransportDialog,
+                // ReservationDialog, …) would have their Space/Enter
+                // keystrokes swallowed because synthetic events bubble
+                // through the React tree even when the DOM is portaled out.
+                if (e.target !== e.currentTarget) return
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
                   onCardClick()
