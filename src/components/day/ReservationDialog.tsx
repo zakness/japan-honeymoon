@@ -23,10 +23,18 @@ interface ReservationDialogProps {
 // is required so Safari's native time picker has a real value — its empty
 // rendering shows a "12:30" placeholder visual while the DOM value stays
 // empty until all HH/MM/AM-PM segments are committed, leaving Save disabled.
+const SLOT_DEFAULTS: Record<TimeSlot, string> = {
+  'wake-up': '07:00',
+  breakfast: '08:30',
+  morning: '10:30',
+  lunch: '12:30',
+  afternoon: '15:00',
+  dinner: '18:30',
+  evening: '21:00',
+}
+
 function defaultTimeForSlot(slot: TimeSlot | string): string {
-  if (slot === 'morning') return '09:00'
-  if (slot === 'evening') return '18:00'
-  return '13:00'
+  return SLOT_DEFAULTS[slot as TimeSlot] ?? '13:00'
 }
 
 export function ReservationDialog({ item, open, onOpenChange }: ReservationDialogProps) {

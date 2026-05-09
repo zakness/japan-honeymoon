@@ -52,7 +52,7 @@ export function useCrossItineraryDnD(cityDays: TripDay[]) {
       queryClient.getQueryData<ItineraryItemWithPlace[]>([...ITINERARY_KEY, dayDate]) ?? []
     const journeys = queryClient.getQueryData<Journey[]>([...TRANSPORT_KEY, dayDate]) ?? []
     const grouped = mergeSlotItems(itinerary, journeys)
-    return [...grouped.morning, ...grouped.afternoon, ...grouped.evening]
+    return Object.values(grouped).flat()
   }
 
   function handleDragStart({ active }: DragStartEvent) {

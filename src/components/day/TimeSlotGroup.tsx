@@ -5,7 +5,7 @@ import { TIME_SLOT_ICONS } from '@/lib/time-slot-icons'
 import { ItineraryItem } from './ItineraryItem'
 import { TransportItem } from './TransportItem'
 import { FlightEventCard } from './FlightEventCard'
-import { type TimeSlot } from '@/types/itinerary'
+import { type TimeSlot, type TimeSlotKind } from '@/types/itinerary'
 import { type Journey, type SlotItem } from '@/types/transport'
 import type { PlaceRow } from '@/types/places'
 import type { FlightEvent } from '@/lib/logistics-utils'
@@ -15,6 +15,10 @@ import { cn } from '@/lib/utils'
 interface TimeSlotGroupProps {
   slot: TimeSlot
   label: string
+  /** Whether this slot is a meal anchor (`breakfast`/`lunch`/`dinner`) or one
+   *  of the gap slots between meals. Drives the typographic distinction in
+   *  the slot header — meal headers read heavier than gap headers. */
+  kind: TimeSlotKind
   items: SlotItem[]
   dayDate: string
   flightEvents?: FlightEvent[]
@@ -29,6 +33,7 @@ interface TimeSlotGroupProps {
 export function TimeSlotGroup({
   slot,
   label,
+  kind,
   items,
   dayDate,
   flightEvents = [],
@@ -38,10 +43,42 @@ export function TimeSlotGroup({
 }: TimeSlotGroupProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `slot-${dayDate}-${slot}` })
   const SlotIcon = TIME_SLOT_ICONS[slot]
+  const isEmpty = items.length === 0 && flightEvents.length === 0
+
+  // Compact-when-empty: render a single ~24px row instead of full header +
+  // droppable + Add button. Still wired as the slot's droppable + click
+  // target so DnD drops and `+ Add` clicks both work.
+  if (isEmpty) {
+    return (
+      <div
+        ref={setNodeRef}
+        className={cn(
+          'flex items-center gap-1.5 h-6 px-2 rounded-md border border-dashed cursor-pointer transition-colors text-xs',
+          isOver
+            ? 'border-solid border-accent-foreground/40 bg-accent/50 text-accent-foreground ring-1 ring-accent'
+            : 'border-border/60 text-muted-foreground/60 hover:text-foreground hover:border-muted-foreground/40'
+        )}
+        onClick={() => onAddClick?.(slot)}
+        role="button"
+        aria-label={`Add to ${label.toLowerCase()}`}
+      >
+        <SlotIcon className="h-3 w-3 shrink-0" />
+        <span className={cn('flex-1 truncate', kind === 'meal' ? 'font-medium' : 'font-normal')}>
+          {label}
+        </span>
+        <Plus className="h-3 w-3 shrink-0 opacity-60" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-1.5">
-      <h3 className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
+      <h3
+        className={cn(
+          'flex items-center gap-1 text-xs uppercase tracking-wider px-1',
+          kind === 'meal' ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground'
+        )}
+      >
         <SlotIcon className="h-3.5 w-3.5" />
         {label}
       </h3>

@@ -1,5 +1,11 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { DndContext, DragOverlay } from '@dnd-kit/core'
+import {
+  DndContext,
+  DragOverlay,
+  pointerWithin,
+  rectIntersection,
+  type CollisionDetection,
+} from '@dnd-kit/core'
 import { ItineraryItem } from '@/components/day/ItineraryItem'
 import { TransportItem } from '@/components/day/TransportItem'
 import { PlaceCard } from '@/components/places/PlaceCard'
@@ -69,6 +75,22 @@ function localDateString(d: Date = new Date()): string {
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
+}
+
+/**
+ * Cross-slot DnD has to work with both full-size slots (~120px+) and the
+ * compact-when-empty rows (~24px). dnd-kit's default `rectIntersection` picks
+ * the droppable with the largest overlap, which means the much-larger source
+ * slot keeps "winning" over a tiny target row even when the cursor is over it.
+ * `pointerWithin` uses the cursor's exact position instead — which is what
+ * users intuitively expect ("I'm hovering this slot, drop here"). Fall back to
+ * `rectIntersection` if the pointer isn't inside any droppable (e.g. dragging
+ * over a gap between slots).
+ */
+const dndCollisionDetection: CollisionDetection = (args) => {
+  const pointer = pointerWithin(args)
+  if (pointer.length > 0) return pointer
+  return rectIntersection(args)
 }
 
 function pickDefaultDayTab(city: City): DayTabValue {
@@ -220,7 +242,12 @@ export function ItineraryView({
       {/* CityStrip on desktop now lives in AppShell's top nav; the mobile strip
           still lives inside the bottom sheet below. */}
 
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={dndCollisionDetection}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
         {isDesktop ? (
           /* ── Desktop layout ─────────────────────────────────────────────── */
           <div

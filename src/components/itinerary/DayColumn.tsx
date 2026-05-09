@@ -47,7 +47,7 @@ export function DayColumn({
   fillWidth = false,
 }: DayColumnProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [dialogInitialSlot, setDialogInitialSlot] = useState<TimeSlot>('morning')
+  const [dialogInitialSlot, setDialogInitialSlot] = useState<TimeSlot>('breakfast')
 
   const { data: itineraryItems = [], isLoading: itineraryLoading } = useItineraryItems(dayDate)
   const { data: transportItems = [], isLoading: transportLoading } = useJourneysForDay(dayDate)
@@ -58,11 +58,13 @@ export function DayColumn({
   const isLoading = itineraryLoading || transportLoading || flightsLoading
 
   const flightEvents = getFlightEventsForDate(flights, dayDate)
-  const flightEventsBySlot = {
-    morning: flightEvents.filter((e) => deriveTimeSlot(e.localTime) === 'morning'),
-    afternoon: flightEvents.filter((e) => deriveTimeSlot(e.localTime) === 'afternoon'),
-    evening: flightEvents.filter((e) => deriveTimeSlot(e.localTime) === 'evening'),
-  }
+  const flightEventsBySlot = TIME_SLOTS.reduce(
+    (acc, { value }) => {
+      acc[value] = flightEvents.filter((e) => deriveTimeSlot(e.localTime) === value)
+      return acc
+    },
+    {} as Record<TimeSlot, typeof flightEvents>
+  )
 
   const grouped = mergeSlotItems(itineraryItems, transportItems)
   const totalItemCount = itineraryItems.length + transportItems.length
@@ -124,16 +126,17 @@ export function DayColumn({
             {morningHotel && (
               <HotelAnchor
                 hotel={morningHotel}
-                slot="morning"
+                position="start"
                 colors={getHotelColor(morningHotel, allHotels)}
                 onSelect={onSelectHotel}
               />
             )}
-            {TIME_SLOTS.map(({ value, label }) => (
+            {TIME_SLOTS.map(({ value, label, kind }) => (
               <TimeSlotGroup
                 key={value}
                 slot={value}
                 label={label}
+                kind={kind}
                 items={grouped[value]}
                 dayDate={dayDate}
                 flightEvents={flightEventsBySlot[value]}
@@ -148,7 +151,7 @@ export function DayColumn({
             {eveningHotel && (
               <HotelAnchor
                 hotel={eveningHotel}
-                slot="evening"
+                position="end"
                 colors={getHotelColor(eveningHotel, allHotels)}
                 onSelect={onSelectHotel}
               />
