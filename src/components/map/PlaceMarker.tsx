@@ -1,5 +1,6 @@
-import { MapPin } from 'lucide-react'
+import { Check, MapPin, Star } from 'lucide-react'
 import { AdvancedMarker } from '@vis.gl/react-google-maps'
+import { cn } from '@/lib/utils'
 import { CATEGORY_COLORS } from '@/lib/google-maps'
 import { PLACE_CATEGORIES, type PlaceRow, type PlaceCategory } from '@/types/places'
 
@@ -18,6 +19,18 @@ export function PlaceMarker({ place, selected, scheduledDayCount = 0, onClick }:
   const color = CATEGORY_COLORS[category] ?? '#6b7280'
   const Icon = PLACE_CATEGORIES.find((c) => c.value === category)?.icon ?? MapPin
   const isScheduled = scheduledDayCount > 0
+  const isMustGo = place.priority === 'must_go'
+  // Single badge slot at top-right. Color encodes priority (gold = must-go,
+  // foreground = neutral); symbol encodes coverage (✓ = scheduled,
+  // ★ = unscheduled must-go). Default unscheduled places get no badge.
+  type BadgeKind = 'scheduled-mustgo' | 'scheduled' | 'mustgo-unscheduled' | null
+  const badge: BadgeKind = isScheduled
+    ? isMustGo
+      ? 'scheduled-mustgo'
+      : 'scheduled'
+    : isMustGo
+      ? 'mustgo-unscheduled'
+      : null
 
   return (
     <AdvancedMarker
@@ -54,12 +67,32 @@ export function PlaceMarker({ place, selected, scheduledDayCount = 0, onClick }:
             {place.name}
           </div>
         )}
-        {isScheduled && (
+        {badge && (
           <div
-            className="absolute -bottom-0.5 -right-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full border border-white bg-black px-0.75 text-[9px] font-semibold leading-none text-white shadow-sm tabular-nums"
-            aria-label={`Scheduled on ${scheduledDayCount} day${scheduledDayCount === 1 ? '' : 's'}`}
+            className={cn(
+              'pointer-events-none absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border border-white shadow-sm',
+              badge === 'scheduled' ? 'bg-foreground' : 'bg-amber-400'
+            )}
+            aria-label={
+              badge === 'scheduled-mustgo'
+                ? 'Must-go (scheduled)'
+                : badge === 'scheduled'
+                  ? 'Scheduled'
+                  : 'Must-go (unscheduled)'
+            }
+            title={
+              badge === 'scheduled-mustgo'
+                ? 'Must-go · scheduled'
+                : badge === 'scheduled'
+                  ? 'Scheduled'
+                  : 'Must-go'
+            }
           >
-            {scheduledDayCount}
+            {badge === 'mustgo-unscheduled' ? (
+              <Star className="h-2.5 w-2.5 fill-white text-white" strokeWidth={0} />
+            ) : (
+              <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />
+            )}
           </div>
         )}
       </div>

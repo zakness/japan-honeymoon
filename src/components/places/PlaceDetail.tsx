@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import {
+  Archive,
+  Check,
   ExternalLink,
   Globe,
   Phone,
   MapPin,
-  Star,
   Clock,
   Pencil,
   Trash2,
@@ -16,6 +17,7 @@ import {
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   AlertDialog,
@@ -32,9 +34,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Lightbox } from '@/components/shared/Lightbox'
 import { useLightbox } from '@/hooks/useLightbox'
 import { PlaceForm } from './PlaceForm'
-import { useDeletePlace } from '@/hooks/usePlaces'
+import { useArchiveToggle, useDeletePlace } from '@/hooks/usePlaces'
 import { useCreateItineraryItem, usePlaceSchedule } from '@/hooks/useItinerary'
-import { PLACE_CATEGORIES, type PlaceRow, type PlacePriority } from '@/types/places'
+import { PLACE_CATEGORIES, type PlaceRow } from '@/types/places'
+import { StarToggle } from './StarToggle'
 import { googleMapsUrl } from '@/lib/maps-url'
 import {
   CITY_LABELS,
@@ -43,12 +46,6 @@ import {
   formatTripDayLabel,
   type City,
 } from '@/config/trip'
-
-const PRIORITY_STYLES: Record<PlacePriority, string> = {
-  'must-do': 'bg-red-100 text-red-700',
-  'want-to': 'bg-blue-100 text-blue-700',
-  'if-time': 'bg-gray-100 text-gray-600',
-}
 
 /** Parse "10:00 AM", "10:00", "10 AM" → minutes since midnight. */
 function parseTimeToMinutes(s: string): number | null {
@@ -127,6 +124,7 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
   const [addressOpen, setAddressOpen] = useState(false)
   const lightbox = useLightbox()
   const deletePlace = useDeletePlace()
+  const archiveToggle = useArchiveToggle()
   const createItem = useCreateItineraryItem()
   const { data: scheduledDates = [] } = usePlaceSchedule(place.id)
 
@@ -152,30 +150,39 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
 
   const category = PLACE_CATEGORIES.find((c) => c.value === place.category)
   const photos = Array.isArray(place.photos) ? (place.photos as string[]) : []
-  const priority = place.priority as PlacePriority
   const hours = place.hours as { weekdayDescriptions?: string[] } | null
   const hasCoords = place.lat != null && place.lng != null
+  const isArchived = place.priority === 'archived'
 
   return (
     <div className="flex flex-col">
       {/* Hero photo — full-bleed top of the card (clipped by card's rounded overflow). */}
       {photos.length > 0 && (
-        <button
-          type="button"
-          onClick={() => lightbox.openAt(photos, 0)}
-          className="relative block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-          aria-label={photos.length > 1 ? `Open photos (${photos.length})` : 'Open photo'}
-        >
-          <img src={photos[0]} alt={`${place.name} photo`} className="h-32 w-full object-cover" />
-          {photos.length > 1 && (
-            <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-medium text-white">
-              +{photos.length - 1}
-            </span>
-          )}
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => lightbox.openAt(photos, 0)}
+            className={cn(
+              'relative block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring transition-all',
+              isArchived && 'grayscale opacity-70'
+            )}
+            aria-label={photos.length > 1 ? `Open photos (${photos.length})` : 'Open photo'}
+          >
+            <img src={photos[0]} alt={`${place.name} photo`} className="h-32 w-full object-cover" />
+            {photos.length > 1 && (
+              <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-medium text-white">
+                +{photos.length - 1}
+              </span>
+            )}
+          </button>
+          <StarToggle place={place} size="md" className="absolute top-2 left-2" />
+        </div>
       )}
 
-      <div className={`px-3 pb-3 space-y-3 ${photos.length > 0 ? 'pt-3' : 'pt-10'}`}>
+      <div className={cn('px-3 pb-3 space-y-3 relative', photos.length > 0 ? 'pt-3' : 'pt-10')}>
+        {photos.length === 0 && (
+          <StarToggle place={place} size="md" className="absolute top-2 left-2" />
+        )}
         {/* Header */}
         <div>
           <div className="flex items-center gap-2">
@@ -205,23 +212,12 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
             )}
           </div>
           <div className="flex flex-wrap gap-1.5 mt-2">
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${PRIORITY_STYLES[priority]}`}
-            >
-              {priority}
-            </span>
             <Badge variant="secondary">{place.status}</Badge>
             {place.city && (
               <Badge variant="outline">{CITY_LABELS[place.city as City] ?? place.city}</Badge>
             )}
-            {place.rating && (
-              <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                {place.rating.toFixed(1)}
-                {place.price_level && (
-                  <span className="ml-1 text-green-600">{'¥'.repeat(place.price_level)}</span>
-                )}
-              </span>
+            {place.price_level && (
+              <span className="text-sm text-green-600">{'¥'.repeat(place.price_level)}</span>
             )}
           </div>
         </div>
@@ -247,7 +243,7 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
               if (!day) return null
               return (
                 <Badge key={date} variant="secondary" className="text-xs gap-1">
-                  <CalendarPlus className="h-3 w-3" />
+                  <Check className="h-3 w-3" strokeWidth={3} />
                   {formatTripDayLabel(day)}
                 </Badge>
               )
@@ -400,6 +396,21 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
           <Button size="sm" variant="outline" className="gap-1.5" onClick={onEdit}>
             <Pencil className="h-4 w-4" />
             Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className={cn(
+              'gap-1.5',
+              isArchived &&
+                'bg-foreground text-background border-foreground hover:bg-foreground/90 hover:text-background'
+            )}
+            onClick={() => archiveToggle(place)}
+            title={isArchived ? 'Unarchive' : 'Archive'}
+            aria-label={isArchived ? 'Unarchive' : 'Archive'}
+            aria-pressed={isArchived}
+          >
+            <Archive className="h-4 w-4" />
           </Button>
           <AlertDialog>
             <AlertDialogTrigger

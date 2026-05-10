@@ -1,4 +1,4 @@
-import { Hotel, Pencil, Star } from 'lucide-react'
+import { Hotel, Pencil } from 'lucide-react'
 import { formatReservationTime } from '@/types/itinerary'
 import { CITY_LABELS, getHotelColor } from '@/config/trip'
 import type { AccommodationRow } from '@/types/accommodations'
@@ -29,15 +29,7 @@ export function HotelEntry({ hotel, kind, allHotels, onEdit }: HotelEntryProps) 
           </span>
           <div className="min-w-0">
             <p className="text-sm font-semibold leading-tight truncate">{hotel.name}</p>
-            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <span>{cityLabel}</span>
-              {hotel.rating != null && (
-                <span className="inline-flex items-center gap-0.5">
-                  <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                  {hotel.rating.toFixed(1)}
-                </span>
-              )}
-            </p>
+            <p className="text-xs text-muted-foreground">{cityLabel}</p>
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">

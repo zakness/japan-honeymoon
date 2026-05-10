@@ -33,9 +33,16 @@ export function useItineraryItems(dayDate: string) {
   })
 }
 
-export function useUnscheduledPlaces() {
+export interface UnscheduledFilter {
+  /** Default `'exclude'` — archived places never appear in the working set. */
+  includeArchived?: 'only' | 'exclude'
+  /** Only return places where priority = 'must_go'. */
+  mustGoOnly?: boolean
+}
+
+export function useUnscheduledPlaces(filter?: UnscheduledFilter) {
   return useQuery({
-    queryKey: [...PLACES_KEY, 'unscheduled'],
+    queryKey: [...PLACES_KEY, 'unscheduled', filter ?? null],
     queryFn: async () => {
       // Step 1: get all place IDs that are already scheduled
       const { data: scheduled, error: schedErr } = await supabase
@@ -52,6 +59,16 @@ export function useUnscheduledPlaces() {
 
       if (scheduledIds.length > 0) {
         query = query.not('id', 'in', `(${scheduledIds.join(',')})`)
+      }
+
+      const archivedMode = filter?.includeArchived ?? 'exclude'
+      if (archivedMode === 'only') {
+        query = query.eq('priority', 'archived')
+      } else if (archivedMode === 'exclude') {
+        query = query.neq('priority', 'archived')
+      }
+      if (filter?.mustGoOnly) {
+        query = query.eq('priority', 'must_go')
       }
 
       const { data, error } = await query
@@ -110,6 +127,25 @@ export function useCreateItineraryItem() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (item: ItineraryItemInsert) => {
+      // Symmetry rule: scheduling an archived place auto-unarchives it. Check
+      // and flip the priority before inserting so the place returns to the
+      // working set the moment it lands on a day.
+      if (item.place_id) {
+        const { data: existing, error: fetchErr } = await supabase
+          .from('places')
+          .select('priority')
+          .eq('id', item.place_id)
+          .maybeSingle()
+        if (fetchErr) throw fetchErr
+        if (existing?.priority === 'archived') {
+          const { error: unarchErr } = await supabase
+            .from('places')
+            .update({ priority: 'default' })
+            .eq('id', item.place_id)
+          if (unarchErr) throw unarchErr
+        }
+      }
+
       const { data, error } = await supabase
         .from('itinerary_items')
         .insert(applyDecidedInvariantToInsert(item))
@@ -122,6 +158,9 @@ export function useCreateItineraryItem() {
       queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, created.day_date] })
       queryClient.invalidateQueries({ queryKey: [...PLACES_KEY, 'unscheduled'] })
       queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, 'schedule-by-place'] })
+      // priority may have flipped from 'archived' to 'default' — refresh
+      // every cached `usePlaces()` so the row is eligible for the working set.
+      queryClient.invalidateQueries({ queryKey: PLACES_KEY })
       if (created.place_id) {
         queryClient.invalidateQueries({ queryKey: [...ITINERARY_KEY, 'place', created.place_id] })
       }

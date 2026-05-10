@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Map as MapIcon } from 'lucide-react'
 import { NavBar, type AppView } from './NavBar'
 import { ErrorBoundary } from './ErrorBoundary'
@@ -10,6 +10,7 @@ import { PlaceEditDialog } from '@/components/places/PlaceDetail'
 import { HotelEditDialog } from '@/components/hotels/HotelEditDialog'
 import { TransportDialog } from '@/components/day/TransportDialog'
 import { Button } from '@/components/ui/button'
+import { usePlaces } from '@/hooks/usePlaces'
 import { type City } from '@/config/trip'
 import type { PlaceRow } from '@/types/places'
 import type { AccommodationRow } from '@/types/accommodations'
@@ -58,8 +59,17 @@ function toHash(state: NavState): string {
 export function AppShell() {
   const [nav, setNav] = useState<NavState>(parseHash)
   const [mapVisible, setMapVisible] = useState(true)
-  const [selectedPlace, setSelectedPlace] = useState<PlaceRow | null>(null)
+  // The snapshot is the place row captured at click time; `selectedPlace`
+  // below resolves it against the live `usePlaces()` cache so any subsequent
+  // mutation (star toggle, edit, etc.) flows through to the open detail card
+  // without needing an explicit re-set from each mutation site.
+  const [selectedPlaceSnapshot, setSelectedPlace] = useState<PlaceRow | null>(null)
   const [selectionOrigin, setSelectionOrigin] = useState<SelectionOrigin | null>(null)
+  const { data: allPlaces } = usePlaces()
+  const selectedPlace = useMemo<PlaceRow | null>(() => {
+    if (!selectedPlaceSnapshot) return null
+    return allPlaces?.find((p) => p.id === selectedPlaceSnapshot.id) ?? selectedPlaceSnapshot
+  }, [allPlaces, selectedPlaceSnapshot])
   const [editingPlace, setEditingPlace] = useState<PlaceRow | null>(null)
   const [selectedHotel, setSelectedHotel] = useState<AccommodationRow | null>(null)
   const [editingHotel, setEditingHotel] = useState<AccommodationRow | null>(null)
