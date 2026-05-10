@@ -5,7 +5,6 @@ import {
   Globe,
   Phone,
   MapPin,
-  Star,
   Pencil,
   Copy,
   Calendar,
@@ -135,12 +134,6 @@ export function HotelDetailContent({ hotel, onEdit }: HotelDetailContentProps) {
             >
               {CITY_LABELS[hotel.city as City] ?? hotel.city}
             </Badge>
-            {hotel.rating != null && (
-              <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                {hotel.rating.toFixed(1)}
-              </span>
-            )}
           </div>
         </div>
 

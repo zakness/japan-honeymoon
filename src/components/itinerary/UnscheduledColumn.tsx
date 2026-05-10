@@ -10,26 +10,11 @@ import { useUnscheduledPlaces, useScheduledDatesByPlace } from '@/hooks/useItine
 import { usePlaces } from '@/hooks/usePlaces'
 import { cn } from '@/lib/utils'
 import { type City } from '@/config/trip'
-import type { PlaceRow, PlaceCategory, PlacePriority } from '@/types/places'
-import { PLACE_CATEGORIES, PLACE_PRIORITIES } from '@/types/places'
+import type { PlaceRow, PlaceCategory } from '@/types/places'
+import { PLACE_CATEGORIES } from '@/types/places'
 import type { SelectPlaceHandler, SelectionOrigin } from '@/components/layout/AppShell'
 
-const PRIORITY_STYLES: Record<PlacePriority, { active: string; inactive: string }> = {
-  'must-do': {
-    active: 'bg-red-100 text-red-700 border-red-300 ring-1 ring-red-300/50',
-    inactive: 'bg-muted/50 text-muted-foreground border-border',
-  },
-  'want-to': {
-    active: 'bg-blue-100 text-blue-700 border-blue-300 ring-1 ring-blue-300/50',
-    inactive: 'bg-muted/50 text-muted-foreground border-border',
-  },
-  'if-time': {
-    active: 'bg-gray-200 text-gray-700 border-gray-400 ring-1 ring-gray-400/50',
-    inactive: 'bg-muted/50 text-muted-foreground border-border',
-  },
-}
-
-type PlaceFilter = 'all' | 'unscheduled' | 'scheduled'
+type PlaceView = 'all' | 'unscheduled' | 'starred' | 'archived'
 
 interface DraggablePlaceCardProps {
   place: PlaceRow
@@ -107,12 +92,15 @@ export function UnscheduledColumn({
   const [collapsed, setCollapsed] = useState(false)
   const [addPlaceOpen, setAddPlaceOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<PlaceFilter>('unscheduled')
+  const [view, setView] = useState<PlaceView>('unscheduled')
   const [categoryFilter, setCategoryFilter] = useState<Set<PlaceCategory>>(new Set())
-  const [priorityFilter, setPriorityFilter] = useState<Set<PlacePriority>>(new Set())
 
+  // Three queries cover the four views. `usePlaces` (default) excludes
+  // archived; the dedicated archived-only query is fetched lazily — react-query
+  // dedupes if other surfaces have already requested it.
   const { data: allUnscheduled = [] } = useUnscheduledPlaces()
   const { data: allPlaces = [] } = usePlaces()
+  const { data: archivedPlaces = [] } = usePlaces({ includeArchived: 'only' })
   const { data: scheduleMap } = useScheduledDatesByPlace()
 
   const toggleCategory = useCallback((cat: PlaceCategory) => {
@@ -124,29 +112,22 @@ export function UnscheduledColumn({
     })
   }, [])
 
-  const togglePriority = useCallback((pri: PlacePriority) => {
-    setPriorityFilter((prev) => {
-      const next = new Set(prev)
-      if (next.has(pri)) next.delete(pri)
-      else next.add(pri)
-      return next
-    })
-  }, [])
-
   const places = useMemo(() => {
-    // Pick base list based on schedule filter
+    // Pick base list based on the segmented view. `All` deliberately includes
+    // archived so the user can see the entire dataset for the city in one
+    // place; the other views are scoped.
     const base =
-      filter === 'unscheduled'
+      view === 'unscheduled'
         ? allUnscheduled
-        : filter === 'scheduled'
-          ? allPlaces.filter((p) => scheduleMap?.has(p.id))
-          : allPlaces
+        : view === 'archived'
+          ? archivedPlaces
+          : view === 'starred'
+            ? allPlaces.filter((p) => p.priority === 'must_go')
+            : [...allPlaces, ...archivedPlaces]
 
-    // Apply city + category + priority + search filters
-    return base.filter((p) => {
+    const filtered = base.filter((p) => {
       if (p.city !== city) return false
       if (categoryFilter.size > 0 && !categoryFilter.has(p.category as PlaceCategory)) return false
-      if (priorityFilter.size > 0 && !priorityFilter.has(p.priority as PlacePriority)) return false
       if (search) {
         const q = search.trim().toLowerCase()
         if (!p.name.toLowerCase().includes(q) && !(p.notes?.toLowerCase().includes(q) ?? false))
@@ -154,7 +135,18 @@ export function UnscheduledColumn({
       }
       return true
     })
-  }, [allUnscheduled, allPlaces, scheduleMap, filter, city, search, categoryFilter, priorityFilter])
+
+    // Sort must-gos to the top so unscheduled upvotes stay impossible to miss.
+    // Falls back to created_at order (which the query already provides) within
+    // each priority bucket. Skip in starred/archived views — they're a single
+    // priority bucket already.
+    if (view === 'starred' || view === 'archived') return filtered
+    return [...filtered].sort((a, b) => {
+      const aMust = a.priority === 'must_go' ? 0 : 1
+      const bMust = b.priority === 'must_go' ? 0 : 1
+      return aMust - bMust
+    })
+  }, [allUnscheduled, allPlaces, archivedPlaces, view, city, search, categoryFilter])
 
   // Per-card refs for auto-scroll.
   const cardRefs = useRef(new Map<string, HTMLDivElement>())
@@ -229,25 +221,28 @@ export function UnscheduledColumn({
           </div>
         </div>
 
-        {/* Filter */}
+        {/* View segmented control */}
         <div className="px-2 pt-2 shrink-0">
-          <Tabs value={filter} onValueChange={(v) => setFilter(v as PlaceFilter)}>
+          <Tabs value={view} onValueChange={(v) => setView(v as PlaceView)}>
             <TabsList className="w-full">
-              <TabsTrigger value="all" className="text-xs">
+              <TabsTrigger value="all" className="text-[11px]">
                 All
               </TabsTrigger>
-              <TabsTrigger value="unscheduled" className="text-xs">
+              <TabsTrigger value="unscheduled" className="text-[11px]">
                 Unsched
               </TabsTrigger>
-              <TabsTrigger value="scheduled" className="text-xs">
-                Sched
+              <TabsTrigger value="starred" className="text-[11px]">
+                Must go
+              </TabsTrigger>
+              <TabsTrigger value="archived" className="text-[11px]">
+                Archived
               </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
 
-        {/* Category + Priority filters */}
-        <div className="px-2 pt-2 shrink-0 space-y-1.5">
+        {/* Category filters */}
+        <div className="px-2 pt-2 shrink-0">
           <div className="flex flex-wrap gap-1">
             {PLACE_CATEGORIES.map((cat) => {
               const active = categoryFilter.has(cat.value)
@@ -265,26 +260,6 @@ export function UnscheduledColumn({
                   title={cat.label}
                 >
                   <cat.icon size={14} />
-                </button>
-              )
-            })}
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {PLACE_PRIORITIES.map((pri) => {
-              const active = priorityFilter.has(pri.value)
-              const styles = PRIORITY_STYLES[pri.value]
-              return (
-                <button
-                  key={pri.value}
-                  type="button"
-                  onClick={() => togglePriority(pri.value)}
-                  className={cn(
-                    'rounded-full border px-2 py-0.5 text-[10px] font-medium leading-none transition-all',
-                    active ? styles.active : styles.inactive,
-                    !active && 'hover:bg-muted'
-                  )}
-                >
-                  {pri.label}
                 </button>
               )
             })}
@@ -318,13 +293,15 @@ export function UnscheduledColumn({
         <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1.5">
           {places.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-6">
-              {search || categoryFilter.size > 0 || priorityFilter.size > 0
+              {search || categoryFilter.size > 0
                 ? 'No matches'
-                : filter === 'unscheduled'
-                  ? 'All places are scheduled'
-                  : filter === 'scheduled'
-                    ? 'No scheduled places'
-                    : 'No places for this city'}
+                : view === 'archived'
+                  ? 'Nothing archived yet'
+                  : view === 'starred'
+                    ? 'No starred places yet'
+                    : view === 'unscheduled'
+                      ? 'All places are scheduled'
+                      : 'No places for this city'}
             </p>
           ) : (
             places.map((place) => (

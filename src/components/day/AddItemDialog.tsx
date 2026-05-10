@@ -14,7 +14,7 @@ import { PlaceCard } from '@/components/places/PlaceCard'
 import { useCreateItineraryItem, useUnscheduledPlaces } from '@/hooks/useItinerary'
 import { useCreateJourney, type LegDraft } from '@/hooks/useTransport'
 import { TIME_SLOTS, type TimeSlot, deriveTimeSlot } from '@/types/itinerary'
-import { getCityColor, getDayByDate } from '@/config/trip'
+import { getCityColor, getDayByDate, type City } from '@/config/trip'
 import type { PlaceRow } from '@/types/places'
 import { TransportLegEditor, legsAreValid } from './TransportLegEditor'
 
@@ -86,14 +86,20 @@ export function AddItemDialog({
   const createItem = useCreateItineraryItem()
   const createJourney = useCreateJourney()
 
-  // Case-insensitive substring filter on place name. Cheap enough to compute
-  // every render, no need for debouncing on a list this size (~30 places per
-  // city). Empty filter returns the full list.
+  // Filter to the day's cities (matches backlog behavior — you're scheduling
+  // INTO this day, so only places in this day's city are relevant). For
+  // transition days (e.g. Hakone → Kyoto) both cities qualify. Plus the
+  // case-insensitive substring filter on place name.
   const filteredUnscheduled = useMemo(() => {
+    const dayCities = getDayByDate(dayDate)?.cities ?? []
+    const allowed = new Set<City>(dayCities)
     const q = placeFilter.trim().toLowerCase()
-    if (!q) return unscheduled
-    return unscheduled.filter((p) => p.name.toLowerCase().includes(q))
-  }, [unscheduled, placeFilter])
+    return unscheduled.filter((p) => {
+      if (allowed.size > 0 && !(p.city && allowed.has(p.city as City))) return false
+      if (q && !p.name.toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [unscheduled, placeFilter, dayDate])
 
   // Earliest leg departure drives the transport tab's time slot.
   const earliestLegDeparture = transportLegs

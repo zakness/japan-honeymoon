@@ -1,14 +1,16 @@
 import { useState } from 'react'
-import { StickyNote, Clock, Lock, Unlock, Pencil, Trash2 } from 'lucide-react'
+import { Archive, StickyNote, Clock, Lock, Unlock, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PLACE_CATEGORIES, type PlaceRow } from '@/types/places'
 import { formatReservationTime, type ItineraryItemWithPlace } from '@/types/itinerary'
 import { getCityColor, getPrimaryCityForDate } from '@/config/trip'
 import { useDeleteItineraryItem, useUpdateItineraryItem } from '@/hooks/useItinerary'
+import { useArchiveWithUndo } from '@/hooks/usePlaces'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { ReservationDialog } from './ReservationDialog'
 import { TextNoteDialog } from './TextNoteDialog'
 import { CardBanner } from '@/components/shared/CardBanner'
+import { StarToggle } from '@/components/places/StarToggle'
 import { SortableItemCard, type CardAction } from './SortableItemCard'
 
 interface ItineraryItemProps {
@@ -25,6 +27,7 @@ interface ItineraryItemProps {
 export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemProps) {
   const deleteItem = useDeleteItineraryItem()
   const updateItem = useUpdateItineraryItem()
+  const archivePlace = useArchiveWithUndo()
   const isDesktop = useIsDesktop()
   const [reservationOpen, setReservationOpen] = useState(false)
   const [textNoteOpen, setTextNoteOpen] = useState(false)
@@ -63,15 +66,18 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
   const orientation = isDesktop ? 'top' : 'side'
   const desktopBannerClass = 'h-16'
   let banner: React.ReactNode = undefined
-  if (isPlace) {
+  if (isPlace && place) {
     banner = (
-      <CardBanner
-        photoUrl={placePhotos[0]}
-        colors={bannerColors}
-        icon={category?.icon ?? StickyNote}
-        orientation={orientation}
-        className={isDesktop ? desktopBannerClass : undefined}
-      />
+      <div className="relative">
+        <CardBanner
+          photoUrl={placePhotos[0]}
+          colors={bannerColors}
+          icon={category?.icon ?? StickyNote}
+          orientation={orientation}
+          className={isDesktop ? desktopBannerClass : undefined}
+        />
+        <StarToggle place={place} className="absolute top-2 left-2" />
+      </div>
     )
   } else if (noteImages.length > 0) {
     banner = (
@@ -104,6 +110,13 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
     label: item.is_decided ? 'Speculative' : 'Lock in',
     onClick: handleToggleDecided,
   })
+  if (isPlace && place) {
+    actions.push({
+      icon: Archive,
+      label: 'Archive',
+      onClick: () => archivePlace(place),
+    })
+  }
   actions.push({
     icon: Trash2,
     label: 'Delete',
@@ -126,7 +139,7 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
         <div>
           <div className="flex items-center gap-1.5 min-w-0">
             {category && <category.icon size={14} className="shrink-0 text-muted-foreground" />}
-            <span className="text-sm font-medium text-left leading-tight truncate min-w-0">
+            <span className="text-sm font-medium text-left leading-tight truncate min-w-0 flex-1">
               {place.name}
             </span>
           </div>

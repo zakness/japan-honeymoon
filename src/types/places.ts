@@ -9,7 +9,9 @@ export type PlaceUpdate = Database['public']['Tables']['places']['Update']
 // Narrowed union types for use in UI — the DB stores these as `string`
 // but we constrain them at the application layer.
 export type PlaceCategory = 'restaurant' | 'cafe_bar' | 'shopping' | 'attraction' | 'nature_park'
-export type PlacePriority = 'must-do' | 'want-to' | 'if-time'
+// Tri-state status: must_go = explicit upvote (starred), default = working pool,
+// archived = saved for a future trip (hidden from working set).
+export type PlacePriority = 'must_go' | 'default' | 'archived'
 export type PlaceStatus = 'researching' | 'booked' | 'visited'
 
 export type CategoryIcon = ComponentType<{ size?: number; className?: string; color?: string }>
@@ -23,9 +25,9 @@ export const PLACE_CATEGORIES: { value: PlaceCategory; label: string; icon: Cate
 ]
 
 export const PLACE_PRIORITIES: { value: PlacePriority; label: string }[] = [
-  { value: 'must-do', label: 'Must do' },
-  { value: 'want-to', label: 'Want to' },
-  { value: 'if-time', label: 'If time' },
+  { value: 'must_go', label: 'Must-go' },
+  { value: 'default', label: 'Default' },
+  { value: 'archived', label: 'Archived' },
 ]
 
 export const PLACE_STATUSES: { value: PlaceStatus; label: string }[] = [

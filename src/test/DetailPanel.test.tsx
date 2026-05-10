@@ -10,6 +10,9 @@ import type { Journey } from '@/types/transport'
 // Hooks used by PlaceDetailContent / HotelDetailContent.
 vi.mock('@/hooks/usePlaces', () => ({
   useDeletePlace: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useToggleMustGo: () => ({ mutate: vi.fn(), isPending: false }),
+  useArchiveWithUndo: () => vi.fn(),
+  useArchiveToggle: () => vi.fn(),
 }))
 
 vi.mock('@/hooks/useItinerary', () => ({
