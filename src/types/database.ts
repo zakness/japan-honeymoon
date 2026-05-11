@@ -212,6 +212,7 @@ export type Database = {
         Row: {
           address: string | null
           category: string
+          child_sort_order: number | null
           city: string | null
           created_at: string
           google_place_id: string | null
@@ -221,6 +222,7 @@ export type Database = {
           lng: number | null
           name: string
           notes: string | null
+          parent_place_id: string | null
           phone: string | null
           photos: Json | null
           price_level: number | null
@@ -234,6 +236,7 @@ export type Database = {
         Insert: {
           address?: string | null
           category: string
+          child_sort_order?: number | null
           city?: string | null
           created_at?: string
           google_place_id?: string | null
@@ -243,6 +246,7 @@ export type Database = {
           lng?: number | null
           name: string
           notes?: string | null
+          parent_place_id?: string | null
           phone?: string | null
           photos?: Json | null
           price_level?: number | null
@@ -256,6 +260,7 @@ export type Database = {
         Update: {
           address?: string | null
           category?: string
+          child_sort_order?: number | null
           city?: string | null
           created_at?: string
           google_place_id?: string | null
@@ -265,6 +270,7 @@ export type Database = {
           lng?: number | null
           name?: string
           notes?: string | null
+          parent_place_id?: string | null
           phone?: string | null
           photos?: Json | null
           price_level?: number | null
@@ -275,7 +281,15 @@ export type Database = {
           updated_at?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'places_parent_place_id_fkey'
+            columns: ['parent_place_id']
+            isOneToOne: false
+            referencedRelation: 'places'
+            referencedColumns: ['id']
+          },
+        ]
       }
       transport_items: {
         Row: {

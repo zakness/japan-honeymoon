@@ -17,9 +17,10 @@ import {
 } from './useItinerary'
 import { TRANSPORT_KEY } from './useTransport'
 import { useMoveItemToDay } from './useMoveItemToDay'
+import { useNestPlace } from './usePlaces'
 import { useIsDesktop } from './useIsDesktop'
 import { mergeSlotItems, slotItemId, slotItemTimeSlot } from '@/lib/transport-utils'
-import { parseSlotDropId, type TimeSlot } from '@/types/itinerary'
+import { parseReorderDropId, parseSlotDropId, type TimeSlot } from '@/types/itinerary'
 import type { Journey, SlotItem, SlotItemKind } from '@/types/transport'
 import type { ItineraryItemWithPlace } from '@/types/itinerary'
 import type { TripDay } from '@/config/trip'
@@ -34,6 +35,7 @@ export function useCrossItineraryDnD(cityDays: TripDay[]) {
   const reorderDay = useReorderDayItemsDynamic()
   const moveToDay = useMoveItemToDay()
   const createItem = useCreateItineraryItem()
+  const nest = useNestPlace()
 
   // Gate DnD on desktop only. On mobile, touch scrolling on cards otherwise
   // gets stolen by drag activation; passing no sensors disables DnD entirely
@@ -79,14 +81,34 @@ export function useCrossItineraryDnD(cityDays: TripDay[]) {
 
     const activeId = active.id as string
     const overId = over.id as string
+
+    // ── Place-nest drop ─────────────────────────────────────────────────────
+    // Dropping any place card (backlog or scheduled itinerary item) onto
+    // another place card's `nest-{placeId}` zone nests the dragged place
+    // under the target. Handled before slot routing so the nest semantics
+    // take precedence over reorder / insert.
+    if (overId.startsWith('nest-')) {
+      const parentId = overId.slice('nest-'.length)
+      const childId = resolveDraggedPlaceId(active.id, active.data.current)
+      if (!childId || childId === parentId) return
+      nest.mutate({ childId, parentId })
+      return
+    }
+
     const slotTarget = parseSlotDropId(overId)
+    const reorderTarget = parseReorderDropId(overId)
 
     // ── Unscheduled → Day drop ──────────────────────────────────────────────
     if (activeId.startsWith('unscheduled-')) {
       let targetDayDate: string | null = null
       let targetSlot: TimeSlot | null = null
+      let targetIndex: number | null = null
 
-      if (slotTarget) {
+      if (reorderTarget) {
+        targetDayDate = reorderTarget.dayDate
+        targetSlot = reorderTarget.slot
+        targetIndex = reorderTarget.index
+      } else if (slotTarget) {
         targetDayDate = slotTarget.dayDate
         targetSlot = slotTarget.slot
       } else {
@@ -106,12 +128,46 @@ export function useCrossItineraryDnD(cityDays: TripDay[]) {
       const slotItems = getItemsForDay(targetDayDate).filter(
         (i) => slotItemTimeSlot(i) === targetSlot
       )
-      createItem.mutate({
-        day_date: targetDayDate,
-        place_id: placeId,
-        time_slot: targetSlot,
-        sort_order: slotItems.length,
-      })
+      // Targeting a specific gap: append + renumber to land at the requested
+      // index. Bare slot or fallthrough: just append.
+      if (targetIndex != null && targetIndex < slotItems.length) {
+        const tDay = targetDayDate
+        const tSlot = targetSlot
+        const insertAt = targetIndex
+        void (async () => {
+          try {
+            const created = await createItem.mutateAsync({
+              day_date: tDay,
+              place_id: placeId,
+              time_slot: tSlot,
+              sort_order: slotItems.length,
+            })
+            const reordered = [
+              ...slotItems.slice(0, insertAt),
+              { kind: 'itinerary' as const, data: created },
+              ...slotItems.slice(insertAt),
+            ]
+            await reorderDay.mutateAsync({
+              dayDate: tDay,
+              items: reordered.map((item, idx) => ({
+                id: slotItemId(item),
+                kind: item.kind,
+                sort_order: idx,
+                time_slot: tSlot,
+              })),
+            })
+          } catch {
+            // mutation hooks already surface errors via toast; nothing else to do.
+          }
+        })()
+      } else {
+        createItem.mutate({
+          day_date: targetDayDate,
+          place_id: placeId,
+          time_slot: targetSlot,
+          sort_order: slotItems.length,
+        })
+      }
       return
     }
 
@@ -124,11 +180,17 @@ export function useCrossItineraryDnD(cityDays: TripDay[]) {
     const { dayDate: sourceDayDate, kind: sourceKind, timeSlot: sourceSlot } = sourceData
     const sourceItems = getItemsForDay(sourceDayDate)
 
-    // Resolve target day + slot
+    // Resolve target day + slot (+ optional explicit insertion index from a
+    // `reorder-{date}-{slot}-{index}` gap drop).
     let targetDayDate: string
     let targetSlot: TimeSlot
+    let explicitTargetIndex: number | null = null
 
-    if (slotTarget) {
+    if (reorderTarget) {
+      targetDayDate = reorderTarget.dayDate
+      targetSlot = reorderTarget.slot
+      explicitTargetIndex = reorderTarget.index
+    } else if (slotTarget) {
       targetDayDate = slotTarget.dayDate
       targetSlot = slotTarget.slot
     } else {
@@ -158,9 +220,17 @@ export function useCrossItineraryDnD(cityDays: TripDay[]) {
 
       if (sourceSlot === targetSlot!) {
         const oldIndex = sourceSlotItems.findIndex((i) => slotItemId(i) === activeId)
-        const newIndex = slotTarget
-          ? sourceSlotItems.length - 1
-          : sourceSlotItems.findIndex((i) => slotItemId(i) === overId)
+        // Gap drops give us an explicit insertion index in the ORIGINAL list
+        // (before removing source). Adjust by -1 when inserting after source,
+        // since removing source shifts later positions.
+        let newIndex: number
+        if (explicitTargetIndex != null) {
+          newIndex = explicitTargetIndex > oldIndex ? explicitTargetIndex - 1 : explicitTargetIndex
+        } else if (slotTarget) {
+          newIndex = sourceSlotItems.length - 1
+        } else {
+          newIndex = sourceSlotItems.findIndex((i) => slotItemId(i) === overId)
+        }
         if (oldIndex === newIndex) return
         const reordered = arrayMove(sourceSlotItems, oldIndex, newIndex)
         reorderDay.mutate({
@@ -180,9 +250,12 @@ export function useCrossItineraryDnD(cityDays: TripDay[]) {
           sort_order: idx,
           time_slot: sourceSlot,
         }))
-        const insertAt = slotTarget
-          ? targetSlotItems.length
-          : targetSlotItems.findIndex((i) => slotItemId(i) === overId)
+        const insertAt =
+          explicitTargetIndex != null
+            ? Math.min(explicitTargetIndex, targetSlotItems.length)
+            : slotTarget
+              ? targetSlotItems.length
+              : targetSlotItems.findIndex((i) => slotItemId(i) === overId)
         const activeItem = sourceItems.find((i) => slotItemId(i) === activeId)!
         const movedItem: SlotItem =
           activeItem.kind === 'itinerary'
@@ -221,12 +294,15 @@ export function useCrossItineraryDnD(cityDays: TripDay[]) {
         time_slot: sourceSlot,
       }))
 
-    const insertAt = slotTarget
-      ? targetSlotItems.length
-      : Math.max(
-          0,
-          targetSlotItems.findIndex((i) => slotItemId(i) === overId)
-        )
+    const insertAt =
+      explicitTargetIndex != null
+        ? Math.min(explicitTargetIndex, targetSlotItems.length)
+        : slotTarget
+          ? targetSlotItems.length
+          : Math.max(
+              0,
+              targetSlotItems.findIndex((i) => slotItemId(i) === overId)
+            )
     const newTargetSlot = [...targetSlotItems]
     newTargetSlot.splice(insertAt, 0, sourceItems.find((i) => slotItemId(i) === activeId)!)
     const toSlotUpdates: DayReorderItem[] = newTargetSlot.map((item, idx) => ({
@@ -248,4 +324,22 @@ export function useCrossItineraryDnD(cityDays: TripDay[]) {
   }
 
   return { sensors, activeDrag, handleDragStart, handleDragEnd }
+}
+
+/**
+ * Extract the place id from a drag's active descriptor. Backlog drags encode
+ * the id in the active.id (`unscheduled-{placeId}`); day-column drags pass
+ * `placeId` through `active.data.current`. Transport drags have no place and
+ * return null — nest is a no-op for them.
+ */
+function resolveDraggedPlaceId(
+  activeId: string | number,
+  data: Record<string, unknown> | undefined
+): string | null {
+  const id = String(activeId)
+  if (id.startsWith('unscheduled-')) return id.slice('unscheduled-'.length)
+  const placeId = data?.placeId
+  if (typeof placeId === 'string') return placeId
+  const place = data?.place as { id?: string } | undefined
+  return place?.id ?? null
 }

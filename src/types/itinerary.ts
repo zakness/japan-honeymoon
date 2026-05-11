@@ -65,6 +65,15 @@ export function parseSlotDropId(id: string): { dayDate: string; slot: TimeSlot }
   return { dayDate: m[1], slot: m[2] as TimeSlot }
 }
 
+/** Parse a reorder gap drop ID of the form `reorder-{YYYY-MM-DD}-{slot}-{index}` */
+export function parseReorderDropId(
+  id: string
+): { dayDate: string; slot: TimeSlot; index: number } | null {
+  const m = id.match(/^reorder-(\d{4}-\d{2}-\d{2})-(.+)-(\d+)$/)
+  if (!m) return null
+  return { dayDate: m[1], slot: m[2] as TimeSlot, index: parseInt(m[3], 10) }
+}
+
 /**
  * Invariant: a reservation implies the item is decided. These helpers apply
  * that rule to insert/update payloads before they hit Supabase. Clearing a

@@ -29,6 +29,9 @@ vi.mock('@/hooks/usePlaces', () => ({
   useUpdatePlace: () => ({ mutateAsync: vi.fn() }),
   useDeletePlace: () => ({ mutateAsync: vi.fn() }),
   useCreatePlace: () => ({ mutateAsync: vi.fn() }),
+  useChildCounts: () => ({ data: new Map<string, number>() }),
+  useChildMustGoMap: () => ({ data: new Set<string>() }),
+  useNestPlace: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
 }))
 vi.mock('@/hooks/useAccommodations', () => ({
   useAccommodations: () => ({ data: [] }),

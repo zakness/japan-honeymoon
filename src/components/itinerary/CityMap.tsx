@@ -3,7 +3,7 @@ import { Map as GMap, useMap } from '@vis.gl/react-google-maps'
 import { PlaceMarker } from '@/components/map/PlaceMarker'
 import { HotelMarker } from '@/components/map/HotelMarker'
 import { TransportEndpointMarker } from '@/components/map/TransportEndpointMarker'
-import { usePlaces } from '@/hooks/usePlaces'
+import { usePlaces, useChildrenOf, useChildMustGoMap } from '@/hooks/usePlaces'
 import { useAccommodations } from '@/hooks/useAccommodations'
 import { useScheduledDatesByPlace } from '@/hooks/useItinerary'
 import {
@@ -29,12 +29,30 @@ const FIT_PADDING_PX = 60
 const JOURNEY_FIT_PADDING_PX = 40
 
 /**
+ * Tracks the most recent in-flight pan animation so a subsequent pan or
+ * `fitBounds` can cancel it. Without this, `smoothPanTo`'s rAF chain keeps
+ * calling `moveCamera` for ~500ms after it starts; a `fitBounds` called
+ * mid-animation gets overwritten on the next frame. Module-scoped because
+ * only one map is mounted at a time.
+ */
+let panAnim: number | null = null
+
+function cancelSmoothPan() {
+  if (panAnim != null) {
+    cancelAnimationFrame(panAnim)
+    panAnim = null
+  }
+}
+
+/**
  * Smooth-pan the map to `target` over a fixed duration (≤ 500ms). Google's
  * built-in `panTo` scales animation length with distance, which feels sluggish
  * for long-distance moves. This helper interpolates via `requestAnimationFrame`
- * so the move always completes within `PAN_DURATION_MS`.
+ * so the move always completes within `PAN_DURATION_MS`. Cancels any prior
+ * pan so consecutive calls don't fight each other.
  */
 function smoothPanTo(map: google.maps.Map, target: google.maps.LatLngLiteral) {
+  cancelSmoothPan()
   const start = map.getCenter()
   if (!start) {
     map.moveCamera({ center: target })
@@ -57,9 +75,10 @@ function smoothPanTo(map: google.maps.Map, target: google.maps.LatLngLiteral) {
     map.moveCamera({
       center: { lat: startLat + dLat * ease, lng: startLng + dLng * ease },
     })
-    if (t < 1) requestAnimationFrame(step)
+    if (t < 1) panAnim = requestAnimationFrame(step)
+    else panAnim = null
   }
-  requestAnimationFrame(step)
+  panAnim = requestAnimationFrame(step)
 }
 
 /** Fit the map to the bounds of a journey's leg endpoints. Returns false if
@@ -82,6 +101,7 @@ function fitJourney(map: google.maps.Map, journey: Journey): boolean {
     smoothPanTo(map, bounds.getCenter().toJSON())
     return true
   }
+  cancelSmoothPan()
   map.fitBounds(bounds, {
     top: JOURNEY_FIT_PADDING_PX,
     right: JOURNEY_FIT_PADDING_PX,
@@ -130,6 +150,13 @@ function CityMapContent({
   const accommodationsFetched = accommodationsQuery.isFetched
   const hotels = allHotels.filter((h) => h.city === city)
 
+  // Children of the selected parent — only fetched when something is selected.
+  // Empty array when the selection has no children (or no selection).
+  const { data: selectedChildren = [] } = useChildrenOf(selectedPlace?.id ?? null)
+  // Map of parent-id → "any child is must-go". Drives the must-go badge OR-up
+  // for parent markers.
+  const { data: childMustGoSet } = useChildMustGoMap()
+
   // Frame the city on initial load (and on each city switch) by fitting the
   // bounds of all known pins (places + hotels) for that city. Falls back to
   // the configured CITY_MAP_CENTER if the city has no pins.
@@ -152,6 +179,7 @@ function CityMapContent({
       }
     }
 
+    cancelSmoothPan()
     if (count === 0) {
       const center = CITY_MAP_CENTER[city]
       map.moveCamera({ center: { lat: center.lat, lng: center.lng }, zoom: center.zoom })
@@ -176,19 +204,50 @@ function CityMapContent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, city, places.length, hotels.length, placesFetched, accommodationsFetched])
 
-  // Pan to the selected place when the lifted selection changes. Depending on
-  // primitive id/lat/lng instead of the PlaceRow object means this effect only
-  // fires when the selection actually changes — not on every re-render where a
-  // parent re-creates the row reference.
+  // Pan to the selected place when the lifted selection changes. When the
+  // selected place has children with coordinates, fit bounds over parent +
+  // children instead of just panning — this is the "expand on select" behavior
+  // that reveals the group's spatial footprint. Depending on primitive
+  // id/lat/lng instead of the PlaceRow object means this effect only fires
+  // when the selection actually changes.
   const selectedId = selectedPlace?.id ?? null
   const selectedLat = selectedPlace?.lat ?? null
   const selectedLng = selectedPlace?.lng ?? null
+  // Stringified child-coords signature; depending on this primitive instead
+  // of `selectedChildren` ensures the effect re-fits exactly when the
+  // children data settles, not on every parent re-render.
+  const childCoordsKey = selectedChildren
+    .map((c) => `${c.id}:${c.lat ?? '_'}:${c.lng ?? '_'}`)
+    .join('|')
   useEffect(() => {
     if (!map || !selectedId) return
+    const childrenWithCoords = selectedChildren.filter((c) => c.lat != null && c.lng != null)
+    if (childrenWithCoords.length > 0 && selectedLat != null && selectedLng != null) {
+      // Cancel any in-flight pan from the previous effect run. On parent
+      // selection, the first run typically pans to the parent (children
+      // query still loading), then this second run lands when children data
+      // settles — without cancelling, the rAF chain from the earlier pan
+      // would overwrite this fitBounds on its next frame and the map would
+      // end up zoomed to the parent only.
+      cancelSmoothPan()
+      const bounds = new google.maps.LatLngBounds()
+      bounds.extend({ lat: selectedLat, lng: selectedLng })
+      for (const c of childrenWithCoords) {
+        bounds.extend({ lat: c.lat!, lng: c.lng! })
+      }
+      map.fitBounds(bounds, {
+        top: FIT_PADDING_PX,
+        right: FIT_PADDING_PX,
+        bottom: FIT_PADDING_PX,
+        left: FIT_PADDING_PX,
+      })
+      return
+    }
     if (selectedLat && selectedLng) {
       smoothPanTo(map, { lat: selectedLat, lng: selectedLng })
     }
-  }, [map, selectedId, selectedLat, selectedLng])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, selectedId, selectedLat, selectedLng, childCoordsKey])
 
   // Mirror the place-pan effect for hotel selection so day-column hotel
   // clicks (which set selectedHotel without going through the map) also pan.
@@ -232,7 +291,25 @@ function CityMapContent({
         if (selectedJourney) {
           fitJourney(map, selectedJourney)
         } else if (selectedPlace?.lat != null && selectedPlace?.lng != null) {
-          map.moveCamera({ center: { lat: selectedPlace.lat, lng: selectedPlace.lng } })
+          // If the selection has children with coords, re-fit bounds; else
+          // just re-center on the parent.
+          const childrenWithCoords = selectedChildren.filter((c) => c.lat != null && c.lng != null)
+          if (childrenWithCoords.length > 0) {
+            cancelSmoothPan()
+            const bounds = new google.maps.LatLngBounds()
+            bounds.extend({ lat: selectedPlace.lat, lng: selectedPlace.lng })
+            for (const c of childrenWithCoords) {
+              bounds.extend({ lat: c.lat!, lng: c.lng! })
+            }
+            map.fitBounds(bounds, {
+              top: FIT_PADDING_PX,
+              right: FIT_PADDING_PX,
+              bottom: FIT_PADDING_PX,
+              left: FIT_PADDING_PX,
+            })
+          } else {
+            map.moveCamera({ center: { lat: selectedPlace.lat, lng: selectedPlace.lng } })
+          }
         } else if (selectedHotel?.lat != null && selectedHotel?.lng != null) {
           map.moveCamera({ center: { lat: selectedHotel.lat, lng: selectedHotel.lng } })
         }
@@ -243,7 +320,7 @@ function CityMapContent({
       observer.disconnect()
       if (raf) cancelAnimationFrame(raf)
     }
-  }, [map, containerRef, selectedJourney, selectedPlace, selectedHotel])
+  }, [map, containerRef, selectedJourney, selectedPlace, selectedHotel, selectedChildren])
 
   // Render per-leg polylines via the Maps API directly (vis.gl has no
   // <Polyline> primitive). Cleanup on unmount / journey change via setMap(null).
@@ -313,6 +390,18 @@ function CityMapContent({
           place={place}
           selected={selectedPlace?.id === place.id}
           scheduledDayCount={scheduleMap?.get(place.id)?.length ?? 0}
+          hasMustGoChild={childMustGoSet?.has(place.id) ?? false}
+          onClick={handlePlaceClick}
+        />
+      ))}
+      {/* Child markers — only rendered while the parent is selected. Compact
+          (smaller, no badges) and subordinate to top-level markers. */}
+      {selectedChildren.map((child) => (
+        <PlaceMarker
+          key={`child-${child.id}`}
+          place={child}
+          compact
+          selected={false}
           onClick={handlePlaceClick}
         />
       ))}

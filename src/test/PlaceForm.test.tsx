@@ -78,6 +78,8 @@ describe('PlaceForm', () => {
       status: 'researching',
       notes: 'Get the rich tonkotsu',
       city: 'tokyo',
+      parent_place_id: null,
+      child_sort_order: null,
       created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z',
     } as const
@@ -109,6 +111,8 @@ describe('PlaceForm', () => {
       status: 'researching',
       notes: null,
       city: 'kyoto',
+      parent_place_id: null,
+      child_sort_order: null,
       created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z',
     } as const

@@ -13,6 +13,13 @@ vi.mock('@/hooks/usePlaces', () => ({
   useToggleMustGo: () => ({ mutate: vi.fn(), isPending: false }),
   useArchiveWithUndo: () => vi.fn(),
   useArchiveToggle: () => vi.fn(),
+  useNestPlace: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUnnestPlace: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useReorderChildren: () => ({ mutate: vi.fn(), isPending: false }),
+  usePlace: () => ({ data: null }),
+  usePlaces: () => ({ data: [] }),
+  useChildrenOf: () => ({ data: [] }),
+  useChildCounts: () => ({ data: new Map<string, number>() }),
 }))
 
 vi.mock('@/hooks/useItinerary', () => ({
@@ -43,6 +50,8 @@ const PLACE: PlaceRow = {
   status: 'researching',
   notes: 'Arrive early to beat the crowds',
   city: 'kyoto',
+  parent_place_id: null,
+  child_sort_order: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 }

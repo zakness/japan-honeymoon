@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
   DndContext,
   DragOverlay,
+  MeasuringStrategy,
   pointerWithin,
   rectIntersection,
   type CollisionDetection,
@@ -13,6 +14,7 @@ import { cn } from '@/lib/utils'
 import type { NavState, SelectionOrigin, SelectPlaceHandler } from '@/components/layout/AppShell'
 import { getDaysForCity, type City, type TripDay } from '@/config/trip'
 import { useCrossItineraryDnD } from '@/hooks/useCrossItineraryDnD'
+import { DndDebugOverlay } from './DndDebugOverlay'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
 import type { PlaceRow } from '@/types/places'
 import type { AccommodationRow } from '@/types/accommodations'
@@ -89,7 +91,15 @@ function localDateString(d: Date = new Date()): string {
  */
 const dndCollisionDetection: CollisionDetection = (args) => {
   const pointer = pointerWithin(args)
-  if (pointer.length > 0) return pointer
+  if (pointer.length > 0) {
+    // Place-nest droppables (`nest-{placeId}`) sit inside sortable cards. When
+    // the cursor is inside the inner zone, prefer nesting over the reorder /
+    // slot semantics; the edge slivers around the zone fall through to the
+    // sortable so users can still reorder by dropping near the top/bottom.
+    const nestHit = pointer.find((c) => String(c.id).startsWith('nest-'))
+    if (nestHit) return [nestHit]
+    return pointer
+  }
   return rectIntersection(args)
 }
 
@@ -215,6 +225,14 @@ export function ItineraryView({
     [onSelectPlace]
   )
 
+  // Detail-panel internal navigation (breadcrumb tap → parent, child row tap →
+  // child). Use the 'marker' origin so the backlog auto-scrolls the new
+  // selection into view — UX expectation when navigating within the group.
+  const handleSelectFromDetail = useCallback(
+    (place: PlaceRow) => onSelectPlace(place, 'marker'),
+    [onSelectPlace]
+  )
+
   const itineraryPanel = (
     <>
       <UnscheduledColumn
@@ -245,6 +263,13 @@ export function ItineraryView({
       <DndContext
         sensors={sensors}
         collisionDetection={dndCollisionDetection}
+        // Lock droppable rects to their pre-drag positions. Without this,
+        // dnd-kit re-measures during sortable shift animations, which causes
+        // the cursor's hit zone to flip between the card sortable and the
+        // nest droppable as a target shifts in/out from under the pointer.
+        // Pre-drag geometry keeps `over` stable; the shift animations stay
+        // visual and don't feed back into collision detection.
+        measuring={{ droppable: { strategy: MeasuringStrategy.BeforeDragging } }}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
@@ -346,6 +371,7 @@ export function ItineraryView({
                         selection={detailSelection}
                         onClose={handleCloseDetail}
                         onEdit={handleEditDetail}
+                        onSelectPlace={handleSelectFromDetail}
                       />
                     )}
                   </div>
@@ -413,6 +439,7 @@ export function ItineraryView({
                     selection={detailSelection}
                     onClose={handleCloseDetail}
                     onEdit={handleEditDetail}
+                    onSelectPlace={handleSelectFromDetail}
                   />
                 </div>
               )}
@@ -436,6 +463,7 @@ export function ItineraryView({
             </div>
           )}
         </DragOverlay>
+        <DndDebugOverlay />
       </DndContext>
     </div>
   )

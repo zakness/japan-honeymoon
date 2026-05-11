@@ -19,6 +19,13 @@ export interface PlacesFilter {
   status?: PlaceRow['status']
   city?: string
   dayDate?: string // if set, only return places assigned to this day
+  /**
+   * Default `true` — exclude nested children (`parent_place_id IS NOT NULL`)
+   * from results. Children "ride along" with their parent, so the backlog, map,
+   * and place list never surface them at the top level. Pass `false` to include
+   * children (e.g. when listing a single parent's children).
+   */
+  topLevelOnly?: boolean
 }
 
 const PLACES_KEY = ['places'] as const
@@ -65,9 +72,83 @@ export function usePlaces(filter?: PlacesFilter) {
       if (filter?.status) query = query.eq('status', filter.status)
       if (filter?.city) query = query.eq('city', filter.city)
 
+      const topLevelOnly = filter?.topLevelOnly ?? true
+      if (topLevelOnly) query = query.is('parent_place_id', null)
+
       const { data, error } = await query
       if (error) throw error
       return data as PlaceRow[]
+    },
+  })
+}
+
+/**
+ * Ordered children of a parent place. Returns `[]` when `parentId` is null
+ * (used as the disabled state). Children sort by `child_sort_order` asc then
+ * `created_at` asc as a stable tiebreaker.
+ */
+export function useChildrenOf(parentId: string | null) {
+  return useQuery({
+    queryKey: [...PLACES_KEY, 'children', parentId],
+    queryFn: async () => {
+      if (!parentId) return [] as PlaceRow[]
+      const { data, error } = await supabase
+        .from('places')
+        .select('*')
+        .eq('parent_place_id', parentId)
+        .order('child_sort_order', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true })
+      if (error) throw error
+      return (data ?? []) as PlaceRow[]
+    },
+    enabled: !!parentId,
+  })
+}
+
+/**
+ * Bulk: parentId → number of children. One query for all parents on the page.
+ */
+export function useChildCounts() {
+  return useQuery({
+    queryKey: [...PLACES_KEY, 'child-counts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('places')
+        .select('parent_place_id')
+        .not('parent_place_id', 'is', null)
+      if (error) throw error
+      const map = new Map<string, number>()
+      for (const row of data ?? []) {
+        const pid = (row as { parent_place_id: string | null }).parent_place_id
+        if (!pid) continue
+        map.set(pid, (map.get(pid) ?? 0) + 1)
+      }
+      return map
+    },
+  })
+}
+
+/**
+ * Bulk: parentId → whether any of its children have `priority = 'must_go'`.
+ * Used by `PlaceMarker` and the backlog parent card to OR the must-go badge
+ * across parent + children.
+ */
+export function useChildMustGoMap() {
+  return useQuery({
+    queryKey: [...PLACES_KEY, 'child-must-go'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('places')
+        .select('parent_place_id')
+        .not('parent_place_id', 'is', null)
+        .eq('priority', 'must_go')
+      if (error) throw error
+      const set = new Set<string>()
+      for (const row of data ?? []) {
+        const pid = (row as { parent_place_id: string | null }).parent_place_id
+        if (pid) set.add(pid)
+      }
+      return set
     },
   })
 }
@@ -218,6 +299,20 @@ export function useArchivePlace() {
       id: string
       priorPriority: PlacePriority
     }): Promise<ArchiveResult> => {
+      // Guard: refuse if any child is unarchived. The UI catches this and
+      // opens the `ResolveChildrenDialog`. After the dialog resolves every
+      // unarchived child (archive or un-nest), this hook is called again and
+      // the guard passes.
+      const { data: unarchivedChildren, error: childErr } = await supabase
+        .from('places')
+        .select('*')
+        .eq('parent_place_id', id)
+        .neq('priority', 'archived')
+      if (childErr) throw childErr
+      if ((unarchivedChildren ?? []).length > 0) {
+        throw new ArchiveBlockedByChildrenError((unarchivedChildren ?? []) as PlaceRow[])
+      }
+
       const { data: items, error: fetchErr } = await supabase
         .from('itinerary_items')
         .select('*')
@@ -315,12 +410,20 @@ export function useRestoreArchivedPlace() {
  * Composes archive + undo toast in a single callable. Every site that wants
  * an "Archive" affordance shares this hook so the user-facing flow (toast
  * copy, undo button) is uniform — see PlaceCard, ItineraryItem, PlaceDetail.
+ *
+ * `onBlockedByChildren`, when provided, intercepts the typed
+ * `ArchiveBlockedByChildrenError` so a caller (typically PlaceDetail) can
+ * open the resolve-children dialog. Without it, the user gets a generic toast
+ * pointing them at the parent's detail panel.
  */
 export function useArchiveWithUndo() {
   const archive = useArchivePlace()
   const restore = useRestoreArchivedPlace()
   return useCallback(
-    async (place: Pick<PlaceRow, 'id' | 'name' | 'priority'>) => {
+    async (
+      place: Pick<PlaceRow, 'id' | 'name' | 'priority'>,
+      onBlockedByChildren?: (err: ArchiveBlockedByChildrenError) => void
+    ) => {
       try {
         const result = await archive.mutateAsync({
           id: place.id,
@@ -332,7 +435,18 @@ export function useArchiveWithUndo() {
             onClick: () => restore.mutate(result),
           },
         })
-      } catch {
+      } catch (err) {
+        if (err instanceof ArchiveBlockedByChildrenError) {
+          if (onBlockedByChildren) {
+            onBlockedByChildren(err)
+          } else {
+            const n = err.unarchivedChildren.length
+            toast.error(
+              `Can't archive ${place.name}: open it to resolve the ${n} unarchived ${n === 1 ? 'place' : 'places'} added to it first.`
+            )
+          }
+          return
+        }
         toast.error('Failed to archive place')
       }
     },
@@ -392,23 +506,82 @@ export function useUnarchivePlace() {
  * One callable that flips between archived ↔ default based on the place's
  * current priority. Powers the toggle button on backlog cards and the detail
  * panel — same icon, click reverses whichever state you're in.
+ *
+ * `onBlockedByChildren` forwards into `useArchiveWithUndo` so the parent's
+ * detail panel can open the resolve-children dialog when a parent's archive
+ * is blocked.
  */
 export function useArchiveToggle() {
   const archive = useArchiveWithUndo()
   const unarchive = useUnarchivePlace()
   return useCallback(
-    (place: Pick<PlaceRow, 'id' | 'name' | 'priority'>) => {
+    (
+      place: Pick<PlaceRow, 'id' | 'name' | 'priority'>,
+      onBlockedByChildren?: (err: ArchiveBlockedByChildrenError) => void
+    ) => {
       if (place.priority === 'archived') {
         unarchive.mutate(place.id)
       } else {
-        void archive(place)
+        void archive(place, onBlockedByChildren)
       }
     },
     [archive, unarchive]
   )
 }
 
+/**
+ * Thrown by `useArchivePlace` when the place still has unarchived children.
+ * The caller (PlaceDetail / PlaceCard) catches this and opens the
+ * `ResolveChildrenDialog` to ask whether to archive or un-nest each child.
+ */
+export class ArchiveBlockedByChildrenError extends Error {
+  constructor(public unarchivedChildren: PlaceRow[]) {
+    super('Cannot archive: place has unarchived children')
+    this.name = 'ArchiveBlockedByChildrenError'
+  }
+}
+
+/**
+ * Thrown by `useDeletePlace` when the place has children. UI catches this
+ * and opens the `ResolveChildrenDialog` to ask whether to delete or keep
+ * each child as a standalone place.
+ */
+export class DeleteBlockedByChildrenError extends Error {
+  constructor(public children: PlaceRow[]) {
+    super('Cannot delete: place has children')
+    this.name = 'DeleteBlockedByChildrenError'
+  }
+}
+
 export function useDeletePlace() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // Guard: refuse delete if children exist so the UI can prompt for
+      // resolution. The DB has `ON DELETE SET NULL` as a safety net, but the
+      // dialog gives the user explicit control (delete each child vs. keep as
+      // standalone). Pass `force: true` via a separate path if ever needed.
+      const { data: children, error: childErr } = await supabase
+        .from('places')
+        .select('*')
+        .eq('parent_place_id', id)
+      if (childErr) throw childErr
+      if ((children ?? []).length > 0) {
+        throw new DeleteBlockedByChildrenError((children ?? []) as PlaceRow[])
+      }
+      const { error } = await supabase.from('places').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PLACES_KEY })
+      queryClient.invalidateQueries({ queryKey: ['itinerary'] })
+    },
+  })
+}
+
+/** Lower-level delete that skips the children guard. Used by the resolve
+ * dialog AFTER it's handed every child (delete or un-nest). */
+export function useDeletePlaceRaw() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
@@ -418,6 +591,133 @@ export function useDeletePlace() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PLACES_KEY })
       queryClient.invalidateQueries({ queryKey: ['itinerary'] })
+    },
+  })
+}
+
+/**
+ * Nest `childId` under `parentId`. Assigns `child_sort_order = max+1` so the
+ * new child appears at the bottom of the parent's list. The DB trigger
+ * `places_one_level_nesting` enforces the one-level invariant.
+ *
+ * **Symmetry rule**: nesting auto-unschedules the child. Children ride along
+ * with their parent's itinerary item; leaving the child's own `itinerary_items`
+ * rows in place would double-book it on those days. Returns the count of
+ * removed itinerary rows so callers can surface "removed from N day(s)" in
+ * their toast.
+ */
+export function useNestPlace() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ childId, parentId }: { childId: string; parentId: string }) => {
+      const { data: siblings, error: sibErr } = await supabase
+        .from('places')
+        .select('child_sort_order')
+        .eq('parent_place_id', parentId)
+      if (sibErr) throw sibErr
+      const max = (siblings ?? []).reduce<number>((acc, r) => {
+        const v = (r as { child_sort_order: number | null }).child_sort_order
+        return v != null && v > acc ? v : acc
+      }, -1)
+
+      // Auto-unschedule the child — same symmetry rule as archive. Fetch first
+      // so we know how many rows we removed (for the caller's toast); skip the
+      // delete when there's nothing to remove.
+      const { data: existing, error: fetchErr } = await supabase
+        .from('itinerary_items')
+        .select('id')
+        .eq('place_id', childId)
+      if (fetchErr) throw fetchErr
+      const removedItemCount = existing?.length ?? 0
+      if (removedItemCount > 0) {
+        const { error: delErr } = await supabase
+          .from('itinerary_items')
+          .delete()
+          .eq('place_id', childId)
+        if (delErr) throw delErr
+      }
+
+      const { error } = await supabase
+        .from('places')
+        .update({ parent_place_id: parentId, child_sort_order: max + 1 })
+        .eq('id', childId)
+      if (error) throw error
+
+      return { removedItemCount }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PLACES_KEY })
+      // Day columns and the scheduled-dates rollup both reference the removed
+      // items; refresh them so the UI loses the child immediately.
+      queryClient.invalidateQueries({ queryKey: ['itinerary'] })
+    },
+  })
+}
+
+/** Un-nest a child: clears `parent_place_id` and `child_sort_order`. */
+export function useUnnestPlace() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (childId: string) => {
+      const { error } = await supabase
+        .from('places')
+        .update({ parent_place_id: null, child_sort_order: null })
+        .eq('id', childId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PLACES_KEY })
+    },
+  })
+}
+
+/** Bulk reorder children of a parent. Mirrors `useReorderDayItemsDynamic`. */
+export function useReorderChildren() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      parentId,
+      orderedChildIds,
+    }: {
+      parentId: string
+      orderedChildIds: string[]
+    }) => {
+      const updates = orderedChildIds.map((id, idx) =>
+        supabase
+          .from('places')
+          .update({ child_sort_order: idx })
+          .eq('id', id)
+          .eq('parent_place_id', parentId)
+      )
+      const results = await Promise.all(updates)
+      const failed = results.find((r) => r.error)
+      if (failed?.error) throw failed.error
+    },
+    onMutate: async ({ parentId, orderedChildIds }) => {
+      await queryClient.cancelQueries({ queryKey: [...PLACES_KEY, 'children', parentId] })
+      const previous = queryClient.getQueryData([...PLACES_KEY, 'children', parentId])
+      queryClient.setQueryData(
+        [...PLACES_KEY, 'children', parentId],
+        (old: PlaceRow[] | undefined) => {
+          if (!old) return old
+          const byId = new Map(old.map((c) => [c.id, c]))
+          const next: PlaceRow[] = []
+          for (let idx = 0; idx < orderedChildIds.length; idx++) {
+            const c = byId.get(orderedChildIds[idx])
+            if (c) next.push({ ...c, child_sort_order: idx })
+          }
+          return next
+        }
+      )
+      return { previous, parentId }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData([...PLACES_KEY, 'children', ctx.parentId], ctx.previous)
+      }
+    },
+    onSettled: (_data, _err, { parentId }) => {
+      queryClient.invalidateQueries({ queryKey: [...PLACES_KEY, 'children', parentId] })
     },
   })
 }
