@@ -1,4 +1,4 @@
-import { Archive } from 'lucide-react'
+import { Archive, Link2Off } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -14,9 +14,23 @@ interface PlaceCardProps {
   selected?: boolean
   compact?: boolean
   scheduledDates?: string[]
+  /** Number of nested children. When > 0, renders "· N places" beside the name. */
+  childCount?: number
+  /** When provided, renders an "Un-nest" hover-reveal action beside Archive.
+   *  Used by `ChildrenSection` so each child card can be detached from its
+   *  parent inline. */
+  onUnnest?: () => void
 }
 
-export function PlaceCard({ place, onClick, selected, compact, scheduledDates }: PlaceCardProps) {
+export function PlaceCard({
+  place,
+  onClick,
+  selected,
+  compact,
+  scheduledDates,
+  childCount = 0,
+  onUnnest,
+}: PlaceCardProps) {
   const category = PLACE_CATEGORIES.find((c) => c.value === place.category)
   const photos = Array.isArray(place.photos) ? (place.photos as string[]) : []
   const city = (place.city as City | null) ?? null
@@ -51,7 +65,15 @@ export function PlaceCard({ place, onClick, selected, compact, scheduledDates }:
           {/* Name + category icon */}
           <div className="flex items-start gap-1.5">
             {Icon && <Icon size={16} className="shrink-0 text-muted-foreground" />}
-            <span className="font-medium text-sm leading-tight line-clamp-1">{place.name}</span>
+            <span className="font-medium text-sm leading-tight line-clamp-1">
+              {place.name}
+              {childCount > 0 && (
+                <span className="text-muted-foreground font-normal">
+                  {' · '}
+                  {childCount} {childCount === 1 ? 'place' : 'places'}
+                </span>
+              )}
+            </span>
           </div>
 
           {/* Badges row — only renders when there are scheduled dates to show.
@@ -77,6 +99,21 @@ export function PlaceCard({ place, onClick, selected, compact, scheduledDates }:
           isArchived ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
         )}
       >
+        {onUnnest && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 text-muted-foreground"
+            onClick={(e) => {
+              e.stopPropagation()
+              onUnnest()
+            }}
+            aria-label="Remove"
+            title="Remove"
+          >
+            <Link2Off className="h-3.5 w-3.5" />
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"

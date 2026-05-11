@@ -54,8 +54,14 @@ export function useUnscheduledPlaces(filter?: UnscheduledFilter) {
 
       const scheduledIds = scheduled.map((r) => r.place_id).filter(Boolean) as string[]
 
-      // Step 2: fetch all places excluding those IDs
-      let query = supabase.from('places').select('*').order('created_at', { ascending: false })
+      // Step 2: fetch all top-level places excluding scheduled IDs. Children
+      // (`parent_place_id IS NOT NULL`) ride along with their parent and are
+      // never surfaced in the backlog directly.
+      let query = supabase
+        .from('places')
+        .select('*')
+        .is('parent_place_id', null)
+        .order('created_at', { ascending: false })
 
       if (scheduledIds.length > 0) {
         query = query.not('id', 'in', `(${scheduledIds.join(',')})`)
@@ -94,28 +100,43 @@ export function usePlaceSchedule(placeId: string) {
 }
 
 /**
- * Returns a map of placeId → scheduled day_dates for ALL scheduled places.
- * Lets map/marker consumers cheaply answer "is this place scheduled, and on how
- * many days?" without N per-place queries. Prefer this over `usePlaceSchedule`
- * in bulk contexts (map markers, place lists); use `usePlaceSchedule` only for
- * a single place where the surrounding context is just one row.
+ * Returns a map of placeId → scheduled day_dates for ALL scheduled places,
+ * INCLUDING nested children (whose effective schedule is their parent's).
+ * Children ride along with the parent — only parents have rows in
+ * `itinerary_items`, but consumers asking "is THIS child scheduled?" expect
+ * to see the parent's dates. Prefer this over `usePlaceSchedule` in bulk
+ * contexts (map markers, place lists); use `usePlaceSchedule` only for a
+ * single place where the surrounding context is just one row.
  */
 export function useScheduledDatesByPlace() {
   return useQuery({
     queryKey: [...ITINERARY_KEY, 'schedule-by-place'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('itinerary_items')
-        .select('place_id, day_date')
-        .not('place_id', 'is', null)
-      if (error) throw error
+      const [{ data: scheduled, error: schedErr }, { data: children, error: childErr }] =
+        await Promise.all([
+          supabase.from('itinerary_items').select('place_id, day_date').not('place_id', 'is', null),
+          supabase.from('places').select('id, parent_place_id').not('parent_place_id', 'is', null),
+        ])
+      if (schedErr) throw schedErr
+      if (childErr) throw childErr
+
       const map = new Map<string, string[]>()
-      for (const row of data) {
+      for (const row of scheduled ?? []) {
         if (!row.place_id) continue
         const list = map.get(row.place_id)
         if (list) list.push(row.day_date)
         else map.set(row.place_id, [row.day_date])
       }
+
+      // Roll up: each child inherits its parent's scheduled dates.
+      for (const row of (children ?? []) as { id: string; parent_place_id: string | null }[]) {
+        if (!row.parent_place_id) continue
+        const parentDates = map.get(row.parent_place_id)
+        if (parentDates && parentDates.length > 0) {
+          map.set(row.id, [...parentDates])
+        }
+      }
+
       return map
     },
   })
@@ -129,14 +150,20 @@ export function useCreateItineraryItem() {
     mutationFn: async (item: ItineraryItemInsert) => {
       // Symmetry rule: scheduling an archived place auto-unarchives it. Check
       // and flip the priority before inserting so the place returns to the
-      // working set the moment it lands on a day.
+      // working set the moment it lands on a day. Also enforces the
+      // children-ride-along invariant: refuse to schedule a child place
+      // directly — the UI should never offer this, but the guard catches any
+      // stale code path.
       if (item.place_id) {
         const { data: existing, error: fetchErr } = await supabase
           .from('places')
-          .select('priority')
+          .select('priority, parent_place_id')
           .eq('id', item.place_id)
           .maybeSingle()
         if (fetchErr) throw fetchErr
+        if (existing?.parent_place_id) {
+          throw new Error('Cannot schedule a child place directly — schedule its parent instead')
+        }
         if (existing?.priority === 'archived') {
           const { error: unarchErr } = await supabase
             .from('places')

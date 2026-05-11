@@ -5,9 +5,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PlaceCard } from '@/components/places/PlaceCard'
+import { NestDropZone, useIsNestTarget } from '@/components/places/NestDropZone'
 import { PlaceForm } from '@/components/places/PlaceForm'
 import { useUnscheduledPlaces, useScheduledDatesByPlace } from '@/hooks/useItinerary'
-import { usePlaces } from '@/hooks/usePlaces'
+import { usePlaces, useChildCounts, useChildMustGoMap } from '@/hooks/usePlaces'
 import { cn } from '@/lib/utils'
 import { type City } from '@/config/trip'
 import type { PlaceRow, PlaceCategory } from '@/types/places'
@@ -22,6 +23,7 @@ interface DraggablePlaceCardProps {
   onClick: () => void
   cardRef?: React.Ref<HTMLDivElement>
   scheduledDates?: string[]
+  childCount?: number
 }
 
 function DraggablePlaceCard({
@@ -30,11 +32,13 @@ function DraggablePlaceCard({
   onClick,
   cardRef,
   scheduledDates,
+  childCount,
 }: DraggablePlaceCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `unscheduled-${place.id}`,
     data: { place },
   })
+  const isNestTarget = useIsNestTarget(place.id)
 
   // Merge the dnd-kit ref with the scroll-target ref
   const mergedRef = useCallback(
@@ -50,7 +54,7 @@ function DraggablePlaceCard({
   return (
     <div
       ref={mergedRef}
-      className={isDragging ? 'opacity-50' : undefined}
+      className={cn('relative rounded-lg overflow-hidden', isDragging && 'opacity-50')}
       {...listeners}
       {...attributes}
     >
@@ -60,7 +64,12 @@ function DraggablePlaceCard({
         selected={selected}
         onClick={onClick}
         scheduledDates={scheduledDates}
+        childCount={childCount}
       />
+      <NestDropZone placeId={place.id} />
+      {isNestTarget && (
+        <div aria-hidden className="pointer-events-none absolute inset-0 z-20 bg-white/30" />
+      )}
     </div>
   )
 }
@@ -102,6 +111,8 @@ export function UnscheduledColumn({
   const { data: allPlaces = [] } = usePlaces()
   const { data: archivedPlaces = [] } = usePlaces({ includeArchived: 'only' })
   const { data: scheduleMap } = useScheduledDatesByPlace()
+  const { data: childCounts } = useChildCounts()
+  const { data: childMustGoSet } = useChildMustGoMap()
 
   const toggleCategory = useCallback((cat: PlaceCategory) => {
     setCategoryFilter((prev) => {
@@ -122,7 +133,12 @@ export function UnscheduledColumn({
         : view === 'archived'
           ? archivedPlaces
           : view === 'starred'
-            ? allPlaces.filter((p) => p.priority === 'must_go')
+            ? // Roll-up: parent is "starred" if its own priority is must_go OR
+              // any of its children is must_go (children themselves are nested
+              // and never appear in this list directly).
+              allPlaces.filter(
+                (p) => p.priority === 'must_go' || (childMustGoSet?.has(p.id) ?? false)
+              )
             : [...allPlaces, ...archivedPlaces]
 
     const filtered = base.filter((p) => {
@@ -146,7 +162,16 @@ export function UnscheduledColumn({
       const bMust = b.priority === 'must_go' ? 0 : 1
       return aMust - bMust
     })
-  }, [allUnscheduled, allPlaces, archivedPlaces, view, city, search, categoryFilter])
+  }, [
+    allUnscheduled,
+    allPlaces,
+    archivedPlaces,
+    view,
+    city,
+    search,
+    categoryFilter,
+    childMustGoSet,
+  ])
 
   // Per-card refs for auto-scroll.
   const cardRefs = useRef(new Map<string, HTMLDivElement>())
@@ -315,6 +340,7 @@ export function UnscheduledColumn({
                   else cardRefs.current.delete(place.id)
                 }}
                 scheduledDates={scheduleMap?.get(place.id)}
+                childCount={childCounts?.get(place.id) ?? 0}
               />
             ))
           )}

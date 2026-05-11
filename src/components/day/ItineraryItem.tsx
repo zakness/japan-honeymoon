@@ -5,7 +5,7 @@ import { PLACE_CATEGORIES, type PlaceRow } from '@/types/places'
 import { formatReservationTime, type ItineraryItemWithPlace } from '@/types/itinerary'
 import { getCityColor, getPrimaryCityForDate } from '@/config/trip'
 import { useDeleteItineraryItem, useUpdateItineraryItem } from '@/hooks/useItinerary'
-import { useArchiveWithUndo } from '@/hooks/usePlaces'
+import { useArchiveWithUndo, useChildCounts } from '@/hooks/usePlaces'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { ReservationDialog } from './ReservationDialog'
 import { TextNoteDialog } from './TextNoteDialog'
@@ -31,6 +31,8 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
   const isDesktop = useIsDesktop()
   const [reservationOpen, setReservationOpen] = useState(false)
   const [textNoteOpen, setTextNoteOpen] = useState(false)
+  const { data: childCounts } = useChildCounts()
+  const childCount = item.place ? (childCounts?.get(item.place.id) ?? 0) : 0
 
   async function handleDelete() {
     try {
@@ -127,7 +129,18 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
   return (
     <SortableItemCard
       id={item.id}
-      data={{ dayDate, kind: 'itinerary' as const, timeSlot: item.time_slot }}
+      data={{
+        dayDate,
+        kind: 'itinerary' as const,
+        timeSlot: item.time_slot,
+        // Surface the place id so other cards' NestDropZone can identify the
+        // dragged source and the global drag handler can resolve the child for
+        // a nest drop.
+        placeId: place?.id,
+      }}
+      // When this card represents a place, expose it as a nest target so other
+      // place drags can land here to make this place a parent.
+      nestPlaceId={isPlace && place ? place.id : undefined}
       actions={actions}
       variant={item.is_decided ? 'decided' : 'speculative'}
       accentColor={accentColor}
@@ -141,6 +154,12 @@ export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemPro
             {category && <category.icon size={14} className="shrink-0 text-muted-foreground" />}
             <span className="text-sm font-medium text-left leading-tight truncate min-w-0 flex-1">
               {place.name}
+              {childCount > 0 && (
+                <span className="text-muted-foreground font-normal">
+                  {' · '}
+                  {childCount} {childCount === 1 ? 'place' : 'places'}
+                </span>
+              )}
             </span>
           </div>
           {item.reservation_time && (

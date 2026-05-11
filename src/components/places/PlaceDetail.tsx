@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Archive,
   Check,
+  ChevronLeft,
   ExternalLink,
   Globe,
+  Link as LinkIcon,
+  Link2Off,
   Phone,
   MapPin,
   Clock,
@@ -34,7 +37,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Lightbox } from '@/components/shared/Lightbox'
 import { useLightbox } from '@/hooks/useLightbox'
 import { PlaceForm } from './PlaceForm'
-import { useArchiveToggle, useDeletePlace } from '@/hooks/usePlaces'
+import {
+  DeleteBlockedByChildrenError,
+  useArchiveToggle,
+  useChildCounts,
+  useDeletePlace,
+  useNestPlace,
+  usePlace,
+  usePlaces,
+  useUnnestPlace,
+} from '@/hooks/usePlaces'
 import { useCreateItineraryItem, usePlaceSchedule } from '@/hooks/useItinerary'
 import { PLACE_CATEGORIES, type PlaceRow } from '@/types/places'
 import { StarToggle } from './StarToggle'
@@ -46,6 +58,9 @@ import {
   formatTripDayLabel,
   type City,
 } from '@/config/trip'
+import { ChildrenSection } from './ChildrenSection'
+import { NestPicker } from './NestPicker'
+import { ResolveChildrenDialog, type ResolveMode } from './ResolveChildrenDialog'
 
 /** Parse "10:00 AM", "10:00", "10 AM" → minutes since midnight. */
 function parseTimeToMinutes(s: string): number | null {
@@ -110,6 +125,12 @@ interface PlaceDetailContentProps {
   onEdit: () => void
   /** Called after a successful delete so the parent can clear selection. */
   onClose?: () => void
+  /**
+   * Re-route selection to a different place. Used by the parent breadcrumb on
+   * child detail (tap to jump to parent) and by the children list (tap child
+   * row to swap selection). Optional — falls back to no-op when omitted.
+   */
+  onSelectPlace?: (place: PlaceRow) => void
 }
 
 /**
@@ -118,15 +139,45 @@ interface PlaceDetailContentProps {
  * Edit is delegated upward via `onEdit`; delete + add-to-day are handled inline
  * because their affordances (AlertDialog, Popover) are scoped to the action.
  */
-export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailContentProps) {
+export function PlaceDetailContent({
+  place,
+  onEdit,
+  onClose,
+  onSelectPlace,
+}: PlaceDetailContentProps) {
   const [dayPickerOpen, setDayPickerOpen] = useState(false)
   const [hoursOpen, setHoursOpen] = useState(false)
   const [addressOpen, setAddressOpen] = useState(false)
+  const [parentPickerOpen, setParentPickerOpen] = useState(false)
+  const [resolveDialog, setResolveDialog] = useState<{
+    mode: ResolveMode
+    children: PlaceRow[]
+  } | null>(null)
   const lightbox = useLightbox()
   const deletePlace = useDeletePlace()
   const archiveToggle = useArchiveToggle()
   const createItem = useCreateItineraryItem()
+  const nest = useNestPlace()
+  const unnest = useUnnestPlace()
   const { data: scheduledDates = [] } = usePlaceSchedule(place.id)
+  const { data: parentPlace } = usePlace(place.parent_place_id)
+  const { data: allPlaces = [] } = usePlaces()
+  const { data: childCounts } = useChildCounts()
+
+  const isChild = !!place.parent_place_id
+  const ownChildCount = childCounts?.get(place.id) ?? 0
+
+  // Parent candidates: top-level places excluding self. We allow choosing a
+  // place that already has children. The DB trigger rejects nesting under a
+  // child, so callers can't pick one (top-level filter already excludes them).
+  const parentCandidates = useMemo(() => {
+    return allPlaces.filter((p) => {
+      if (p.id === place.id) return false
+      if (p.priority === 'archived') return false
+      if (place.city && p.city && p.city !== place.city) return false
+      return true
+    })
+  }, [allPlaces, place.id, place.city])
 
   async function handleAddToDay(day: (typeof TRIP_DAYS)[number]) {
     try {
@@ -143,8 +194,38 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
       await deletePlace.mutateAsync(place.id)
       toast.success('Place deleted')
       onClose?.()
-    } catch {
+    } catch (err) {
+      if (err instanceof DeleteBlockedByChildrenError) {
+        setResolveDialog({ mode: 'delete', children: err.children })
+        return
+      }
       toast.error('Failed to delete place')
+    }
+  }
+
+  function handleArchiveClick() {
+    archiveToggle(place, (blockedErr) => {
+      setResolveDialog({ mode: 'archive', children: blockedErr.unarchivedChildren })
+    })
+  }
+
+  async function handleSetParent(parent: PlaceRow) {
+    setParentPickerOpen(false)
+    try {
+      await nest.mutateAsync({ childId: place.id, parentId: parent.id })
+      toast.success(`Added to ${parent.name}`)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to add'
+      toast.error(msg)
+    }
+  }
+
+  async function handleUnnest() {
+    try {
+      await unnest.mutateAsync(place.id)
+      toast.success('Removed')
+    } catch {
+      toast.error('Failed to remove')
     }
   }
 
@@ -183,6 +264,21 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
         {photos.length === 0 && (
           <StarToggle place={place} size="md" className="absolute top-2 left-2" />
         )}
+
+        {/* Breadcrumb: shown only for child places. Tap to swap selection to
+            the parent so the DetailPanel jumps back to the group. */}
+        {isChild && parentPlace && (
+          <button
+            type="button"
+            onClick={() => onSelectPlace?.(parentPlace)}
+            className="flex w-full items-center gap-1 rounded-md bg-muted/60 px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={`Go to ${parentPlace.name}`}
+          >
+            <ChevronLeft className="h-3 w-3" />
+            <span className="truncate">Added to {parentPlace.name}</span>
+          </button>
+        )}
+
         {/* Header */}
         <div>
           <div className="flex items-center gap-2">
@@ -356,43 +452,78 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
           <div className="rounded-md bg-muted p-3 text-sm whitespace-pre-wrap">{place.notes}</div>
         )}
 
+        {/* Children — only renders for top-level places. The "+ Add child"
+            affordance is always visible; the child list appears below once any
+            children exist. */}
+        {!isChild && <ChildrenSection parent={place} onSelectChild={onSelectPlace} />}
+
         {/* Actions */}
-        <div className="flex gap-2 pt-1">
-          <Popover open={dayPickerOpen} onOpenChange={setDayPickerOpen}>
-            <PopoverTrigger
-              render={
-                <Button size="sm" className="flex-1 gap-1.5">
-                  <CalendarPlus className="h-4 w-4" />
-                  Add to day
-                </Button>
-              }
-            />
-            <PopoverContent className="w-60 p-1" align="start">
-              <div className="max-h-64 overflow-y-auto">
-                {TRIP_DAYS.filter(
-                  (day) => !place.city || day.cities.includes(place.city as City)
-                ).map((day) => {
-                  const already = scheduledDates.includes(day.date)
-                  return (
-                    <button
-                      key={day.date}
-                      className="w-full text-left px-2.5 py-1.5 text-sm rounded hover:bg-muted flex items-center gap-2"
-                      onClick={() => handleAddToDay(day)}
-                      disabled={createItem.isPending}
-                    >
-                      <span className="text-xs text-muted-foreground shrink-0 w-[4.5rem] tabular-nums">
-                        {formatTripDate(day.date)}
-                      </span>
-                      <span className="flex-1">{day.label}</span>
-                      {already && (
-                        <CalendarPlus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
+        <div className="flex flex-wrap gap-2 pt-1">
+          {/* Add-to-day is hidden for child places — they ride along with the
+              parent and aren't scheduled directly. */}
+          {!isChild && (
+            <Popover open={dayPickerOpen} onOpenChange={setDayPickerOpen}>
+              <PopoverTrigger
+                render={
+                  <Button size="sm" className="flex-1 gap-1.5">
+                    <CalendarPlus className="h-4 w-4" />
+                    Add to day
+                  </Button>
+                }
+              />
+              <PopoverContent className="w-60 p-1" align="start">
+                <div className="max-h-64 overflow-y-auto">
+                  {TRIP_DAYS.filter(
+                    (day) => !place.city || day.cities.includes(place.city as City)
+                  ).map((day) => {
+                    const already = scheduledDates.includes(day.date)
+                    return (
+                      <button
+                        key={day.date}
+                        className="w-full text-left px-2.5 py-1.5 text-sm rounded hover:bg-muted flex items-center gap-2"
+                        onClick={() => handleAddToDay(day)}
+                        disabled={createItem.isPending}
+                      >
+                        <span className="text-xs text-muted-foreground shrink-0 w-[4.5rem] tabular-nums">
+                          {formatTripDate(day.date)}
+                        </span>
+                        <span className="flex-1">{day.label}</span>
+                        {already && (
+                          <CalendarPlus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+          {/* Add-to-parent: only for top-level places with no children of their
+              own (the one-level rule — a parent can't itself be demoted). */}
+          {!isChild && ownChildCount === 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => setParentPickerOpen(true)}
+            >
+              <LinkIcon className="h-4 w-4" />
+              Add to a place…
+            </Button>
+          )}
+          {/* Un-nest: only for child places. */}
+          {isChild && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={handleUnnest}
+              title="Remove"
+            >
+              <Link2Off className="h-4 w-4" />
+              Remove
+            </Button>
+          )}
           <Button size="sm" variant="outline" className="gap-1.5" onClick={onEdit}>
             <Pencil className="h-4 w-4" />
             Edit
@@ -405,7 +536,7 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
               isArchived &&
                 'bg-foreground text-background border-foreground hover:bg-foreground/90 hover:text-background'
             )}
-            onClick={() => archiveToggle(place)}
+            onClick={handleArchiveClick}
             title={isArchived ? 'Unarchive' : 'Archive'}
             aria-label={isArchived ? 'Unarchive' : 'Archive'}
             aria-pressed={isArchived}
@@ -451,6 +582,31 @@ export function PlaceDetailContent({ place, onEdit, onClose }: PlaceDetailConten
         startIndex={lightbox.startIndex}
         onClose={lightbox.close}
       />
+      <NestPicker
+        open={parentPickerOpen}
+        onOpenChange={setParentPickerOpen}
+        title="Add to a place"
+        candidates={parentCandidates}
+        onSelect={handleSetParent}
+        emptyLabel="No eligible places — every other place is already added somewhere or archived."
+      />
+      {resolveDialog && (
+        <ResolveChildrenDialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setResolveDialog(null)
+          }}
+          mode={resolveDialog.mode}
+          parent={place}
+          // The dialog renders `children` as React children semantics aren't
+          // an issue here — it's a typed prop name on this component.
+          children={resolveDialog.children}
+          onResolved={() => {
+            setResolveDialog(null)
+            if (resolveDialog.mode === 'delete') onClose?.()
+          }}
+        />
+      )}
     </div>
   )
 }

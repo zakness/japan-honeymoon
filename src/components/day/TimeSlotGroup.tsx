@@ -1,16 +1,34 @@
+import { Fragment } from 'react'
 import { useDroppable } from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  type SortingStrategy,
+} from '@dnd-kit/sortable'
 import { Plus } from 'lucide-react'
 import { TIME_SLOT_ICONS } from '@/lib/time-slot-icons'
 import { ItineraryItem } from './ItineraryItem'
 import { TransportItem } from './TransportItem'
 import { FlightEventCard } from './FlightEventCard'
+import { ReorderGap } from './ReorderGap'
 import { type TimeSlot, type TimeSlotKind } from '@/types/itinerary'
 import { type Journey, type SlotItem } from '@/types/transport'
 import type { PlaceRow } from '@/types/places'
 import type { FlightEvent } from '@/lib/logistics-utils'
 import { slotItemId } from '@/lib/transport-utils'
 import { cn } from '@/lib/utils'
+
+/**
+ * Wraps `verticalListSortingStrategy` so it produces no transforms when the
+ * drag's `over` target isn't another sortable in this list. Without this
+ * guard, hovering a non-sortable droppable (a `nest-*` or `reorder-*` zone)
+ * lands `overIndex = -1`, which the default strategy interprets as "shift all
+ * items below the active downward" — a stray jump that we never want.
+ */
+const safeVerticalListSortingStrategy: SortingStrategy = (args) => {
+  if (args.overIndex < 0) return null
+  return verticalListSortingStrategy(args)
+}
 
 interface TimeSlotGroupProps {
   slot: TimeSlot
@@ -82,34 +100,31 @@ export function TimeSlotGroup({
         <SlotIcon className="h-3.5 w-3.5" />
         {label}
       </h3>
-      <SortableContext items={items.map(slotItemId)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={items.map(slotItemId)} strategy={safeVerticalListSortingStrategy}>
         <div
           ref={setNodeRef}
           className={cn(
-            'space-y-1.5 min-h-[52px] rounded-lg transition-colors p-1',
+            'min-h-[52px] rounded-lg transition-colors p-1 space-y-1',
             isOver ? 'bg-accent/50 ring-1 ring-accent' : ''
           )}
         >
           {flightEvents.map((event) => (
             <FlightEventCard key={event.id} event={event} />
           ))}
-          {items.map((item) =>
-            item.kind === 'itinerary' ? (
-              <ItineraryItem
-                key={item.data.id}
-                item={item.data}
-                dayDate={dayDate}
-                onSelectPlace={onSelectPlace}
-              />
-            ) : (
-              <TransportItem
-                key={item.data.parent.id}
-                journey={item.data}
-                dayDate={dayDate}
-                onSelect={onSelectJourney}
-              />
-            )
-          )}
+          {/* Explicit gap droppables between every card (and one above the
+              first / below the last) carry reorder semantics. The card body
+              is reserved for `nest-*` drops — see `NestDropZone`. */}
+          {items.map((item, i) => (
+            <Fragment key={slotItemId(item)}>
+              <ReorderGap dayDate={dayDate} slot={slot} index={i} />
+              {item.kind === 'itinerary' ? (
+                <ItineraryItem item={item.data} dayDate={dayDate} onSelectPlace={onSelectPlace} />
+              ) : (
+                <TransportItem journey={item.data} dayDate={dayDate} onSelect={onSelectJourney} />
+              )}
+            </Fragment>
+          ))}
+          {items.length > 0 && <ReorderGap dayDate={dayDate} slot={slot} index={items.length} />}
           {/*
             "+ Add" zone — always the last child of the droppable container, so
             it acts as both the click target for opening the add dialog (pre-

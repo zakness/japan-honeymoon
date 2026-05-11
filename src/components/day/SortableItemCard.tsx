@@ -4,6 +4,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/components/ui/button'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { cn } from '@/lib/utils'
+import { NestDropZone, useIsNestTarget } from '@/components/places/NestDropZone'
 import { SwipeableCard, type CardAction } from './SwipeableCard'
 
 export type { CardAction } from './SwipeableCard'
@@ -42,6 +43,13 @@ interface SortableItemCardProps {
    * instead of an inline click target.
    */
   onCardClick?: () => void
+  /**
+   * When set, renders an inset `nest-{placeId}` drop target inside the card.
+   * Dragging another place onto the inner zone nests it under this place; the
+   * edge slivers around the zone stay clear so the sortable can still receive
+   * reorder drops. Only set on cards that represent a place.
+   */
+  nestPlaceId?: string
 }
 
 /**
@@ -63,12 +71,14 @@ export function SortableItemCard({
   banner,
   bannerOrientation = 'top',
   onCardClick,
+  nestPlaceId,
 }: SortableItemCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     data,
   })
   const isDesktop = useIsDesktop()
+  const isNestTarget = useIsNestTarget(nestPlaceId)
 
   const baseStyle: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -184,6 +194,15 @@ export function SortableItemCard({
         >
           {inner}
         </SwipeableCard>
+      )}
+      {/* Desktop-only nest target — `isDesktop` gates the visual overlay too
+          so mobile doesn't render a stray ring on a card it can't drop onto. */}
+      {isDesktop && nestPlaceId && <NestDropZone placeId={nestPlaceId} />}
+      {/* Nest-hover tint: subtle white wash over the card body when this card
+          is the current nest target. Rendered last so it sits above the
+          banner photo and content. */}
+      {isNestTarget && (
+        <div aria-hidden className="pointer-events-none absolute inset-0 z-20 bg-white/30" />
       )}
     </div>
   )

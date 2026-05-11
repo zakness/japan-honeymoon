@@ -18,6 +18,9 @@ interface DetailPanelProps {
   selection: DetailSelection
   onClose: () => void
   onEdit: () => void
+  /** Forwarded to `PlaceDetailContent` so the breadcrumb + children list can
+   * re-route selection (parent ↔ child navigation). */
+  onSelectPlace?: (place: PlaceRow) => void
   className?: string
 }
 
@@ -27,7 +30,13 @@ interface DetailPanelProps {
  * positioning) is the parent's responsibility — this component just fills its
  * box.
  */
-export function DetailPanel({ selection, onClose, onEdit, className }: DetailPanelProps) {
+export function DetailPanel({
+  selection,
+  onClose,
+  onEdit,
+  onSelectPlace,
+  className,
+}: DetailPanelProps) {
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
@@ -63,7 +72,12 @@ export function DetailPanel({ selection, onClose, onEdit, className }: DetailPan
       </Button>
 
       {selection.kind === 'place' && (
-        <PlaceDetailContent place={selection.place} onEdit={onEdit} onClose={onClose} />
+        <PlaceDetailContent
+          place={selection.place}
+          onEdit={onEdit}
+          onClose={onClose}
+          onSelectPlace={onSelectPlace}
+        />
       )}
       {selection.kind === 'hotel' && <HotelDetailContent hotel={selection.hotel} onEdit={onEdit} />}
       {selection.kind === 'journey' && (

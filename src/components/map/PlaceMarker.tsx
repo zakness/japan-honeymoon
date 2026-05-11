@@ -9,28 +9,46 @@ interface PlaceMarkerProps {
   selected?: boolean
   /** Number of days this place is scheduled on. When >= 1 a corner badge renders. */
   scheduledDayCount?: number
+  /** True when any nested child of this place has `priority = 'must_go'`. The
+   *  badge ORs this with the place's own must-go so a parent reflects its
+   *  group's must-go status even when only a child carries the flag. */
+  hasMustGoChild?: boolean
+  /** Compact = smaller scale, no badges. Used for child markers that appear
+   *  when their parent is selected (subordinate to top-level markers). */
+  compact?: boolean
   onClick: (place: PlaceRow) => void
 }
 
-export function PlaceMarker({ place, selected, scheduledDayCount = 0, onClick }: PlaceMarkerProps) {
+export function PlaceMarker({
+  place,
+  selected,
+  scheduledDayCount = 0,
+  hasMustGoChild = false,
+  compact = false,
+  onClick,
+}: PlaceMarkerProps) {
   if (!place.lat || !place.lng) return null
 
   const category = place.category as PlaceCategory
   const color = CATEGORY_COLORS[category] ?? '#6b7280'
   const Icon = PLACE_CATEGORIES.find((c) => c.value === category)?.icon ?? MapPin
   const isScheduled = scheduledDayCount > 0
-  const isMustGo = place.priority === 'must_go'
+  const isMustGo = place.priority === 'must_go' || hasMustGoChild
   // Single badge slot at top-right. Color encodes priority (gold = must-go,
   // foreground = neutral); symbol encodes coverage (✓ = scheduled,
   // ★ = unscheduled must-go). Default unscheduled places get no badge.
+  // Compact (child) markers never show a badge — they're subordinate to the
+  // parent's marker which already encodes the group's roll-up state.
   type BadgeKind = 'scheduled-mustgo' | 'scheduled' | 'mustgo-unscheduled' | null
-  const badge: BadgeKind = isScheduled
-    ? isMustGo
-      ? 'scheduled-mustgo'
-      : 'scheduled'
-    : isMustGo
-      ? 'mustgo-unscheduled'
-      : null
+  const badge: BadgeKind = compact
+    ? null
+    : isScheduled
+      ? isMustGo
+        ? 'scheduled-mustgo'
+        : 'scheduled'
+      : isMustGo
+        ? 'mustgo-unscheduled'
+        : null
 
   return (
     <AdvancedMarker
@@ -54,10 +72,13 @@ export function PlaceMarker({ place, selected, scheduledDayCount = 0, onClick }:
               : '0 1px 3px rgba(0,0,0,0.2)',
             transition: 'box-shadow 0.15s ease',
           }}
-          className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-sm"
+          className={cn(
+            'relative flex items-center justify-center rounded-full border-2 border-white text-sm',
+            compact ? 'h-7 w-7' : 'h-8 w-8'
+          )}
           title={place.name}
         >
-          <Icon size={14} color="white" />
+          <Icon size={compact ? 13 : 14} color="white" />
         </div>
         {selected && (
           <div

@@ -11,7 +11,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PlaceCard } from './PlaceCard'
-import { usePlaces } from '@/hooks/usePlaces'
+import { usePlaces, useChildCounts, useChildMustGoMap } from '@/hooks/usePlaces'
 import { useUnscheduledPlaces } from '@/hooks/useItinerary'
 import { PLACE_CATEGORIES, type PlaceRow, type PlaceCategory } from '@/types/places'
 import { CITY_LABELS, type City } from '@/config/trip'
@@ -42,6 +42,8 @@ export function PlaceList({ onSelectPlace, selectedPlaceId }: PlaceListProps) {
     ...filterArgs,
     includeArchived: 'only',
   })
+  const { data: childCounts } = useChildCounts()
+  const { data: childMustGoSet } = useChildMustGoMap()
 
   const places = useMemo(() => {
     switch (view) {
@@ -54,7 +56,9 @@ export function PlaceList({ onSelectPlace, selectedPlaceId }: PlaceListProps) {
         }) as PlaceRow[]
       }
       case 'starred':
-        return (allPlaces ?? []).filter((p) => p.priority === 'must_go')
+        return (allPlaces ?? []).filter(
+          (p) => p.priority === 'must_go' || (childMustGoSet?.has(p.id) ?? false)
+        )
       case 'archived':
         return archivedPlaces ?? []
       case 'all':
@@ -62,7 +66,7 @@ export function PlaceList({ onSelectPlace, selectedPlaceId }: PlaceListProps) {
         // `All` includes archived for parity with the backlog.
         return [...(allPlaces ?? []), ...(archivedPlaces ?? [])]
     }
-  }, [view, allPlaces, unscheduled, archivedPlaces, categoryFilter, cityFilter])
+  }, [view, allPlaces, unscheduled, archivedPlaces, categoryFilter, cityFilter, childMustGoSet])
 
   const isLoading = view === 'archived' ? loadingArchived : loadingAll
   const error = errorAll
@@ -174,6 +178,7 @@ export function PlaceList({ onSelectPlace, selectedPlaceId }: PlaceListProps) {
             place={place}
             selected={place.id === selectedPlaceId}
             onClick={() => onSelectPlace?.(place)}
+            childCount={childCounts?.get(place.id) ?? 0}
           />
         ))}
       </div>
