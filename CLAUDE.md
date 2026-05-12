@@ -25,13 +25,14 @@ A shared trip-planning SPA for a Japan honeymoon (May 15–30, 2026). No login r
 ## Commands
 
 ```bash
-npm run dev          # Dev server at http://localhost:5175
-npm run build        # tsc -b && vite build
-npm run type-check   # TypeScript check only
-npm run lint         # ESLint check
-npm run lint:fix     # ESLint auto-fix
-npm test             # Vitest run (once)
-npm run test:watch   # Vitest watch mode
+npm run dev             # Dev server at http://localhost:5175
+npm run build           # tsc -b && vite build
+npm run type-check      # TypeScript check only
+npm run lint            # ESLint check
+npm run lint:fix        # ESLint auto-fix
+npm test                # Vitest run (once)
+npm run test:watch      # Vitest watch mode
+npm run export-context  # Regenerate exports/ markdown context for AI planning
 ```
 
 Run a single test file:
@@ -103,6 +104,12 @@ Required env vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_GOOGLE_M
 ## Testing
 
 Tests live in `src/test/`. The Vitest environment is `jsdom` with a `scrollIntoView` shim (`src/test/setup.ts`). Path alias `@/` → `src/` is available in tests via `vitest.config.ts`.
+
+---
+
+## Markdown export for AI agents
+
+`npm run export-context` writes the current trip state (places, hotels, journeys, day-by-day schedule, freeform notes) to `exports/` as per-city markdown files plus a top-level `README.md`, intended as read-only context for AI planning conversations. Output is gitignored and regenerated on every run. The `.claude/skills/itinerary-context` skill auto-runs the script and points the agent at the right files. The script is at `scripts/export-context.ts` and reuses canonical types from `src/types/*` and trip config from `src/config/trip.ts`, so schema drift becomes a compile error rather than a silently empty field. Pure rendering helpers are tested in `src/test/export-context.test.ts`.
 
 ---
 
