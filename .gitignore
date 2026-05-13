@@ -25,6 +25,9 @@ supabase/.branches
 # Vercel
 .vercel
 
+# AI-agent context exports (regenerated on demand)
+exports
+
 # Editor
 .vscode/*
 !.vscode/extensions.json
