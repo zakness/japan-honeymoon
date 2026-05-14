@@ -20,6 +20,8 @@ function makeHotel(overrides: Partial<AccommodationRow> & { id: string }): Accom
     check_out_date: overrides.check_out_date ?? '2026-05-17',
     check_in_time: overrides.check_in_time ?? null,
     check_out_time: overrides.check_out_time ?? null,
+    check_in_policy_time: overrides.check_in_policy_time ?? null,
+    check_out_policy_time: overrides.check_out_policy_time ?? null,
     confirmation_numbers: overrides.confirmation_numbers ?? [],
     booking_url: overrides.booking_url ?? null,
     address: overrides.address ?? null,

@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { Lightbox } from '@/components/shared/Lightbox'
 import { useLightbox } from '@/hooks/useLightbox'
 import { useAccommodations } from '@/hooks/useAccommodations'
+import { formatHotelTimePill } from '@/types/itinerary'
 import { CITY_LABELS, getHotelColor, type City } from '@/config/trip'
 import { googleMapsUrl } from '@/lib/maps-url'
 import type { AccommodationRow } from '@/types/accommodations'
@@ -34,11 +35,6 @@ function formatDateShort(isoDate: string): string {
     day: 'numeric',
     timeZone: 'UTC',
   })
-}
-
-function formatTimeHHMM(t: string | null): string | null {
-  if (!t) return null
-  return t.slice(0, 5)
 }
 
 interface HotelDetailContentProps {
@@ -61,8 +57,16 @@ export function HotelDetailContent({ hotel, onEdit }: HotelDetailContentProps) {
   const hasCoords = hotel.lat != null && hotel.lng != null
   const colors = getHotelColor(hotel, allHotels)
   const nights = nightsBetween(hotel.check_in_date, hotel.check_out_date)
-  const checkInTime = formatTimeHHMM(hotel.check_in_time)
-  const checkOutTime = formatTimeHHMM(hotel.check_out_time)
+  const checkInPill = formatHotelTimePill({
+    planned: hotel.check_in_time,
+    policy: hotel.check_in_policy_time,
+    role: 'checkin',
+  })
+  const checkOutPill = formatHotelTimePill({
+    planned: hotel.check_out_time,
+    policy: hotel.check_out_policy_time,
+    role: 'checkout',
+  })
 
   return (
     <div className="flex flex-col">
@@ -161,13 +165,10 @@ export function HotelDetailContent({ hotel, onEdit }: HotelDetailContentProps) {
               · {nights} {nights === 1 ? 'night' : 'nights'}
             </span>
           </div>
-          {(checkInTime || checkOutTime) && (
-            <div className="text-xs text-muted-foreground pl-6">
-              {checkInTime && <span>Check-in {checkInTime}</span>}
-              {checkInTime && checkOutTime && <span> · </span>}
-              {checkOutTime && <span>Check-out {checkOutTime}</span>}
-            </div>
-          )}
+          <div className="text-xs text-muted-foreground pl-6 space-y-0.5">
+            <div>Check-in · {checkInPill}</div>
+            <div>Check-out · {checkOutPill}</div>
+          </div>
           {hotel.booked_by && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <User className="h-3.5 w-3.5" />

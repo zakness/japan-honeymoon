@@ -106,16 +106,19 @@ export function buildLogisticsTimeline(
   }
 
   for (const a of accommodations) {
+    // Sort by planned time when it's set; fall back to policy so a stay still
+    // anchors at the front of its date range even when the planned time is
+    // TBD. Null → end-of-day via the NULL_TIME_SENTINEL.
     entries.push({
       kind: 'hotel_checkin',
       date: a.check_in_date,
-      sortTime: normalizeTimeColumn(a.check_in_time),
+      sortTime: normalizeTimeColumn(a.check_in_time ?? a.check_in_policy_time),
       data: a,
     })
     entries.push({
       kind: 'hotel_checkout',
       date: a.check_out_date,
-      sortTime: normalizeTimeColumn(a.check_out_time),
+      sortTime: normalizeTimeColumn(a.check_out_time ?? a.check_out_policy_time),
       data: a,
     })
   }

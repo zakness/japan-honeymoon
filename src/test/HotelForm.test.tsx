@@ -45,6 +45,8 @@ function makeHotel(overrides: Partial<AccommodationRow> = {}): AccommodationRow 
     check_out_date: '2026-05-19',
     check_in_time: '15:00:00',
     check_out_time: '11:00:00',
+    check_in_policy_time: null,
+    check_out_policy_time: null,
     booked_by: 'Zak',
     booking_url: 'https://example.com/booking',
     confirmation_numbers: ['ABC123'],

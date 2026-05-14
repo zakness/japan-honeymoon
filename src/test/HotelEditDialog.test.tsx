@@ -33,6 +33,8 @@ const hotel: AccommodationRow = {
   check_out_date: '2026-05-19',
   check_in_time: null,
   check_out_time: null,
+  check_in_policy_time: null,
+  check_out_policy_time: null,
   booked_by: null,
   booking_url: null,
   confirmation_numbers: [],

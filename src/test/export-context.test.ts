@@ -507,6 +507,8 @@ describe('renderHotel', () => {
       check_out_date: '2026-05-27',
       check_in_time: '15:00:00',
       check_out_time: '12:00:00',
+      check_in_policy_time: null,
+      check_out_policy_time: null,
       address: '245 Kurumayachō, Kyoto',
       lat: null,
       lng: null,

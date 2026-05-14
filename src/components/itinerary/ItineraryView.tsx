@@ -248,6 +248,7 @@ export function ItineraryView({
             dayDate={day.date}
             onSelectPlace={handleSelectFromDayColumn}
             onSelectHotel={onSelectHotel}
+            onEditHotel={onEditHotel}
             onSelectJourney={onSelectJourney}
           />
         ))}
@@ -427,6 +428,7 @@ export function ItineraryView({
                       dayDate={mobileTab}
                       onSelectPlace={handleSelectFromDayColumn}
                       onSelectHotel={onSelectHotel}
+                      onEditHotel={onEditHotel}
                       onSelectJourney={onSelectJourney}
                       fillWidth
                     />

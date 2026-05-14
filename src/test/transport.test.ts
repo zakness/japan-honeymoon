@@ -19,6 +19,8 @@ function makeItineraryItem(
     reservation_notes: null,
     is_decided: false,
     images: null,
+    accommodation_id: null,
+    hotel_event_role: null,
     place: null,
     ...overrides,
   }

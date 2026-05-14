@@ -1,5 +1,5 @@
 import { Hotel, Pencil } from 'lucide-react'
-import { formatReservationTime } from '@/types/itinerary'
+import { formatHotelTimePill } from '@/types/itinerary'
 import { CITY_LABELS, getHotelColor } from '@/config/trip'
 import type { AccommodationRow } from '@/types/accommodations'
 
@@ -13,9 +13,13 @@ interface HotelEntryProps {
 
 export function HotelEntry({ hotel, kind, allHotels, onEdit }: HotelEntryProps) {
   const isCheckin = kind === 'hotel_checkin'
-  const time = isCheckin ? hotel.check_in_time : hotel.check_out_time
   const cityLabel = CITY_LABELS[hotel.city as keyof typeof CITY_LABELS] ?? hotel.city
   const { tint: bgColor } = getHotelColor(hotel, allHotels)
+  const timePill = formatHotelTimePill({
+    planned: isCheckin ? hotel.check_in_time : hotel.check_out_time,
+    policy: isCheckin ? hotel.check_in_policy_time : hotel.check_out_policy_time,
+    role: isCheckin ? 'checkin' : 'checkout',
+  })
 
   return (
     <div className="rounded-lg border bg-card p-3 space-y-1.5">
@@ -38,8 +42,7 @@ export function HotelEntry({ hotel, kind, allHotels, onEdit }: HotelEntryProps) 
               isCheckin ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700'
             }`}
           >
-            {isCheckin ? 'Check in' : 'Check out'}
-            {time && ` · ${formatReservationTime(time)}`}
+            {isCheckin ? 'Check in' : 'Check out'} · {timePill}
           </span>
           {onEdit && (
             <button
