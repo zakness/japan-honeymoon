@@ -28,6 +28,8 @@ interface DayColumnProps {
   onSelectPlace?: (place: PlaceRow) => void
   /** Fires when the user clicks a hotel anchor — selects the hotel on the map. */
   onSelectHotel?: (hotel: AccommodationRow) => void
+  /** Fires when the Edit action on a hotel-event card is invoked. Lifted to AppShell. */
+  onEditHotel?: (hotel: AccommodationRow) => void
   /** Fires when the user clicks a transport card's title — selects the journey on the map. */
   onSelectJourney?: (journey: Journey) => void
   /**
@@ -43,6 +45,7 @@ export function DayColumn({
   dayDate,
   onSelectPlace,
   onSelectHotel,
+  onEditHotel,
   onSelectJourney,
   fillWidth = false,
 }: DayColumnProps) {
@@ -141,6 +144,8 @@ export function DayColumn({
                 dayDate={dayDate}
                 flightEvents={flightEventsBySlot[value]}
                 onSelectPlace={onSelectPlace}
+                onSelectHotel={onSelectHotel}
+                onEditHotel={onEditHotel}
                 onSelectJourney={onSelectJourney}
                 onAddClick={(clickedSlot) => {
                   setDialogInitialSlot(clickedSlot)

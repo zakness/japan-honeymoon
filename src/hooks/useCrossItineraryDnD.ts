@@ -281,6 +281,19 @@ export function useCrossItineraryDnD(cityDays: TripDay[]) {
     }
 
     // ── Cross-day move ──────────────────────────────────────────────────────
+    // Hotel check-in / check-out items are pinned to their stay's date. Moving
+    // them across days would imply changing `accommodations.check_in_date` /
+    // `check_out_date`, which is a deliberate edit that belongs in the hotel
+    // form, not in a drag. Reject cross-day drops for these items; intra-day
+    // reorder above is untouched.
+    const activeItemForGuard = sourceItems.find((i) => slotItemId(i) === activeId)
+    if (
+      activeItemForGuard?.kind === 'itinerary' &&
+      (activeItemForGuard.data as ItineraryItemWithPlace).accommodation_id
+    ) {
+      return
+    }
+
     const targetItems = getItemsForDay(targetDayDate!)
     const sourceSlotItems = sourceItems.filter((i) => slotItemTimeSlot(i) === sourceSlot)
     const targetSlotItems = targetItems.filter((i) => slotItemTimeSlot(i) === targetSlot!)

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { AccommodationRow } from '@/types/accommodations'
 import type { TablesUpdate } from '@/types/database'
+import { ITINERARY_KEY } from './useItinerary'
 
 const ACCOMMODATIONS_KEY = ['accommodations'] as const
 
@@ -51,6 +52,10 @@ export function useUpdateAccommodation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ACCOMMODATIONS_KEY })
+      // Hotel-event itinerary items (check-in / check-out) are kept in sync
+      // with accommodation dates by a DB trigger. Editing dates here can
+      // move those items between days, so refresh every cached day query.
+      queryClient.invalidateQueries({ queryKey: ITINERARY_KEY })
     },
   })
 }

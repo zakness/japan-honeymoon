@@ -14,6 +14,7 @@ import { ReorderGap } from './ReorderGap'
 import { type TimeSlot, type TimeSlotKind } from '@/types/itinerary'
 import { type Journey, type SlotItem } from '@/types/transport'
 import type { PlaceRow } from '@/types/places'
+import type { AccommodationRow } from '@/types/accommodations'
 import type { FlightEvent } from '@/lib/logistics-utils'
 import { slotItemId } from '@/lib/transport-utils'
 import { cn } from '@/lib/utils'
@@ -42,6 +43,10 @@ interface TimeSlotGroupProps {
   flightEvents?: FlightEvent[]
   /** Fires when the user clicks a scheduled place's name — routed up to AppShell. */
   onSelectPlace?: (place: PlaceRow) => void
+  /** Fires when the user clicks a hotel-event card body — routed up to AppShell. */
+  onSelectHotel?: (hotel: AccommodationRow) => void
+  /** Fires when the user clicks the Edit action on a hotel-event card. */
+  onEditHotel?: (hotel: AccommodationRow) => void
   /** Fires when the user clicks a transport card's title — routed up to AppShell. */
   onSelectJourney?: (journey: Journey) => void
   /** Fires when the user clicks the "+ Add" zone at the bottom of the slot. */
@@ -56,6 +61,8 @@ export function TimeSlotGroup({
   dayDate,
   flightEvents = [],
   onSelectPlace,
+  onSelectHotel,
+  onEditHotel,
   onSelectJourney,
   onAddClick,
 }: TimeSlotGroupProps) {
@@ -118,7 +125,13 @@ export function TimeSlotGroup({
             <Fragment key={slotItemId(item)}>
               <ReorderGap dayDate={dayDate} slot={slot} index={i} />
               {item.kind === 'itinerary' ? (
-                <ItineraryItem item={item.data} dayDate={dayDate} onSelectPlace={onSelectPlace} />
+                <ItineraryItem
+                  item={item.data}
+                  dayDate={dayDate}
+                  onSelectPlace={onSelectPlace}
+                  onSelectHotel={onSelectHotel}
+                  onEditHotel={onEditHotel}
+                />
               ) : (
                 <TransportItem journey={item.data} dayDate={dayDate} onSelect={onSelectJourney} />
               )}

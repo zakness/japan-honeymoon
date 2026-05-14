@@ -45,6 +45,8 @@ function makeAccommodation(overrides?: Partial<AccommodationRow>): Accommodation
     booked_by: null,
     check_in_time: '15:00:00',
     check_out_time: '11:00:00',
+    check_in_policy_time: null,
+    check_out_policy_time: null,
     google_place_id: null,
     rating: null,
     photos: [],

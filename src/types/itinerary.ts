@@ -39,6 +39,49 @@ export interface ItineraryItemWithPlace extends ItineraryItemRow {
   place: PlaceRow | null
 }
 
+// Discriminator for itinerary_items rows. The DB enforces "exactly one of
+// (place_id, text_note, accommodation_id) is set" via a CHECK constraint;
+// hotel events additionally carry hotel_event_role ('checkin' | 'checkout').
+export type ItineraryItemKind = 'place' | 'text_note' | 'hotel_checkin' | 'hotel_checkout'
+
+export function itemKind(
+  item: Pick<ItineraryItemRow, 'place_id' | 'text_note' | 'accommodation_id' | 'hotel_event_role'>
+): ItineraryItemKind {
+  if (item.accommodation_id) {
+    return item.hotel_event_role === 'checkout' ? 'hotel_checkout' : 'hotel_checkin'
+  }
+  if (item.place_id) return 'place'
+  return 'text_note'
+}
+
+export function isHotelEventKind(
+  kind: ItineraryItemKind
+): kind is 'hotel_checkin' | 'hotel_checkout' {
+  return kind === 'hotel_checkin' || kind === 'hotel_checkout'
+}
+
+/**
+ * Render the 4-state time pill text for a hotel event card.
+ *   both set      → "6:00 PM (from 3:00 PM)" / "9:00 AM (by 11:00 AM)"
+ *   planned only  → "6:00 PM"                / "9:00 AM"
+ *   policy only   → "from 3:00 PM"           / "by 11:00 AM"
+ *   neither       → "time TBD"
+ */
+export function formatHotelTimePill(args: {
+  planned: string | null
+  policy: string | null
+  role: 'checkin' | 'checkout'
+}): string {
+  const { planned, policy, role } = args
+  const preposition = role === 'checkin' ? 'from' : 'by'
+  if (planned && policy) {
+    return `${formatReservationTime(planned)} (${preposition} ${formatReservationTime(policy)})`
+  }
+  if (planned) return formatReservationTime(planned)
+  if (policy) return `${preposition} ${formatReservationTime(policy)}`
+  return 'time TBD'
+}
+
 export function deriveTimeSlot(reservationTime: string): TimeSlot {
   const [h, m] = reservationTime.split(':').map(Number)
   const minutes = (h ?? 0) * 60 + (m ?? 0)

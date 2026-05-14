@@ -48,6 +48,8 @@ interface FormState {
   // Hotel-only
   checkInDate: string
   checkOutDate: string
+  checkInPolicyTime: string
+  checkOutPolicyTime: string
   checkInTime: string
   checkOutTime: string
   bookedBy: string
@@ -73,6 +75,8 @@ function hotelToFormState(h: AccommodationRow): FormState {
     photos: Array.isArray(h.photos) ? (h.photos as string[]) : [],
     checkInDate: h.check_in_date,
     checkOutDate: h.check_out_date,
+    checkInPolicyTime: h.check_in_policy_time?.slice(0, 5) ?? '',
+    checkOutPolicyTime: h.check_out_policy_time?.slice(0, 5) ?? '',
     checkInTime: h.check_in_time?.slice(0, 5) ?? '',
     checkOutTime: h.check_out_time?.slice(0, 5) ?? '',
     bookedBy: h.booked_by ?? '',
@@ -192,6 +196,8 @@ export function HotelForm({ hotel, onSuccess, onCancel }: HotelFormProps) {
       photos: form.photos,
       check_in_date: form.checkInDate,
       check_out_date: form.checkOutDate,
+      check_in_policy_time: form.checkInPolicyTime || null,
+      check_out_policy_time: form.checkOutPolicyTime || null,
       check_in_time: form.checkInTime || null,
       check_out_time: form.checkOutTime || null,
       booked_by: form.bookedBy || null,
@@ -256,7 +262,9 @@ export function HotelForm({ hotel, onSuccess, onCancel }: HotelFormProps) {
         </Select>
       </div>
 
-      {/* Check-in / Check-out dates */}
+      {/* Check-in / check-out, two columns. Per side: Date, Policy time
+          (hotel's earliest/latest), Planned time (when we'll actually
+          arrive/depart). All three rows carry equal visual weight. */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="check-in-date">Check-in *</Label>
@@ -278,12 +286,28 @@ export function HotelForm({ hotel, onSuccess, onCancel }: HotelFormProps) {
             required
           />
         </div>
-      </div>
 
-      {/* Times */}
-      <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="check-in-time">Check-in time</Label>
+          <Label htmlFor="check-in-policy-time">Check-in policy time</Label>
+          <DateTimeInput
+            id="check-in-policy-time"
+            type="time"
+            value={form.checkInPolicyTime}
+            onValueChange={(v) => set('checkInPolicyTime', v)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="check-out-policy-time">Check-out policy time</Label>
+          <DateTimeInput
+            id="check-out-policy-time"
+            type="time"
+            value={form.checkOutPolicyTime}
+            onValueChange={(v) => set('checkOutPolicyTime', v)}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="check-in-time">Planned check-in time</Label>
           <DateTimeInput
             id="check-in-time"
             type="time"
@@ -292,7 +316,7 @@ export function HotelForm({ hotel, onSuccess, onCancel }: HotelFormProps) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="check-out-time">Check-out time</Label>
+          <Label htmlFor="check-out-time">Planned check-out time</Label>
           <DateTimeInput
             id="check-out-time"
             type="time"

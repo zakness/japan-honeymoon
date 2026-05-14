@@ -14,8 +14,10 @@ export type Database = {
           booked_by: string | null
           booking_url: string | null
           check_in_date: string
+          check_in_policy_time: string | null
           check_in_time: string | null
           check_out_date: string
+          check_out_policy_time: string | null
           check_out_time: string | null
           city: string
           confirmation_numbers: string[]
@@ -38,8 +40,10 @@ export type Database = {
           booked_by?: string | null
           booking_url?: string | null
           check_in_date: string
+          check_in_policy_time?: string | null
           check_in_time?: string | null
           check_out_date: string
+          check_out_policy_time?: string | null
           check_out_time?: string | null
           city: string
           confirmation_numbers?: string[]
@@ -62,8 +66,10 @@ export type Database = {
           booked_by?: string | null
           booking_url?: string | null
           check_in_date?: string
+          check_in_policy_time?: string | null
           check_in_time?: string | null
           check_out_date?: string
+          check_out_policy_time?: string | null
           check_out_time?: string | null
           city?: string
           confirmation_numbers?: string[]
@@ -127,8 +133,10 @@ export type Database = {
       }
       itinerary_items: {
         Row: {
+          accommodation_id: string | null
           created_at: string
           day_date: string
+          hotel_event_role: string | null
           id: string
           images: Json | null
           is_decided: boolean
@@ -141,8 +149,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accommodation_id?: string | null
           created_at?: string
           day_date: string
+          hotel_event_role?: string | null
           id?: string
           images?: Json | null
           is_decided?: boolean
@@ -155,8 +165,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accommodation_id?: string | null
           created_at?: string
           day_date?: string
+          hotel_event_role?: string | null
           id?: string
           images?: Json | null
           is_decided?: boolean
@@ -169,6 +181,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: 'itinerary_items_accommodation_id_fkey'
+            columns: ['accommodation_id']
+            isOneToOne: false
+            referencedRelation: 'accommodations'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'itinerary_items_place_id_fkey'
             columns: ['place_id']
@@ -327,6 +346,7 @@ export type Database = {
       transport_legs: {
         Row: {
           arrival_time: string | null
+          booking_status: string
           confirmation: string | null
           created_at: string
           departure_time: string
@@ -335,7 +355,6 @@ export type Database = {
           destination_name: string
           destination_place_id: string | null
           id: string
-          booking_status: string
           leg_index: number
           mode: string
           notes: string | null
@@ -348,6 +367,7 @@ export type Database = {
         }
         Insert: {
           arrival_time?: string | null
+          booking_status?: string
           confirmation?: string | null
           created_at?: string
           departure_time: string
@@ -356,7 +376,6 @@ export type Database = {
           destination_name: string
           destination_place_id?: string | null
           id?: string
-          booking_status?: string
           leg_index: number
           mode: string
           notes?: string | null
@@ -369,6 +388,7 @@ export type Database = {
         }
         Update: {
           arrival_time?: string | null
+          booking_status?: string
           confirmation?: string | null
           created_at?: string
           departure_time?: string
@@ -377,7 +397,6 @@ export type Database = {
           destination_name?: string
           destination_place_id?: string | null
           id?: string
-          booking_status?: string
           leg_index?: number
           mode?: string
           notes?: string | null
@@ -403,7 +422,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      derive_hotel_slot: {
+        Args: { default_slot: string; planned: string; policy: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

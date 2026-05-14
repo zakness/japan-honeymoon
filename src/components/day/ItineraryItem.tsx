@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Archive, StickyNote, Clock, Lock, Unlock, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PLACE_CATEGORIES, type PlaceRow } from '@/types/places'
-import { formatReservationTime, type ItineraryItemWithPlace } from '@/types/itinerary'
+import { formatReservationTime, itemKind, type ItineraryItemWithPlace } from '@/types/itinerary'
 import { getCityColor, getPrimaryCityForDate } from '@/config/trip'
 import { useDeleteItineraryItem, useUpdateItineraryItem } from '@/hooks/useItinerary'
 import { useArchiveWithUndo, useChildCounts } from '@/hooks/usePlaces'
@@ -12,6 +12,8 @@ import { TextNoteDialog } from './TextNoteDialog'
 import { CardBanner } from '@/components/shared/CardBanner'
 import { StarToggle } from '@/components/places/StarToggle'
 import { SortableItemCard, type CardAction } from './SortableItemCard'
+import { HotelEventCard } from './HotelEventCard'
+import type { AccommodationRow } from '@/types/accommodations'
 
 interface ItineraryItemProps {
   item: ItineraryItemWithPlace
@@ -22,9 +24,47 @@ interface ItineraryItemProps {
    * `'day-column'` as the origin.
    */
   onSelectPlace?: (place: PlaceRow) => void
+  /** Fires when a hotel-event card body is clicked. */
+  onSelectHotel?: (hotel: AccommodationRow) => void
+  /** Fires when the hotel-event card's Edit action is invoked. */
+  onEditHotel?: (hotel: AccommodationRow) => void
 }
 
-export function ItineraryItem({ item, dayDate, onSelectPlace }: ItineraryItemProps) {
+export function ItineraryItem({
+  item,
+  dayDate,
+  onSelectPlace,
+  onSelectHotel,
+  onEditHotel,
+}: ItineraryItemProps) {
+  // Hotel events render via a dedicated component — no banner, no reservation
+  // affordances, no place-archive action. The dispatch is the whole point of
+  // splitting render paths: the place/text-note branch below uses several
+  // hooks that hotel events don't need, and rules-of-hooks demands we pick
+  // one branch's component or the other, not conditionally call hooks within
+  // a single one.
+  const kind = itemKind(item)
+  if (kind === 'hotel_checkin' || kind === 'hotel_checkout') {
+    return (
+      <HotelEventCard
+        item={item}
+        role={kind === 'hotel_checkin' ? 'checkin' : 'checkout'}
+        dayDate={dayDate}
+        onSelectHotel={onSelectHotel}
+        onEditHotel={onEditHotel}
+      />
+    )
+  }
+  return <PlaceOrTextNoteItem item={item} dayDate={dayDate} onSelectPlace={onSelectPlace} />
+}
+
+interface PlaceOrTextNoteItemProps {
+  item: ItineraryItemWithPlace
+  dayDate: string
+  onSelectPlace?: (place: PlaceRow) => void
+}
+
+function PlaceOrTextNoteItem({ item, dayDate, onSelectPlace }: PlaceOrTextNoteItemProps) {
   const deleteItem = useDeleteItineraryItem()
   const updateItem = useUpdateItineraryItem()
   const archivePlace = useArchiveWithUndo()
