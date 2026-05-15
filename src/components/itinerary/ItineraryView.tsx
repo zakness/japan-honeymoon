@@ -20,7 +20,9 @@ import type { PlaceRow } from '@/types/places'
 import type { AccommodationRow } from '@/types/accommodations'
 import type { Journey } from '@/types/transport'
 import { CityStrip } from './CityStrip'
-import { CityMap } from './CityMap'
+import { CityMap, ALL_DAYS, type CityMapHandle } from './CityMap'
+import { MapToolbar } from './MapToolbar'
+import { MapFloatingControls } from './MapFloatingControls'
 import { DetailPanel, type DetailSelection } from './DetailPanel'
 import { DayColumn } from './DayColumn'
 import { UnscheduledColumn } from './UnscheduledColumn'
@@ -136,6 +138,35 @@ export function ItineraryView({
   const [mapDetailSplitPct, setMapDetailSplitPct] = useState<number>(DETAIL_SPLIT_DEFAULT_PCT)
   const [isResizingDetail, setIsResizingDetail] = useState(false)
   const mapColumnRef = useRef<HTMLDivElement>(null)
+
+  // Map filter state — lifted out of `CityMap` so the toolbar (desktop) and
+  // floating controls (mobile) can drive it without owning the map.
+  //   * `selectedDay`     — `'all'` (city-wide) or `YYYY-MM-DD`. Resets to
+  //                         `'all'` on city change.
+  //   * `showUnscheduled` — orthogonal backlog overlay. Persists across
+  //                         cities for the session (viewing preference).
+  const [selectedDay, setSelectedDay] = useState<string>(ALL_DAYS)
+  const [showUnscheduled, setShowUnscheduled] = useState(false)
+  useEffect(() => {
+    setSelectedDay(ALL_DAYS)
+  }, [city])
+  const mapRef = useRef<CityMapHandle>(null)
+  const handleRecenter = useCallback(() => mapRef.current?.recenter(), [])
+  // Toolbar day-cell click: also clear the active selection. Otherwise the
+  // map's auto-relax effect would see a selection hidden by the new filter
+  // and silently reset the day filter back to `'all'`, undoing the click.
+  // (`CityMap`'s own `onSelectDay` prop stays as raw `setSelectedDay` so the
+  // auto-relax path can update the day without clobbering the selection it
+  // is *trying to keep visible*.)
+  const handleSelectDayFromUI = useCallback(
+    (day: string) => {
+      setSelectedDay(day)
+      onSelectPlace(null)
+      onSelectHotel(null)
+      onSelectJourney(null)
+    },
+    [onSelectPlace, onSelectHotel, onSelectJourney]
+  )
 
   // Discriminated selection for the shared DetailPanel. Null when nothing is
   // selected — the panel collapses on desktop, falls back to the itinerary
@@ -322,59 +353,78 @@ export function ItineraryView({
                     (isResizing || isResizingDetail) && 'pointer-events-none'
                   )}
                 >
-                  <div
-                    className="overflow-hidden min-h-0"
-                    style={{
-                      height: detailSelection ? `${mapDetailSplitPct}%` : '100%',
-                      transition: isResizingDetail
-                        ? 'none'
-                        : `height ${DETAIL_PANEL_TRANSITION_MS}ms ease-out`,
-                    }}
-                  >
-                    <CityMap
-                      city={city}
-                      selectedPlace={selectedPlace}
-                      onSelectPlace={onSelectPlace}
-                      selectedHotel={selectedHotel}
-                      onSelectHotel={onSelectHotel}
-                      selectedJourney={selectedJourney}
-                      onSelectJourney={onSelectJourney}
-                    />
-                  </div>
-                  {detailSelection && (
+                  <MapToolbar
+                    city={city}
+                    selectedDay={selectedDay}
+                    onSelectDay={handleSelectDayFromUI}
+                    showUnscheduled={showUnscheduled}
+                    onShowUnscheduledChange={setShowUnscheduled}
+                    onRecenter={handleRecenter}
+                  />
+                  {/* Inner column holds the original map / divider / detail
+                      three-part layout. Wrapped so the toolbar's height
+                      doesn't break the percentage-based vertical split. */}
+                  <div className="flex flex-1 flex-col min-h-0">
                     <div
-                      className="h-3 -my-1 shrink-0 cursor-row-resize relative z-10 flex items-center justify-center group/detail-divider pointer-events-auto"
-                      onPointerDown={handleDetailDividerPointerDown}
-                      onPointerMove={handleDetailDividerPointerMove}
-                      onPointerUp={handleDetailDividerPointerUp}
+                      className="overflow-hidden min-h-0"
+                      style={{
+                        height: detailSelection ? `${mapDetailSplitPct}%` : '100%',
+                        transition: isResizingDetail
+                          ? 'none'
+                          : `height ${DETAIL_PANEL_TRANSITION_MS}ms ease-out`,
+                      }}
                     >
-                      <div
-                        className={cn(
-                          'h-1 w-full transition-colors',
-                          isResizingDetail
-                            ? 'bg-primary/40'
-                            : 'group-hover/detail-divider:bg-primary/20'
-                        )}
+                      <CityMap
+                        ref={mapRef}
+                        city={city}
+                        selectedPlace={selectedPlace}
+                        onSelectPlace={onSelectPlace}
+                        selectedHotel={selectedHotel}
+                        onSelectHotel={onSelectHotel}
+                        selectedJourney={selectedJourney}
+                        onSelectJourney={onSelectJourney}
+                        selectedDay={selectedDay}
+                        onSelectDay={setSelectedDay}
+                        showScheduled={true}
+                        showUnscheduled={showUnscheduled}
+                        onShowUnscheduledChange={setShowUnscheduled}
                       />
                     </div>
-                  )}
-                  <div
-                    className="overflow-hidden border-t bg-background"
-                    style={{
-                      height: detailSelection ? `${100 - mapDetailSplitPct}%` : 0,
-                      transition: isResizingDetail
-                        ? 'none'
-                        : `height ${DETAIL_PANEL_TRANSITION_MS}ms ease-out`,
-                    }}
-                  >
                     {detailSelection && (
-                      <DetailPanel
-                        selection={detailSelection}
-                        onClose={handleCloseDetail}
-                        onEdit={handleEditDetail}
-                        onSelectPlace={handleSelectFromDetail}
-                      />
+                      <div
+                        className="h-3 -my-1 shrink-0 cursor-row-resize relative z-10 flex items-center justify-center group/detail-divider pointer-events-auto"
+                        onPointerDown={handleDetailDividerPointerDown}
+                        onPointerMove={handleDetailDividerPointerMove}
+                        onPointerUp={handleDetailDividerPointerUp}
+                      >
+                        <div
+                          className={cn(
+                            'h-1 w-full transition-colors',
+                            isResizingDetail
+                              ? 'bg-primary/40'
+                              : 'group-hover/detail-divider:bg-primary/20'
+                          )}
+                        />
+                      </div>
                     )}
+                    <div
+                      className="overflow-hidden border-t bg-background"
+                      style={{
+                        height: detailSelection ? `${100 - mapDetailSplitPct}%` : 0,
+                        transition: isResizingDetail
+                          ? 'none'
+                          : `height ${DETAIL_PANEL_TRANSITION_MS}ms ease-out`,
+                      }}
+                    >
+                      {detailSelection && (
+                        <DetailPanel
+                          selection={detailSelection}
+                          onClose={handleCloseDetail}
+                          onEdit={handleEditDetail}
+                          onSelectPlace={handleSelectFromDetail}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
               </>
@@ -388,8 +438,9 @@ export function ItineraryView({
              content stays mounted (just hidden) so scroll position survives
              a select+close cycle. No draggable sheet. */
           <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="h-[30dvh] shrink-0">
+            <div className="h-[30dvh] shrink-0 relative">
               <CityMap
+                ref={mapRef}
                 city={city}
                 selectedPlace={selectedPlace}
                 onSelectPlace={onSelectPlace}
@@ -397,6 +448,21 @@ export function ItineraryView({
                 onSelectHotel={onSelectHotel}
                 selectedJourney={selectedJourney}
                 onSelectJourney={onSelectJourney}
+                /* Mobile: the day filter mirrors the DayStrip selection.
+                   On the Places tab, scheduled pins are suppressed and the
+                   unscheduled overlay is forced on so the map shows the whole
+                   backlog. */
+                selectedDay={mobileTab === PLACES_TAB ? ALL_DAYS : mobileTab}
+                onSelectDay={setSelectedDay}
+                showScheduled={mobileTab !== PLACES_TAB}
+                showUnscheduled={mobileTab === PLACES_TAB ? true : showUnscheduled}
+                onShowUnscheduledChange={setShowUnscheduled}
+              />
+              <MapFloatingControls
+                showUnscheduledToggle={mobileTab !== PLACES_TAB}
+                showUnscheduled={showUnscheduled}
+                onShowUnscheduledChange={setShowUnscheduled}
+                onRecenter={handleRecenter}
               />
             </div>
             <div className="flex-1 min-h-0 relative bg-background border-t">
