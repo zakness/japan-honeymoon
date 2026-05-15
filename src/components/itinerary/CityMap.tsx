@@ -1,18 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react'
 import { Map as GMap, useMap } from '@vis.gl/react-google-maps'
 import { PlaceMarker } from '@/components/map/PlaceMarker'
 import { HotelMarker } from '@/components/map/HotelMarker'
 import { TransportEndpointMarker } from '@/components/map/TransportEndpointMarker'
 import { usePlaces, useChildrenOf, useChildMustGoMap } from '@/hooks/usePlaces'
 import { useAccommodations } from '@/hooks/useAccommodations'
-import { useScheduledDatesByPlace } from '@/hooks/useItinerary'
-import {
-  getDaysForCity,
-  CITY_MAP_CENTER,
-  CITY_LABELS,
-  formatTripDayLabel,
-  type City,
-} from '@/config/trip'
+import { useScheduledDatesByPlace, useUnscheduledPlaces } from '@/hooks/useItinerary'
+import { CITY_MAP_CENTER, type City } from '@/config/trip'
 import { GOOGLE_MAP_ID } from '@/lib/google-maps'
 import { getModeStyle } from '@/config/transport'
 import type { SelectPlaceHandler } from '@/components/layout/AppShell'
@@ -20,7 +14,40 @@ import type { PlaceRow } from '@/types/places'
 import type { AccommodationRow } from '@/types/accommodations'
 import type { Journey } from '@/types/transport'
 
-const ALL = 'all'
+export const ALL_DAYS = 'all'
+
+/**
+ * Decide what to relax when a selected place isn't currently visible. The
+ * inputs are the place's scheduled dates (from `useScheduledDatesByPlace`),
+ * the active day filter, and whether the unscheduled overlay is on.
+ *
+ *   • Scheduled on a day other than the filter → reset the filter to `all`.
+ *   • Unscheduled while the overlay is off    → turn the overlay on.
+ *   • Otherwise (already visible)              → null.
+ */
+export type AutoRelaxAction = { type: 'reset-day' } | { type: 'show-unscheduled' } | null
+
+export function computeAutoRelaxAction(args: {
+  scheduledDates: string[]
+  selectedDay: string
+  showUnscheduled: boolean
+}): AutoRelaxAction {
+  const { scheduledDates, selectedDay, showUnscheduled } = args
+  const isScheduled = scheduledDates.length > 0
+  if (isScheduled) {
+    if (selectedDay !== ALL_DAYS && !scheduledDates.includes(selectedDay)) {
+      return { type: 'reset-day' }
+    }
+    return null
+  }
+  if (!showUnscheduled) return { type: 'show-unscheduled' }
+  return null
+}
+/** Imperative handle exposed by `<CityMap />` so the toolbar / floating
+ *  controls can request a recenter (fit-bounds to currently-visible pins). */
+export interface CityMapHandle {
+  recenter: () => void
+}
 const PAN_DURATION_MS = 500
 /** Symmetric padding (in pixels) for `fitBounds` calls — initial city framing
  *  and journey fits both use the same value, since the detail panel is now a
@@ -81,6 +108,37 @@ function smoothPanTo(map: google.maps.Map, target: google.maps.LatLngLiteral) {
   panAnim = requestAnimationFrame(step)
 }
 
+/**
+ * Fit the map to a set of lat/lng pins with symmetric padding. Used for both
+ * the initial city frame and the manual recenter button. Falls back to the
+ * city's configured center/zoom when there are no pins, and pans at the city
+ * zoom for a single pin (otherwise fitBounds zooms to street level).
+ */
+function fitToPins(
+  map: google.maps.Map,
+  pins: Array<{ lat: number; lng: number }>,
+  cityForFallback: City
+): void {
+  const bounds = new google.maps.LatLngBounds()
+  for (const p of pins) bounds.extend({ lat: p.lat, lng: p.lng })
+
+  cancelSmoothPan()
+  if (pins.length === 0) {
+    const center = CITY_MAP_CENTER[cityForFallback]
+    map.moveCamera({ center: { lat: center.lat, lng: center.lng }, zoom: center.zoom })
+  } else if (pins.length === 1) {
+    const center = CITY_MAP_CENTER[cityForFallback]
+    map.moveCamera({ center: bounds.getCenter().toJSON(), zoom: center.zoom })
+  } else {
+    map.fitBounds(bounds, {
+      top: FIT_PADDING_PX,
+      right: FIT_PADDING_PX,
+      bottom: FIT_PADDING_PX,
+      left: FIT_PADDING_PX,
+    })
+  }
+}
+
 /** Fit the map to the bounds of a journey's leg endpoints. Returns false if
  *  the journey has no usable coordinates. */
 function fitJourney(map: google.maps.Map, journey: Journey): boolean {
@@ -113,38 +171,78 @@ function fitJourney(map: google.maps.Map, journey: Journey): boolean {
 
 interface CityMapContentProps {
   city: City
-  dayDate: string | null
+  /** `'all'` shows every scheduled place in the city; a `YYYY-MM-DD` filters to
+   *  that day. Only meaningful when `showScheduled` is true. */
+  selectedDay: string
+  /** When false, hide all scheduled-place pins (used by the mobile Places tab
+   *  to show "unscheduled only"). */
+  showScheduled: boolean
+  /** When true, overlay the city's unscheduled-backlog pins on top of the
+   *  scheduled subset. Orthogonal to the day filter. */
+  showUnscheduled: boolean
   selectedPlace: PlaceRow | null
   selectedHotel: AccommodationRow | null
   selectedJourney: Journey | null
   scheduleMap: globalThis.Map<string, string[]> | undefined
   onSelectPlace: SelectPlaceHandler
   onSelectHotel: (hotel: AccommodationRow | null) => void
+  onSelectJourney: (journey: Journey | null) => void
   /** Element wrapping the map; observed for size changes so we can re-pan
    *  the active selection after the parent layout grows or shrinks the map. */
   containerRef: React.RefObject<HTMLDivElement | null>
+  /** The outer `<CityMap />` writes the current recenter function here so its
+   *  `useImperativeHandle` can call back into the in-provider closure. */
+  recenterRef: React.MutableRefObject<(() => void) | null>
 }
 
 function CityMapContent({
   city,
-  dayDate,
+  selectedDay,
+  showScheduled,
+  showUnscheduled,
   selectedPlace,
   selectedHotel,
   selectedJourney,
   scheduleMap,
   onSelectPlace,
   onSelectHotel,
+  onSelectJourney,
   containerRef,
+  recenterRef,
 }: CityMapContentProps) {
   const map = useMap()
   const initializedCityRef = useRef<City | null>(null)
 
-  const placesQuery = usePlaces({
-    city,
-    dayDate: dayDate ?? undefined,
-  })
-  const places = placesQuery.data ?? []
-  const placesFetched = placesQuery.isFetched
+  // Scheduled subset: filtered by day when a specific day is selected, else
+  // restricted to places with at least one itinerary_items row in the city.
+  // Disabled entirely when `showScheduled` is false (mobile Places tab mode).
+  const scheduledQuery = usePlaces(
+    showScheduled
+      ? {
+          city,
+          dayDate: selectedDay !== ALL_DAYS ? selectedDay : undefined,
+          scheduledOnly: selectedDay === ALL_DAYS,
+        }
+      : undefined
+  )
+  // Unscheduled overlay — the global backlog filtered client-side to the
+  // current city. `useUnscheduledPlaces` doesn't accept a city param.
+  const unscheduledQuery = useUnscheduledPlaces()
+  // Merge scheduled + unscheduled sources, deduping by id (an entry could
+  // appear in both if queries race during a transition).
+  const scheduledData = scheduledQuery.data
+  const unscheduledData = unscheduledQuery.data
+  const places = useMemo(() => {
+    const sched = showScheduled ? (scheduledData ?? []) : []
+    const unsched = showUnscheduled ? (unscheduledData ?? []).filter((p) => p.city === city) : []
+    if (unsched.length === 0) return sched
+    const byId = new Map<string, PlaceRow>()
+    for (const p of sched) byId.set(p.id, p)
+    for (const p of unsched) byId.set(p.id, p)
+    return Array.from(byId.values())
+  }, [showScheduled, showUnscheduled, scheduledData, unscheduledData, city])
+  const placesFetched =
+    (!showScheduled || scheduledQuery.isFetched) && (!showUnscheduled || unscheduledQuery.isFetched)
   const accommodationsQuery = useAccommodations()
   const allHotels = accommodationsQuery.data ?? []
   const accommodationsFetched = accommodationsQuery.isFetched
@@ -157,52 +255,85 @@ function CityMapContent({
   // for parent markers.
   const { data: childMustGoSet } = useChildMustGoMap()
 
+  // Currently-visible pins for fit-bounds operations (recenter button, initial
+  // city frame, day-change re-fit). Scoped to the *currently-viewed* city —
+  // important on transit days (e.g. May 22 = Tokyo & Hakone) where the
+  // day-date query returns rows scheduled in both cities. Rendering still
+  // draws every returned pin (so a transit-day Hakone marker can sit on the
+  // Tokyo map for context), but recentering only frames the current city.
+  // `hotels` is already city-filtered above; only `places` needs the extra
+  // guard here.
+  const visiblePins = useMemo<Array<{ lat: number; lng: number }>>(() => {
+    const pins: Array<{ lat: number; lng: number }> = []
+    for (const p of places) {
+      if (p.city !== city) continue
+      if (p.lat != null && p.lng != null) pins.push({ lat: p.lat, lng: p.lng })
+    }
+    for (const h of hotels) {
+      if (h.lat != null && h.lng != null) pins.push({ lat: h.lat, lng: h.lng })
+    }
+    return pins
+  }, [places, hotels, city])
+
+  // Recenter: clear all three selections, then fit visible pins. Clearing the
+  // selection before fitting prevents the ResizeObserver-driven auto-pan from
+  // immediately yanking the map back to the (now stale) selection.
+  const recenter = useCallback(() => {
+    if (!map) return
+    onSelectPlace(null)
+    onSelectHotel(null)
+    onSelectJourney(null)
+    fitToPins(map, visiblePins, city)
+  }, [map, visiblePins, city, onSelectPlace, onSelectHotel, onSelectJourney])
+  useEffect(() => {
+    recenterRef.current = recenter
+    return () => {
+      recenterRef.current = null
+    }
+  }, [recenter, recenterRef])
+
+  // Tracks the day filter the camera was last fit to. Compared against
+  // `selectedDay` in the re-fit effect below; the initial-frame effect also
+  // writes here so the very first fit doesn't double as a day-change fit.
+  const lastFittedDayRef = useRef<string>(selectedDay)
+
   // Frame the city on initial load (and on each city switch) by fitting the
-  // bounds of all known pins (places + hotels) for that city. Falls back to
-  // the configured CITY_MAP_CENTER if the city has no pins.
+  // currently-visible pins. Falls back to the configured CITY_MAP_CENTER if
+  // there are none. The ref guard skips re-initialisation once a city has
+  // been framed — subsequent re-fits go through the explicit recenter button
+  // or the day-change re-fit effect below.
   useEffect(() => {
     if (!map || initializedCityRef.current === city) return
     if (!placesFetched || !accommodationsFetched) return
-
-    const bounds = new google.maps.LatLngBounds()
-    let count = 0
-    for (const p of places) {
-      if (p.lat != null && p.lng != null) {
-        bounds.extend({ lat: p.lat, lng: p.lng })
-        count++
-      }
-    }
-    for (const h of hotels) {
-      if (h.lat != null && h.lng != null) {
-        bounds.extend({ lat: h.lat, lng: h.lng })
-        count++
-      }
-    }
-
-    cancelSmoothPan()
-    if (count === 0) {
-      const center = CITY_MAP_CENTER[city]
-      map.moveCamera({ center: { lat: center.lat, lng: center.lng }, zoom: center.zoom })
-    } else if (count === 1) {
-      // fitBounds on a single point would zoom to street level; pan to it
-      // at the city's configured zoom instead.
-      const center = CITY_MAP_CENTER[city]
-      map.moveCamera({ center: bounds.getCenter().toJSON(), zoom: center.zoom })
-    } else {
-      map.fitBounds(bounds, {
-        top: FIT_PADDING_PX,
-        right: FIT_PADDING_PX,
-        bottom: FIT_PADDING_PX,
-        left: FIT_PADDING_PX,
-      })
-    }
+    fitToPins(map, visiblePins, city)
     initializedCityRef.current = city
-    // `places`/`hotels` are derived arrays whose identity changes on every
-    // TanStack refetch; depend on lengths instead so the effect only re-runs
-    // when pin counts actually change. The ref guard skips re-initialisation
-    // anyway once a city has been framed.
+    lastFittedDayRef.current = selectedDay
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, city, places.length, hotels.length, placesFetched, accommodationsFetched])
+  }, [map, city, visiblePins.length, placesFetched, accommodationsFetched])
+
+  // Re-fit on day-filter change. Waits for the new query to settle so we
+  // don't fit to stale data, and bails when a selection is active — the
+  // pan-to-selection effect owns the camera in that case, and the auto-relax
+  // path (place hidden by filter → reset to All) shouldn't yank the view away
+  // from the just-picked marker.
+  const hasSelection = !!(selectedPlace || selectedHotel || selectedJourney)
+  useEffect(() => {
+    if (!map || !placesFetched) return
+    if (lastFittedDayRef.current === selectedDay) return
+    if (showScheduled && scheduledQuery.isFetching) return
+    lastFittedDayRef.current = selectedDay
+    if (hasSelection) return
+    fitToPins(map, visiblePins, city)
+  }, [
+    selectedDay,
+    map,
+    placesFetched,
+    showScheduled,
+    scheduledQuery.isFetching,
+    visiblePins,
+    city,
+    hasSelection,
+  ])
 
   // Pan to the selected place when the lifted selection changes. When the
   // selected place has children with coordinates, fit bounds over parent +
@@ -456,76 +587,81 @@ interface CityMapProps {
   /** Currently-selected journey — drives polylines, endpoint markers, fitBounds. */
   selectedJourney: Journey | null
   onSelectJourney: (journey: Journey | null) => void
+  /** Day filter — owned by ItineraryView. `'all'` shows every scheduled place
+   *  in the city; a `YYYY-MM-DD` filters to that day. */
+  selectedDay: string
+  /** Setter used by the auto-relax effect when a hidden place is selected. */
+  onSelectDay: (day: string) => void
+  /** When false, hide all scheduled-place pins (mobile Places tab). */
+  showScheduled: boolean
+  /** Overlay the city's unscheduled-backlog pins on top of the scheduled set. */
+  showUnscheduled: boolean
+  /** Setter used by the auto-relax effect when an unscheduled place is selected. */
+  onShowUnscheduledChange: (v: boolean) => void
 }
 
-export function CityMap({
-  city,
-  selectedPlace,
-  onSelectPlace,
-  selectedHotel,
-  onSelectHotel,
-  selectedJourney,
-  onSelectJourney,
-}: CityMapProps) {
-  const [selectedDay, setSelectedDay] = useState<string>(ALL)
+export const CityMap = forwardRef<CityMapHandle, CityMapProps>(function CityMap(
+  {
+    city,
+    selectedPlace,
+    onSelectPlace,
+    selectedHotel,
+    onSelectHotel,
+    selectedJourney,
+    onSelectJourney,
+    selectedDay,
+    onSelectDay,
+    showScheduled,
+    showUnscheduled,
+    onShowUnscheduledChange,
+  },
+  ref
+) {
   const { data: scheduleMap } = useScheduledDatesByPlace()
   const prevCityRef = useRef(city)
   const containerRef = useRef<HTMLDivElement>(null)
+  const recenterRef = useRef<(() => void) | null>(null)
 
-  const cityDays = getDaysForCity(city)
+  useImperativeHandle(
+    ref,
+    () => ({
+      recenter: () => recenterRef.current?.(),
+    }),
+    []
+  )
+
   const center = CITY_MAP_CENTER[city]
 
-  // Reset selection and day filter when city changes. Guarded so it only fires
-  // on actual city *change* — not on initial mount or re-mount (e.g. when the
-  // map is hidden then revealed via the auto-reveal feature). Without this
-  // guard, revealing the map after a backlog click would immediately clear the
-  // selection that was just set.
+  // Reset selection when city changes. Guarded so it only fires on actual
+  // city *change* — not on initial mount or re-mount (e.g. when the map is
+  // hidden then revealed via the auto-reveal feature). Day-filter reset on
+  // city change is owned by ItineraryView.
   useEffect(() => {
     if (prevCityRef.current === city) return
     prevCityRef.current = city
     onSelectPlace(null)
     onSelectHotel(null)
     onSelectJourney(null)
-    setSelectedDay(ALL)
   }, [city, onSelectPlace, onSelectHotel, onSelectJourney])
 
-  // Filter auto-reset: if a day filter is active and the user selects a place
-  // that isn't scheduled on that day, the marker wouldn't render and the card
-  // would float orphaned. Reset the filter to ALL so the marker shows up.
-  // Keying on the primitive `selectedId` prevents this from re-firing on
-  // every PlaceRow reference change.
+  // Auto-relax filter on a hidden selection: if the selected place is scheduled
+  // on a different day, switch to `All`. If it's unscheduled and the overlay
+  // is off, turn the overlay on. Keying on the primitive `selectedId` prevents
+  // re-firing on every PlaceRow reference change.
   const selectedId = selectedPlace?.id ?? null
   useEffect(() => {
-    if (!selectedId || selectedDay === ALL) return
-    const dates = scheduleMap?.get(selectedId) ?? []
-    if (!dates.includes(selectedDay)) {
-      setSelectedDay(ALL)
-    }
-  }, [selectedId, selectedDay, scheduleMap])
+    if (!selectedId || !scheduleMap) return
+    const action = computeAutoRelaxAction({
+      scheduledDates: scheduleMap.get(selectedId) ?? [],
+      selectedDay,
+      showUnscheduled,
+    })
+    if (action?.type === 'reset-day') onSelectDay(ALL_DAYS)
+    else if (action?.type === 'show-unscheduled') onShowUnscheduledChange(true)
+  }, [selectedId, selectedDay, showUnscheduled, scheduleMap, onSelectDay, onShowUnscheduledChange])
 
   return (
     <div ref={containerRef} className="relative h-full w-full">
-      {/* Day filter overlay */}
-      <div className="absolute top-2 left-2 z-10">
-        <select
-          value={selectedDay}
-          onChange={(e) => {
-            setSelectedDay(e.target.value)
-            onSelectPlace(null)
-            onSelectHotel(null)
-            onSelectJourney(null)
-          }}
-          className="rounded-md border bg-background px-2 py-1 text-xs shadow-sm focus:outline-none"
-        >
-          <option value={ALL}>All {CITY_LABELS[city]} days</option>
-          {cityDays.map((day) => (
-            <option key={day.date} value={day.date}>
-              {formatTripDayLabel(day)}
-            </option>
-          ))}
-        </select>
-      </div>
-
       <GMap
         mapId={GOOGLE_MAP_ID || null}
         defaultCenter={{ lat: center.lat, lng: center.lng }}
@@ -543,16 +679,20 @@ export function CityMap({
       >
         <CityMapContent
           city={city}
-          dayDate={selectedDay !== ALL ? selectedDay : null}
+          selectedDay={selectedDay}
+          showScheduled={showScheduled}
+          showUnscheduled={showUnscheduled}
           selectedPlace={selectedPlace}
           selectedHotel={selectedHotel}
           selectedJourney={selectedJourney}
           scheduleMap={scheduleMap}
           onSelectPlace={onSelectPlace}
           onSelectHotel={onSelectHotel}
+          onSelectJourney={onSelectJourney}
           containerRef={containerRef}
+          recenterRef={recenterRef}
         />
       </GMap>
     </div>
   )
-}
+})

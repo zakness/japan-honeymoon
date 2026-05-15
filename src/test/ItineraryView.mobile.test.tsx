@@ -20,6 +20,7 @@ beforeEach(() => {
 // render the rest of the tree without loading the maps SDK.
 vi.mock('@/components/itinerary/CityMap', () => ({
   CityMap: () => <div data-testid="city-map-stub" />,
+  ALL_DAYS: 'all',
 }))
 
 // All data hooks return empty/loading-stable defaults; the mobile layout

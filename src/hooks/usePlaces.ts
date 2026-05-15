@@ -20,6 +20,12 @@ export interface PlacesFilter {
   city?: string
   dayDate?: string // if set, only return places assigned to this day
   /**
+   * If `true` (and `dayDate` is not set), restrict results to places that have
+   * at least one `itinerary_items` row — i.e. scheduled on some day. Ignored
+   * when `dayDate` is set, since a day filter is already scheduled-only.
+   */
+  scheduledOnly?: boolean
+  /**
    * Default `true` — exclude nested children (`parent_place_id IS NOT NULL`)
    * from results. Children "ride along" with their parent, so the backlog, map,
    * and place list never surface them at the top level. Pass `false` to include
@@ -51,7 +57,23 @@ export function usePlaces(filter?: PlacesFilter) {
         return places
       }
 
+      // PostgREST has no subqueries: when restricting to scheduled places,
+      // fetch the scheduled place IDs first and restrict the places query to
+      // that set below.
+      let scheduledIds: string[] | null = null
+      if (filter?.scheduledOnly) {
+        const { data: scheduled, error: schedErr } = await supabase
+          .from('itinerary_items')
+          .select('place_id')
+          .not('place_id', 'is', null)
+        if (schedErr) throw schedErr
+        scheduledIds = scheduled.map((r) => r.place_id).filter(Boolean) as string[]
+        if (scheduledIds.length === 0) return [] as PlaceRow[]
+      }
+
       let query = supabase.from('places').select('*').order('created_at', { ascending: false })
+
+      if (scheduledIds) query = query.in('id', scheduledIds)
 
       if (filter?.category) query = query.eq('category', filter.category)
       if (filter?.mustGoOnly) {
