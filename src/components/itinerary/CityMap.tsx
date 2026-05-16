@@ -11,7 +11,7 @@ import { GOOGLE_MAP_ID } from '@/lib/google-maps'
 import { getModeStyle } from '@/config/transport'
 import type { SelectPlaceHandler } from '@/components/layout/AppShell'
 import type { PlaceRow } from '@/types/places'
-import type { AccommodationRow } from '@/types/accommodations'
+import { hotelCoversDay, type AccommodationRow } from '@/types/accommodations'
 import type { Journey } from '@/types/transport'
 
 export const ALL_DAYS = 'all'
@@ -246,7 +246,17 @@ function CityMapContent({
   const accommodationsQuery = useAccommodations()
   const allHotels = accommodationsQuery.data ?? []
   const accommodationsFetched = accommodationsQuery.isFetched
-  const hotels = allHotels.filter((h) => h.city === city)
+  // Hotels respect the same map filter as places: hidden when the mobile
+  // Places tab is active (scheduled content off) and, when a specific day is
+  // selected, restricted to stays whose [check_in, check_out] range covers it.
+  // The day filter resets to ALL_DAYS on city change, so a hotel selected from
+  // the day-column or logistics never permanently disappears.
+  const hotels = useMemo(() => {
+    if (!showScheduled) return []
+    const byCity = allHotels.filter((h) => h.city === city)
+    if (selectedDay === ALL_DAYS) return byCity
+    return byCity.filter((h) => hotelCoversDay(h, selectedDay))
+  }, [allHotels, city, selectedDay, showScheduled])
 
   // Children of the selected parent — only fetched when something is selected.
   // Empty array when the selection has no children (or no selection).
@@ -659,6 +669,19 @@ export const CityMap = forwardRef<CityMapHandle, CityMapProps>(function CityMap(
     if (action?.type === 'reset-day') onSelectDay(ALL_DAYS)
     else if (action?.type === 'show-unscheduled') onShowUnscheduledChange(true)
   }, [selectedId, selectedDay, showUnscheduled, scheduleMap, onSelectDay, onShowUnscheduledChange])
+
+  // Hotel-equivalent of the auto-relax above. Hotels are filtered by day too
+  // (see CityMapContent), so a hotel selected from logistics or a day-column
+  // can fall outside the current day filter. Reset to `All` so the marker
+  // stays visible. Hotels have no unscheduled-overlay branch — they're always
+  // "scheduled" content with fixed stay dates.
+  const selectedHotelCovers =
+    selectedHotel != null &&
+    (selectedDay === ALL_DAYS || hotelCoversDay(selectedHotel, selectedDay))
+  useEffect(() => {
+    if (!selectedHotel) return
+    if (!selectedHotelCovers) onSelectDay(ALL_DAYS)
+  }, [selectedHotel, selectedHotelCovers, onSelectDay])
 
   return (
     <div ref={containerRef} className="relative h-full w-full">
