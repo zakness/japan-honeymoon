@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { TransportLegEditor, legsAreValid } from './TransportLegEditor'
 import { useUpdateJourney, type LegDraft } from '@/hooks/useTransport'
 import { deriveJourneyDisplay } from '@/lib/transport-utils'
-import { deriveTimeSlot } from '@/types/itinerary'
 import type { Journey, TransportItemUpdate } from '@/types/transport'
 import { getDayByDate, getCityColor } from '@/config/trip'
 
@@ -64,18 +63,10 @@ export function TransportDialog({ journey, open, onOpenChange }: TransportDialog
     const keptIds = new Set(legs.map((l) => l.id).filter(Boolean) as string[])
     const legIdsToDelete = [...originalIds].filter((id) => !keptIds.has(id))
 
-    // Derive time_slot from the earliest departure so the card lands in the right slot.
-    const earliestDeparture = legs
-      .map((l) => l.departure_time)
-      .filter(Boolean)
-      .sort()[0]
-    const derivedSlot = earliestDeparture ? deriveTimeSlot(earliestDeparture) : null
-
     const parentPatch: TransportItemUpdate = {
       title: title.trim() || null,
       notes: notes.trim() || null,
       day_date: dayDate,
-      ...(derivedSlot && { time_slot: derivedSlot }),
     }
 
     try {
