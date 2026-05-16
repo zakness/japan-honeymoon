@@ -3,6 +3,7 @@ import { Map as GMap, useMap } from '@vis.gl/react-google-maps'
 import { PlaceMarker } from '@/components/map/PlaceMarker'
 import { HotelMarker } from '@/components/map/HotelMarker'
 import { TransportEndpointMarker } from '@/components/map/TransportEndpointMarker'
+import { MapDrawZoomOverlay } from './MapDrawZoomOverlay'
 import { usePlaces, useChildrenOf, useChildMustGoMap } from '@/hooks/usePlaces'
 import { useAccommodations } from '@/hooks/useAccommodations'
 import { useScheduledDatesByPlace, useUnscheduledPlaces } from '@/hooks/useItinerary'
@@ -193,6 +194,10 @@ interface CityMapContentProps {
   /** The outer `<CityMap />` writes the current recenter function here so its
    *  `useImperativeHandle` can call back into the in-provider closure. */
   recenterRef: React.MutableRefObject<(() => void) | null>
+  /** Shared ref the inner content writes its `useMap()` instance to, so the
+   *  Shift+drag overlay (rendered as a sibling of `<GMap>`) can call
+   *  `getBounds()` / `fitBounds()` without standing up its own provider. */
+  mapInstanceRef: React.MutableRefObject<google.maps.Map | null>
 }
 
 function CityMapContent({
@@ -209,9 +214,19 @@ function CityMapContent({
   onSelectJourney,
   containerRef,
   recenterRef,
+  mapInstanceRef,
 }: CityMapContentProps) {
   const map = useMap()
   const initializedCityRef = useRef<City | null>(null)
+
+  // Publish the map instance to the outer CityMap so the draw-zoom overlay
+  // (sibling of `<GMap>`) can reach it without its own APIProvider context.
+  useEffect(() => {
+    mapInstanceRef.current = map ?? null
+    return () => {
+      mapInstanceRef.current = null
+    }
+  }, [map, mapInstanceRef])
 
   // Scheduled subset: filtered by day when a specific day is selected, else
   // restricted to places with at least one itinerary_items row in the city.
@@ -631,6 +646,13 @@ export const CityMap = forwardRef<CityMapHandle, CityMapProps>(function CityMap(
   const prevCityRef = useRef(city)
   const containerRef = useRef<HTMLDivElement>(null)
   const recenterRef = useRef<(() => void) | null>(null)
+  const mapInstanceRef = useRef<google.maps.Map | null>(null)
+
+  const handleDrawZoomClearSelections = useCallback(() => {
+    onSelectPlace(null)
+    onSelectHotel(null)
+    onSelectJourney(null)
+  }, [onSelectPlace, onSelectHotel, onSelectJourney])
 
   useImperativeHandle(
     ref,
@@ -714,8 +736,14 @@ export const CityMap = forwardRef<CityMapHandle, CityMapProps>(function CityMap(
           onSelectJourney={onSelectJourney}
           containerRef={containerRef}
           recenterRef={recenterRef}
+          mapInstanceRef={mapInstanceRef}
         />
       </GMap>
+      <MapDrawZoomOverlay
+        mapRef={mapInstanceRef}
+        containerRef={containerRef}
+        onClearSelections={handleDrawZoomClearSelections}
+      />
     </div>
   )
 })
