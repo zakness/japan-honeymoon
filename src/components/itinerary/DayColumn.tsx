@@ -96,8 +96,9 @@ export function DayColumn({
           : 'w-64 shrink-0 border-r last:border-r-0'
       )}
     >
-      {/* Column header — desktop only. On mobile the DayStrip shows the
-          selected day, so a second day label here would be redundant. */}
+      {/* Column header — desktop only. On mobile the TripDayHeader above the
+          column already shows the selected day, so a second day label here
+          would be redundant. */}
       {!fillWidth && (
         <div
           className="px-3 py-2 border-b shrink-0 flex items-baseline gap-1.5"

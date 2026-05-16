@@ -19,14 +19,18 @@ import { useIsDesktop } from '@/hooks/useIsDesktop'
 import type { PlaceRow } from '@/types/places'
 import type { AccommodationRow } from '@/types/accommodations'
 import type { Journey } from '@/types/transport'
-import { CityStrip } from './CityStrip'
 import { CityMap, ALL_DAYS, type CityMapHandle } from './CityMap'
 import { MapToolbar } from './MapToolbar'
 import { MapFloatingControls } from './MapFloatingControls'
 import { DetailPanel, type DetailSelection } from './DetailPanel'
 import { DayColumn } from './DayColumn'
 import { UnscheduledColumn } from './UnscheduledColumn'
-import { DayStrip, PLACES_TAB, type DayTabValue } from './DayStrip'
+import { TripDayHeader } from './TripDayHeader'
+import { TripCalendarSheet } from './TripCalendarSheet'
+import { AddFAB } from './AddFAB'
+import { PlacesSheet } from './PlacesSheet'
+import { getPrimaryCityForDate } from '@/config/trip'
+import { pickInitialTripDate } from '@/lib/trip-calendar'
 
 interface ItineraryViewProps {
   city: City
@@ -103,13 +107,6 @@ const dndCollisionDetection: CollisionDetection = (args) => {
     return pointer
   }
   return rectIntersection(args)
-}
-
-function pickDefaultDayTab(city: City): DayTabValue {
-  const days = getDaysForCity(city)
-  const today = localDateString()
-  if (days.some((d) => d.date === today)) return today
-  return days[0]?.date ?? PLACES_TAB
 }
 
 export function ItineraryView({
@@ -194,26 +191,42 @@ export function ItineraryView({
   const cityDays: TripDay[] = useMemo(() => getDaysForCity(city), [city])
   const { sensors, activeDrag, handleDragStart, handleDragEnd } = useCrossItineraryDnD(cityDays)
 
-  // Mobile day-tab selection. Defaults to today if it falls within the city's
-  // day range, else the city's first day. When the city prop changes (e.g. via
-  // CityStrip tap), reset to the new city's default — UNLESS the current tab
-  // is already a valid day in the new city. Preserving handles the
-  // swipe-across-cities case: the swipe handler sets `mobileTab` to the new
-  // day AND fires `onNavigate`, which lands here; we want the day kept, not
-  // overwritten with the new city's default.
-  const [mobileTab, setMobileTab] = useState<DayTabValue>(() => pickDefaultDayTab(city))
+  // Mobile single-day selection. Defaults to today if in trip range, else
+  // day 1 of the trip. When the city prop changes (e.g. via a chevron tap
+  // that crosses a city boundary and bubbles through `onNavigate`), preserve
+  // the current date if it still belongs to the new city; otherwise jump to
+  // the new city's first day. This handles the chevron-crosses-boundary case
+  // symmetrically: the chevron sets `currentMobileDate` AND fires
+  // `onNavigate(newCity)`, so by the time this effect re-runs the date is
+  // already correct.
+  const [currentMobileDate, setCurrentMobileDate] = useState<string>(() =>
+    pickInitialTripDate(localDateString())
+  )
   useEffect(() => {
-    setMobileTab((prev) => {
-      if (prev === PLACES_TAB) return prev
+    setCurrentMobileDate((prev) => {
+      if (getPrimaryCityForDate(prev) === city) return prev
       const days = getDaysForCity(city)
-      if (days.some((d) => d.date === prev)) return prev
-      return pickDefaultDayTab(city)
+      return days[0]?.date ?? prev
     })
   }, [city])
 
-  function handleSelectCity(nextCity: City) {
-    onNavigate({ view: 'itinerary', city: nextCity })
-  }
+  // Mobile day/city picker open state.
+  const [pickerOpen, setPickerOpen] = useState(false)
+  // Mobile FAB sheet (Add / Browse tabs).
+  const [placesSheetOpen, setPlacesSheetOpen] = useState(false)
+
+  // Chevron from `TripDayHeader` — set the date locally; if it crosses a city
+  // boundary, also fire `onNavigate` so AppShell's hash + map center catch up.
+  const handleMobileDayChange = useCallback(
+    (nextDate: string) => {
+      setCurrentMobileDate(nextDate)
+      const nextCity = getPrimaryCityForDate(nextDate)
+      if (nextCity && nextCity !== city) {
+        onNavigate({ view: 'itinerary', city: nextCity })
+      }
+    },
+    [city, onNavigate]
+  )
 
   function handleDividerPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     e.preventDefault()
@@ -432,12 +445,13 @@ export function ItineraryView({
           </div>
         ) : (
           /* ── Mobile layout ──────────────────────────────────────────────── */
-          /* Fixed 30/70 vertical split. Map on top (30dvh), bottom region
-             (70dvh) holds the itinerary content by default and swaps to the
-             shared DetailPanel when something is selected. The itinerary
-             content stays mounted (just hidden) so scroll position survives
-             a select+close cycle. No draggable sheet. */
-          <div className="flex-1 flex flex-col overflow-hidden">
+          /* Map on top (30dvh), then a compact `TripDayHeader` (~44px) for
+             ±1-day chevrons + tappable label that opens the calendar picker
+             sheet for non-adjacent jumps. The bottom region holds the active
+             day column by default and swaps to `DetailPanel` when something
+             is selected. The day-column subtree stays mounted (visibility-
+             toggled) so scroll position survives a select+close cycle. */
+          <div className="relative flex-1 flex flex-col overflow-hidden">
             <div className="h-[30dvh] shrink-0 relative">
               <CityMap
                 ref={mapRef}
@@ -448,58 +462,44 @@ export function ItineraryView({
                 onSelectHotel={onSelectHotel}
                 selectedJourney={selectedJourney}
                 onSelectJourney={onSelectJourney}
-                /* Mobile: the day filter mirrors the DayStrip selection.
-                   On the Places tab, scheduled pins are suppressed and the
-                   unscheduled overlay is forced on so the map shows the whole
-                   backlog. */
-                selectedDay={mobileTab === PLACES_TAB ? ALL_DAYS : mobileTab}
+                /* Mobile: day filter mirrors the header's current day.
+                   `showUnscheduled` is an independent overlay toggled from
+                   `MapFloatingControls` — same semantics as desktop. */
+                selectedDay={currentMobileDate}
                 onSelectDay={setSelectedDay}
-                showScheduled={mobileTab !== PLACES_TAB}
-                showUnscheduled={mobileTab === PLACES_TAB ? true : showUnscheduled}
+                showScheduled={true}
+                showUnscheduled={showUnscheduled}
                 onShowUnscheduledChange={setShowUnscheduled}
               />
               <MapFloatingControls
-                showUnscheduledToggle={mobileTab !== PLACES_TAB}
+                showUnscheduledToggle={true}
                 showUnscheduled={showUnscheduled}
                 onShowUnscheduledChange={setShowUnscheduled}
                 onRecenter={handleRecenter}
               />
             </div>
-            <div className="flex-1 min-h-0 relative bg-background border-t">
-              {/* Itinerary content stays mounted to preserve scroll/state;
-                  visibility toggles when a detail is open. */}
+            <TripDayHeader
+              dayDate={currentMobileDate}
+              onSelectDay={handleMobileDayChange}
+              onOpenPicker={() => setPickerOpen(true)}
+            />
+            <div className="flex-1 min-h-0 relative bg-background">
               <div
                 className={cn(
-                  'absolute inset-0 flex flex-col',
+                  'absolute inset-0 bg-muted/40 px-3 pb-2 pt-2 overflow-hidden',
                   detailSelection && 'invisible pointer-events-none'
                 )}
                 aria-hidden={detailSelection ? 'true' : undefined}
               >
-                <CityStrip selectedCity={city} onSelectCity={handleSelectCity} />
-                <DayStrip city={city} selected={mobileTab} onSelect={setMobileTab} />
-                {mobileTab === PLACES_TAB ? (
-                  <div className="flex-1 overflow-hidden min-h-0">
-                    <UnscheduledColumn
-                      city={city}
-                      onSelectPlace={onSelectPlace}
-                      selectedPlace={selectedPlace}
-                      selectionOrigin={selectionOrigin}
-                      fillWidth
-                    />
-                  </div>
-                ) : (
-                  <div className="relative flex-1 overflow-hidden min-h-0 bg-muted/40 px-3 pb-2">
-                    <DayColumn
-                      key={mobileTab}
-                      dayDate={mobileTab}
-                      onSelectPlace={handleSelectFromDayColumn}
-                      onSelectHotel={onSelectHotel}
-                      onEditHotel={onEditHotel}
-                      onSelectJourney={onSelectJourney}
-                      fillWidth
-                    />
-                  </div>
-                )}
+                <DayColumn
+                  key={currentMobileDate}
+                  dayDate={currentMobileDate}
+                  onSelectPlace={handleSelectFromDayColumn}
+                  onSelectHotel={onSelectHotel}
+                  onEditHotel={onEditHotel}
+                  onSelectJourney={onSelectJourney}
+                  fillWidth
+                />
               </div>
               {detailSelection && (
                 <div className="absolute inset-0">
@@ -512,6 +512,25 @@ export function ItineraryView({
                 </div>
               )}
             </div>
+            <TripCalendarSheet
+              open={pickerOpen}
+              onOpenChange={setPickerOpen}
+              selectedDate={currentMobileDate}
+              todayDate={localDateString()}
+              onSelect={handleMobileDayChange}
+            />
+            <AddFAB
+              onClick={() => setPlacesSheetOpen(true)}
+              hidden={Boolean(detailSelection) || placesSheetOpen || pickerOpen}
+            />
+            <PlacesSheet
+              open={placesSheetOpen}
+              onOpenChange={setPlacesSheetOpen}
+              activeCity={city}
+              onSelectPlace={onSelectPlace}
+              selectedPlace={selectedPlace}
+              selectionOrigin={selectionOrigin}
+            />
           </div>
         )}
 

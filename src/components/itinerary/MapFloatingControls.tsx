@@ -12,7 +12,8 @@ interface MapFloatingControlsProps {
 
 /**
  * Mobile-only floating overlay on top of `CityMap`. The day filter is driven
- * by `DayStrip` so this overlay only carries the cross-cutting controls:
+ * by the `TripDayHeader` below the map (chevrons + picker), so this overlay
+ * only carries the cross-cutting controls:
  *
  *   • top-left: compact pill toggling the unscheduled-backlog overlay.
  *   • top-right: small recenter icon button (matches Google Maps' own
