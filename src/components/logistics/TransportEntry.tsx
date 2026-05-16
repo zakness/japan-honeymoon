@@ -27,16 +27,11 @@ export function TransportEntry({ journey, onEdit }: TransportEntryProps) {
   const display = deriveJourneyDisplay(journey)
   const { legs, parent } = journey
 
-  const title =
-    display.originName && display.destinationName
-      ? `${display.originName} → ${display.destinationName}`
-      : display.title
-
   return (
     <div className="rounded-lg border bg-card p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-sm font-semibold leading-tight truncate">{title}</p>
+          <p className="text-sm font-semibold leading-tight truncate">{display.title}</p>
           {(display.earliestDeparture || display.latestArrival) && (
             <p className="text-xs text-muted-foreground">
               {display.earliestDeparture && formatReservationTime(display.earliestDeparture)}

@@ -11,6 +11,7 @@ import { HotelEditDialog } from '@/components/hotels/HotelEditDialog'
 import { TransportDialog } from '@/components/day/TransportDialog'
 import { Button } from '@/components/ui/button'
 import { usePlaces } from '@/hooks/usePlaces'
+import { useAllJourneys } from '@/hooks/useTransport'
 import { type City } from '@/config/trip'
 import type { PlaceRow } from '@/types/places'
 import type { AccommodationRow } from '@/types/accommodations'
@@ -73,7 +74,19 @@ export function AppShell() {
   const [editingPlace, setEditingPlace] = useState<PlaceRow | null>(null)
   const [selectedHotel, setSelectedHotel] = useState<AccommodationRow | null>(null)
   const [editingHotel, setEditingHotel] = useState<AccommodationRow | null>(null)
-  const [selectedJourney, setSelectedJourney] = useState<Journey | null>(null)
+  // Mirror the place pattern: snapshot the journey at click time, then resolve
+  // it against the live `useAllJourneys()` cache so any subsequent mutation
+  // (edit via TransportDialog, leg booking flip, etc.) flows through to the
+  // open detail panel without needing an explicit re-set from each call site.
+  const [selectedJourneySnapshot, setSelectedJourneySnapshot] = useState<Journey | null>(null)
+  const { data: allJourneys } = useAllJourneys()
+  const selectedJourney = useMemo<Journey | null>(() => {
+    if (!selectedJourneySnapshot) return null
+    return (
+      allJourneys?.find((j) => j.parent.id === selectedJourneySnapshot.parent.id) ??
+      selectedJourneySnapshot
+    )
+  }, [allJourneys, selectedJourneySnapshot])
   const [editingJourney, setEditingJourney] = useState<Journey | null>(null)
 
   useEffect(() => {
@@ -100,7 +113,7 @@ export function AppShell() {
       setSelectionOrigin(place ? (origin ?? null) : null)
       if (place) {
         setSelectedHotel(null)
-        setSelectedJourney(null)
+        setSelectedJourneySnapshot(null)
       }
       if (place && origin === 'backlog') {
         setMapVisible((visible) => (visible ? visible : true))
@@ -118,7 +131,7 @@ export function AppShell() {
     if (hotel) {
       setSelectedPlace(null)
       setSelectionOrigin(null)
-      setSelectedJourney(null)
+      setSelectedJourneySnapshot(null)
     }
     setSelectedHotel(hotel)
   }, [])
@@ -129,7 +142,7 @@ export function AppShell() {
       setSelectionOrigin(null)
       setSelectedHotel(null)
     }
-    setSelectedJourney(journey)
+    setSelectedJourneySnapshot(journey)
   }, [])
 
   /**

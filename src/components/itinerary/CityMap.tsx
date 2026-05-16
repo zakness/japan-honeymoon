@@ -3,6 +3,7 @@ import { Map as GMap, useMap } from '@vis.gl/react-google-maps'
 import { PlaceMarker } from '@/components/map/PlaceMarker'
 import { HotelMarker } from '@/components/map/HotelMarker'
 import { TransportEndpointMarker } from '@/components/map/TransportEndpointMarker'
+import { MapDrawZoomOverlay } from './MapDrawZoomOverlay'
 import { usePlaces, useChildrenOf, useChildMustGoMap } from '@/hooks/usePlaces'
 import { useAccommodations } from '@/hooks/useAccommodations'
 import { useScheduledDatesByPlace, useUnscheduledPlaces } from '@/hooks/useItinerary'
@@ -11,7 +12,7 @@ import { GOOGLE_MAP_ID } from '@/lib/google-maps'
 import { getModeStyle } from '@/config/transport'
 import type { SelectPlaceHandler } from '@/components/layout/AppShell'
 import type { PlaceRow } from '@/types/places'
-import type { AccommodationRow } from '@/types/accommodations'
+import { hotelCoversDay, type AccommodationRow } from '@/types/accommodations'
 import type { Journey } from '@/types/transport'
 
 export const ALL_DAYS = 'all'
@@ -193,6 +194,10 @@ interface CityMapContentProps {
   /** The outer `<CityMap />` writes the current recenter function here so its
    *  `useImperativeHandle` can call back into the in-provider closure. */
   recenterRef: React.MutableRefObject<(() => void) | null>
+  /** Shared ref the inner content writes its `useMap()` instance to, so the
+   *  Shift+drag overlay (rendered as a sibling of `<GMap>`) can call
+   *  `getBounds()` / `fitBounds()` without standing up its own provider. */
+  mapInstanceRef: React.MutableRefObject<google.maps.Map | null>
 }
 
 function CityMapContent({
@@ -209,9 +214,19 @@ function CityMapContent({
   onSelectJourney,
   containerRef,
   recenterRef,
+  mapInstanceRef,
 }: CityMapContentProps) {
   const map = useMap()
   const initializedCityRef = useRef<City | null>(null)
+
+  // Publish the map instance to the outer CityMap so the draw-zoom overlay
+  // (sibling of `<GMap>`) can reach it without its own APIProvider context.
+  useEffect(() => {
+    mapInstanceRef.current = map ?? null
+    return () => {
+      mapInstanceRef.current = null
+    }
+  }, [map, mapInstanceRef])
 
   // Scheduled subset: filtered by day when a specific day is selected, else
   // restricted to places with at least one itinerary_items row in the city.
@@ -246,7 +261,17 @@ function CityMapContent({
   const accommodationsQuery = useAccommodations()
   const allHotels = accommodationsQuery.data ?? []
   const accommodationsFetched = accommodationsQuery.isFetched
-  const hotels = allHotels.filter((h) => h.city === city)
+  // Hotels respect the same map filter as places: hidden when the mobile
+  // Places tab is active (scheduled content off) and, when a specific day is
+  // selected, restricted to stays whose [check_in, check_out] range covers it.
+  // The day filter resets to ALL_DAYS on city change, so a hotel selected from
+  // the day-column or logistics never permanently disappears.
+  const hotels = useMemo(() => {
+    if (!showScheduled) return []
+    const byCity = allHotels.filter((h) => h.city === city)
+    if (selectedDay === ALL_DAYS) return byCity
+    return byCity.filter((h) => hotelCoversDay(h, selectedDay))
+  }, [allHotels, city, selectedDay, showScheduled])
 
   // Children of the selected parent — only fetched when something is selected.
   // Empty array when the selection has no children (or no selection).
@@ -621,6 +646,13 @@ export const CityMap = forwardRef<CityMapHandle, CityMapProps>(function CityMap(
   const prevCityRef = useRef(city)
   const containerRef = useRef<HTMLDivElement>(null)
   const recenterRef = useRef<(() => void) | null>(null)
+  const mapInstanceRef = useRef<google.maps.Map | null>(null)
+
+  const handleDrawZoomClearSelections = useCallback(() => {
+    onSelectPlace(null)
+    onSelectHotel(null)
+    onSelectJourney(null)
+  }, [onSelectPlace, onSelectHotel, onSelectJourney])
 
   useImperativeHandle(
     ref,
@@ -660,6 +692,19 @@ export const CityMap = forwardRef<CityMapHandle, CityMapProps>(function CityMap(
     else if (action?.type === 'show-unscheduled') onShowUnscheduledChange(true)
   }, [selectedId, selectedDay, showUnscheduled, scheduleMap, onSelectDay, onShowUnscheduledChange])
 
+  // Hotel-equivalent of the auto-relax above. Hotels are filtered by day too
+  // (see CityMapContent), so a hotel selected from logistics or a day-column
+  // can fall outside the current day filter. Reset to `All` so the marker
+  // stays visible. Hotels have no unscheduled-overlay branch — they're always
+  // "scheduled" content with fixed stay dates.
+  const selectedHotelCovers =
+    selectedHotel != null &&
+    (selectedDay === ALL_DAYS || hotelCoversDay(selectedHotel, selectedDay))
+  useEffect(() => {
+    if (!selectedHotel) return
+    if (!selectedHotelCovers) onSelectDay(ALL_DAYS)
+  }, [selectedHotel, selectedHotelCovers, onSelectDay])
+
   return (
     <div ref={containerRef} className="relative h-full w-full">
       <GMap
@@ -691,8 +736,14 @@ export const CityMap = forwardRef<CityMapHandle, CityMapProps>(function CityMap(
           onSelectJourney={onSelectJourney}
           containerRef={containerRef}
           recenterRef={recenterRef}
+          mapInstanceRef={mapInstanceRef}
         />
       </GMap>
+      <MapDrawZoomOverlay
+        mapRef={mapInstanceRef}
+        containerRef={containerRef}
+        onClearSelections={handleDrawZoomClearSelections}
+      />
     </div>
   )
 })

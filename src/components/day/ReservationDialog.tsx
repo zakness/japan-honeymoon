@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useUpdateItineraryItem } from '@/hooks/useItinerary'
 import {
-  deriveTimeSlot,
   formatReservationTime,
   type ItineraryItemWithPlace,
   type TimeSlot,
@@ -66,7 +65,6 @@ export function ReservationDialog({ item, open, onOpenChange }: ReservationDialo
         id: item.id,
         reservation_time: time,
         reservation_notes: notes.trim() || null,
-        time_slot: deriveTimeSlot(time),
       })
       const label = item.place?.name ?? 'Item'
       toast.success(`Reservation set for ${label} at ${formatReservationTime(time)}`)
