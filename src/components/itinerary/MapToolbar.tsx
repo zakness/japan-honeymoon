@@ -20,8 +20,8 @@ interface MapToolbarProps {
  * the unscheduled-backlog pins. Far right: a recenter button that fits the map
  * to the currently-visible pins.
  *
- * The day strip scrolls horizontally with edge-fade masks (mirroring
- * `DayStrip`'s mobile pattern) so Tokyo's ~8 cells fit in a narrow map column.
+ * The day strip scrolls horizontally with edge-fade masks so Tokyo's ~8 cells
+ * fit in a narrow map column.
  */
 export function MapToolbar({
   city,
