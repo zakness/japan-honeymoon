@@ -35,11 +35,7 @@ export function TransportDetailContent({ journey }: TransportDetailContentProps)
   return (
     <div className="p-3 space-y-2">
       <div className="pr-7 space-y-0.5">
-        <div className="text-sm font-semibold leading-tight">
-          {display.originName && display.destinationName
-            ? `${display.originName} → ${display.destinationName}`
-            : display.title}
-        </div>
+        <div className="text-sm font-semibold leading-tight">{display.title}</div>
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <span>{dateLabel}</span>
         </div>
